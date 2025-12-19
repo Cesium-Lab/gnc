@@ -3,10 +3,12 @@ Part 1 of the journey
 
 
 1. Estimation
+   1. Filtering
+   2. IMU Datasets
+      1. Oxford Inertial Odometry Dataset
 2. Guidance (path planning assuming perfect estimation)
 3. Control (follow guidance assuming perfect estimation)
-4. Sims
-5. System (All of GNC)
+4. Sims (All of GNC)
    1. Might integrate some parsers
    2. Stationkeeping mini (large) project
    3. lunar lander ooo
