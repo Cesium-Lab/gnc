@@ -13,6 +13,9 @@ from csim.simulation import Simulator
 from csim.entities import Spacecraft
 from csim.world import MU_EARTH, R_EARTH
 from csim.visualization import plot_orbit
+
+
+# TODO: actual tests?
 if __name__ == "__main__":
     r = R_EARTH + 14500e3
 
@@ -36,27 +39,27 @@ if __name__ == "__main__":
     sc = Spacecraft(m, None)
     sim = Simulator(state0, t0, dt, n_steps, sc)
 
-    sim.simulate()
+    # sim.simulate()
 
-    # n = 100
-    # plt.plot(sim.X[:n,0], sim.X[:n,1])
-    # plt.axis('equal')
-    # plt.xlim()
+    # # n = 100
+    # # plt.plot(sim.X[:n,0], sim.X[:n,1])
+    # # plt.axis('equal')
+    # # plt.xlim()
+    # # plt.show()
+
+    # plot_orbit(sim.X)
+    
+    # plt.plot(sim.X[:,:3])
     # plt.show()
 
-    plot_orbit(sim.X)
-    
-    plt.plot(sim.X[:,:3])
-    plt.show()
+    # plt.plot(sim.X[:,3:6])
+    # plt.show()
 
-    plt.plot(sim.X[:,3:6])
-    plt.show()
+    # plt.plot(sim.X[:,6:10])
+    # plt.show()
 
-    plt.plot(sim.X[:,6:10])
-    plt.show()
-
-    plt.plot(sim.X[:,10:13])
-    plt.show()
+    # plt.plot(sim.X[:,10:13])
+    # plt.show()
 
 
 

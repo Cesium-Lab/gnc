@@ -2,7 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 
 from ..entities import Spacecraft
-from ..math.integrators import rk4_func
+from ..math import rk4_func, quat_apply, unit
 from ..physics.rigid_body import rigid_body_derivative, RigidBodyParams
 from ..physics import grav_accel
 from ..world import MU_EARTH
@@ -20,45 +20,50 @@ class Simulator:
         self.sc = spacecraft
 
         self.X = np.zeros((n_steps+1, 13))
+        self.a_meas = np.zeros((n_steps+1, 3))
+        self.w_meas = np.zeros((n_steps+1, 3))
         self.X[0] = state0
+
+        self.a_meas[0] = [0,0,0]
+        self.w_meas[0] = [0,0,0]
 
     def step_one(self, state: np.ndarray):
         """Return false if simulation is done"""
 
+        # Get measured angular velocity
+        w = state[10:13]
+        q_B2I = unit(state[6:10]) # Turns body vector into inertial vector
+        # q_B2I = state[6:10] # 
+        w_body = quat_apply(q_B2I, w)
+
+
         # Simulate next state
-        accel = grav_accel(state[:3])
+        grav = grav_accel(state[:3])
+        accel = grav
+        a_meas = accel - grav
 
-        # # print(norm(accel))
-        # mu = 3.986004418e14
-        # r = state[:3]
-        # accel = -mu * r / np.linalg.norm(r)**3
-
+        # Propagate 1 step
         sc = self.sc
         params = RigidBodyParams(sc.mass, sc.I, accel*sc.mass, np.zeros(3))
 
         next_state = rk4_func(self.t, self.dt, state, rigid_body_derivative, params)
 
-        # next_state[3:6] = next_state[3:6] + accel * self.dt
-        # next_state[:3] = state[:3] + next_state[3:6] * self.dt
-
-        next_state[6:10] = next_state[6:10] / norm(next_state[6:10])
+        next_state[6:10] = unit(next_state[6:10])
         
-        return next_state   
+        return next_state, a_meas, w_body
 
     def simulate(self):
 
         self.final_step = self.n_steps
         
-        for step in range(1,self.n_steps):
-            
-            # print(self.X[step-1])
-            # prev_state = self.X[step-1]
-            # print(calc_kinetic_energy(prev_state[3:6], prev_state[10:13], self.sc.mass, self.sc.I))
-            # print(calc_potential_energy(prev_state[:3], self.sc.mass, MU_EARTH))
-            next_step = self.step_one(self.X[step-1])
+        for step in range(1,self.n_steps+1):
+
+            next_step, a_meas, w_meas = self.step_one(self.X[step-1])
             self.t += self.dt
 
             self.X[step] = next_step
+            self.a_meas[step] = a_meas
+            self.w_meas[step] = w_meas
 
             # Vz
             # if step > 10 and self.X[step][2] <= 0:
