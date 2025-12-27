@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from csim.simulation import Simulator
 from csim.entities import Spacecraft
 from csim.world import MU_EARTH, R_EARTH
-
+from csim.visualization import plot_orbit
 if __name__ == "__main__":
     r = R_EARTH + 14500e3
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         r*np.cos(i),0,r*np.sin(i), 
         0,v,0, 
         1,0,0,0, 
-        0.01,0,0])
+        0.0001,0,0])
     
     m = 100
     I = np.diag([2,2,2])
@@ -44,6 +44,8 @@ if __name__ == "__main__":
     # plt.xlim()
     # plt.show()
 
+    plot_orbit(sim.X)
+    
     plt.plot(sim.X[:,:3])
     plt.show()
 
@@ -55,6 +57,7 @@ if __name__ == "__main__":
 
     plt.plot(sim.X[:,10:13])
     plt.show()
+
 
 
 

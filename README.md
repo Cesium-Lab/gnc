@@ -1,4 +1,4 @@
-# core-sim
+# gnc-playground
 Part 1 of the journey
 
 
@@ -12,3 +12,6 @@ Part 1 of the journey
    1. NMEA Parser
    2. TLE Parser
    3. Cart pendulum system but showing natural frequency too
+
+## Data flow-ish
+Measurements (from sim) --> Navigation --> Guidance --> Control --> Actuator (to sim)
