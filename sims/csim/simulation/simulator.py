@@ -5,7 +5,7 @@ from ..entities import Spacecraft
 from ..math import rk4_func, quat_apply, unit
 from ..physics.rigid_body import rigid_body_derivative, RigidBodyParams
 from ..physics import grav_accel
-from ..world import MU_EARTH, R_EARTH
+from ..world import MU_EARTH, R_EARTH, density
 from ..physics.energy import calc_potential_energy, calc_kinetic_energy
 from ..physics.aerodynamics import drag_accel, drag_v_rel
 # TODO: def finish this
@@ -51,9 +51,11 @@ class Simulator:
         accel += grav
 
         v_rel = drag_v_rel(r, v)
-        rho = 1e-14
+        rho = density(norm(r) - R_EARTH)
+        Cd = sc.get_Cd()
         A = 0.02
-        drag = drag_accel(v_rel, rho, A, sc.mass, sc.get_Cd())
+        
+        drag = drag_accel(v_rel, rho, A, sc.mass, Cd)
         accel += drag
 
         a_meas = accel - grav

@@ -10,3 +10,5 @@ from .constants import  (
     GRAV_EARTH_POLE,
     GRAV_EARTH_EQUA
 )
+
+from .atmosphere import density
