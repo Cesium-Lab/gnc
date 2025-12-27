@@ -34,7 +34,7 @@ def drag_v_rel(r: np.ndarray, v: np.ndarray, w_cb: np.ndarray | float = W_EARTH)
 
     return v - v_atmos
 
-def drag_accel(v_rel: np.ndarray, rho: float, A: float, m: float, cD: float = 2.2, *, BC: float = None):
+def drag_accel(v_rel: np.ndarray, rho: float, A: float, m: float, Cd: float = 2.2, *, BC: float = None):
     """Atmospheric drag. Can set A and m to 0 if ballistic coefficient is specified \\
     Vallado 8-28 4e p. 551
 
@@ -43,7 +43,7 @@ def drag_accel(v_rel: np.ndarray, rho: float, A: float, m: float, cD: float = 2.
         A (float): Cross sectional area with respect to 
         m (float): Mass [kg]
         rho (float): Atmospheric density [kg/m3]
-        cD (float, optional): Coefficient of drag. Defaults to 2.2.
+        Cd (float, optional): Coefficient of drag. Defaults to 2.2.
         BC (float, optional): If ballistic coefficient [kg/m2] is provided, will use this instead
 
     Returns:
@@ -51,7 +51,7 @@ def drag_accel(v_rel: np.ndarray, rho: float, A: float, m: float, cD: float = 2.
     """
 
     if BC is None:
-        BC = m / cD / A
+        BC = m / Cd / A
 
     v_norm = np.linalg.norm(v_rel)
 

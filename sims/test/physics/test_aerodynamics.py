@@ -63,9 +63,9 @@ class TestVanillaDrag:
         m = 100
         rho = 1
         A = 0.02
-        cD = 1
+        Cd = 1
 
-        drag = drag_accel(v_rel, rho, A, m, cD)
+        drag = drag_accel(v_rel, rho, A, m, Cd)
 
         a = -1.73205e-4 # Hand calc
         assert np.allclose(drag, [a,a,a])

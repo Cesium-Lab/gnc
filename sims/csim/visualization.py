@@ -56,7 +56,7 @@ def plot_orbit(r: np.ndarray):
     )
 
     # Earth!
-    X, Y, Z = makesphere(0, 0, 0, R_EARTH)
+    X, Y, Z = makesphere(0, 0, 0, R_EARTH, 100)
     fig.add_surface(x=X, y=Y, z=Z, colorscale=[[0, "blue"], [1,"blue"]], showlegend=False, showscale=False, name="Earth")
 
 

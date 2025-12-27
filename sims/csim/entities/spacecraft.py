@@ -23,10 +23,13 @@ class Spacecraft:
         Args:
             mass (float): Initial mass [kg]
             I (np.ndarray): Initial moment of inertia tensor (whether changing or not) [kg m2]
-            state (np.ndarray): Initial measured state [p, v, q, w]
-            state_truth (np.ndarray): Initial truth state [p, v, q, w]
+            Not used rn # state (np.ndarray): Initial measured state [p, v, q, w]
+            Not used rn # state_truth (np.ndarray): Initial truth state [p, v, q, w]
         """
         self.mass = mass
         self.I = I
         # self.state = state
         # self.truth = state_truth if state_truth else state
+
+    def get_Cd(self):
+        return 2.2
