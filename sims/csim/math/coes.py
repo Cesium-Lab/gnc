@@ -120,7 +120,7 @@ def rv_to_coes(r_eci: np.ndarray, v_eci: np.ndarray, mu: float = MU_EARTH_KM):
 
 def coes_to_rv(a: float, e: float, i: float, raan: float, aop: float, ta: float,
                mu: float = MU_EARTH_KM):
-    """_summary_
+    """
     if `mu` in units of [m3/s2] then `a`, `r`, and `v` should/will be too. 
 
     Args:

@@ -166,7 +166,7 @@ def test_vallado_full_itrf():
     dX = -0.000205 * ARCSEC_TO_RAD
     dY = -0.000136 * ARCSEC_TO_RAD
 
-    PN, R, W = Trans.itrf_to_gcrs_matrices(xp, yp, jd, dAT, dUT1, dX, dY)
+    PN, R, W = Trans.itrf_to_gcrs_matrices(xp, yp, jd, dX, dY, dUT1, dAT)
 
     # Tests that determinant is 1
     assert np.linalg.det(PN @ R @ W) == pytest.approx(1, 1e-9)

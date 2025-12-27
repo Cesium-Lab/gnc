@@ -8,13 +8,13 @@ TODO:
 
 import numpy as np
 from numpy.linalg import norm
-from ..world import MU_EARTH, G_CONST, R_EARTH, J2_EARTH
+from ..world import MU_EARTH, R_EARTH, J2_EARTH
 
 def grav_accel(r: np.ndarray, mu: float = MU_EARTH, *, use_j2 = True, r_cb: float = R_EARTH):
     """Gravity acceleration \\
     Vallado 4e Equation 1-14 p. 23 np.array([axy*x, axy*y, az*z]) \\
     
-    Could not for the life of me find J2 in Vallado, but found in [Poliastro docs](https://docs.poliastro.space/en/stable/autoapi/poliastro/core/perturbations/index.html) and in [this paper](https://ntrs.nasa.gov/api/citations/20040031507/downloads/20040031507.pdf)
+    Could not for the life of me find the J2 formula in Vallado, but found in [Poliastro docs](https://docs.poliastro.space/en/stable/autoapi/poliastro/core/perturbations/index.html) and in [this paper](https://ntrs.nasa.gov/api/citations/20040031507/downloads/20040031507.pdf)
 
 
     Args:

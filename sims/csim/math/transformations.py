@@ -48,48 +48,71 @@ def surface_lla_to_ecef(lat_deg: float, lon_deg: float, alt_m = 0):
 
     return r
 
-def r_to_surface_lla(r_ecef: np.ndarray) -> tuple[float, float, float]:
-    """Vallado 4e Algorithm 13 p. 173
+def r_to_surface_lla(r_ecef: np.ndarray):
+    # TODO: cite
+    x, y, z = r_ecef
 
-    Args:
-        r_ecef (np.ndarray): Position vector (ECEF) [m]
-
-    Returns:
-        tuple: Tuple with geodetic latitude [deg], longitude [deg], and ellipsoid altitude
-    """
-    ri, rj, rk = r_ecef
-
-    r_horizontal_sat = np.sqrt(ri**2 + rj**2)
     a = R_EARTH
-
-    # Vallado had this wrong :/
-    # b = np.sqrt(R_pol*(1-ECC_EARTH**2))*np.sign(rk)
     b = R_EARTH_POLAR
+    e2 = 1 - (b*b)/(a*a)
 
-    E = (b*rk - (a**2 - b**2)) / (a*r_horizontal_sat)
+    r = np.sqrt(x*x + y*y)
 
-    lon = np.arcsin(rj/r_horizontal_sat)
+    # FIX 1: longitude
+    lon = np.arctan2(y, x)
 
-    # Sanity check
-    # print(lat)
-    # print(np.arccos(ri/r_horizontal_sat))
+    # Stable geodetic latitude iteration (recommended)
+    lat = np.arctan2(z, r)
+    for _ in range(5):
+        N = a / np.sqrt(1 - e2*np.sin(lat)**2)
+        lat = np.arctan2(z + e2*N*np.sin(lat), r)
 
-    F = (b*rk + (a**2 - b**2)) / (a*r_horizontal_sat)
-    P = 4*(E*F + 1) / 3
-    Q = 2*(E**2 - F**2)
-    D = P**3 - Q**2
+    h = r/np.cos(lat) - N
 
-    if D>0:
-        v = (np.sqrt(D) - Q)**(1/3) - (np.sqrt(D) + Q)**(1/3)
-    else:
-        v = 2*np.sqrt(-P)*np.cos(1/3*np.arccos(Q/(P*np.sqrt(-P))))
+    return lat, lon, h
 
-    G = 1/2*(np.sqrt(E**2 + v) + E)
-    t = np.sqrt(G**2 + (F - v*G)/(2*G - E)) - G
-    lat_gd = np.arctan(a*(1-t**2)/(2*b*t))
-    h_ellp = (r_horizontal_sat - a*t)*np.cos(lat_gd) + (rk-b)*np.sin(lat_gd)
+# def r_to_surface_lla(r_ecef: np.ndarray) -> tuple[float, float, float]:
+#     """Vallado 4e Algorithm 13 p. 173
+
+#     Args:
+#         r_ecef (np.ndarray): Position vector (ECEF) [m]
+
+#     Returns:
+#         tuple: Tuple with geodetic latitude [deg], longitude [deg], and ellipsoid altitude
+#     """
+#     ri, rj, rk = r_ecef
+
+#     r_horizontal_sat = np.sqrt(ri**2 + rj**2)
+#     a = R_EARTH
+
+#     # Vallado had this wrong :/
+#     # b = np.sqrt(R_EARTH_POLAR*(1-ECC_EARTH**2))*np.sign(rk)
+#     b = R_EARTH_POLAR
+
+#     E = (b*rk - (a**2 - b**2)) / (a*r_horizontal_sat)
+
+#     lon = np.arcsin(rj/r_horizontal_sat)
+
+#     # Sanity check
+#     # print(lat)
+#     # print(np.arccos(ri/r_horizontal_sat))
+
+#     F = (b*rk + (a**2 - b**2)) / (a*r_horizontal_sat)
+#     P = 4*(E*F + 1) / 3
+#     Q = 2*(E**2 - F**2)
+#     D = P**3 - Q**2
+
+#     if D>0:
+#         v = (np.sqrt(D) - Q)**(1/3) - (np.sqrt(D) + Q)**(1/3)
+#     else:
+#         v = 2*np.sqrt(-P)*np.cos(1/3*np.arccos(Q/(P*np.sqrt(-P))))
+
+#     G = 1/2*(np.sqrt(E**2 + v) + E)
+#     t = np.sqrt(G**2 + (F - v*G)/(2*G - E)) - G
+#     lat_gd = np.arctan(a*(1-t**2)/(2*b*t))
+#     h_ellp = (r_horizontal_sat - a*t)*np.cos(lat_gd) + (rk-b)*np.sin(lat_gd)
     
-    return (lat_gd, lon, h_ellp)
+#     return (lat_gd, lon, h_ellp)
 
 ################################################################################
 #               ITRF <--> GCRS 
@@ -283,9 +306,10 @@ def PN_matrix(t_tt: float, dX = 0.0, dY = 0.0):
     return mat @ rot3_s
 
 def itrf_to_gcrs_matrices(xp: float, yp: float, jd_utc: float,
-                        deltaAT_s: float, deltaUT1_s: float,
-                        dX: float, dY: float):
-    """Generates PN, R, and W matrices from ITRF <--> GCRS. \\
+                        dX: float = 0, dY: float = 0,
+                        deltaUT1_s: float = 0, deltaAT_s: float = 32):
+    """Generates PN, R, and W matrices from ITRF <--> GCRS. 
+    
     - Obtain xp, yp, deltaUT1_s, dX, and dY from EOP data.
     - For vel and accel, modify the W matrix with golden rule
 
@@ -296,10 +320,10 @@ def itrf_to_gcrs_matrices(xp: float, yp: float, jd_utc: float,
         xp (float): Polar x coord. of polar motion of CIP in ITRS [rad]
         yp (float): Polar y coord. of polar motion of CIP in ITRS [rad]
         jd_utc (float): Julian date (UTC)
-        deltaAT_s (float): UTC to TAI offset [s]
-        deltaUT1_s (float): UTC to UT1 offset [s]
-        dX (float): X correction (from EOP)
-        dY (float): Y correction (from EOP)
+        dX (float): X correction (from EOP) Defaults to 0.
+        dY (float): Y correction (from EOP) Defaults to 0.
+        deltaUT1_s (float): UTC to UT1 offset [s] Defaults to 0.
+        deltaAT_s (float): UTC to TAI offset [s] Defaults to 32.
 
     Returns:
         tuple: (PN, R, W) Rotation matrices such that r_GCRS = PNRW * r_ITRF

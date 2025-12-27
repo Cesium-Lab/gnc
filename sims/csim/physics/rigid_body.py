@@ -14,7 +14,7 @@ class RigidBodyParams:
 def rigid_body_derivative(t: float, state: np.ndarray, params: RigidBodyParams):
     v = state[3:6]
     q = state[6:10]
-    w = state[10:14]
+    w = state[10:13]
 
     # Position derivative is velocity 
     drdt = v
@@ -28,11 +28,15 @@ def rigid_body_derivative(t: float, state: np.ndarray, params: RigidBodyParams):
     dqdt = 0.5 * hamilton_product(q, w)
     # print(dqdt)
     # Angular derivative based on (Schaub 4.34-35)
-    I = params.I
-    I_inv = np.linalg.inv(I) #TODO: maybe precalc this
-    torque = np.asarray(params.torque_Nm)
 
-    # τ = parameters.torque_body
-    dwdt = I_inv @ (torque - np.cross(w, I @ w))
+    I = params.I
+    if I is not None:
+        I_inv = np.linalg.inv(I) #TODO: maybe precalc this
+        torque = np.asarray(params.torque_Nm)
+
+        # τ = parameters.torque_body
+        dwdt = I_inv @ (torque - np.cross(w, I @ w))
+    else:
+        dwdt = np.zeros(3)
 
     return np.hstack((drdt, dvdt, dqdt, dwdt))

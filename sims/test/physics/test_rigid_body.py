@@ -322,3 +322,29 @@ class TestRigidBodyEnergy:
         KE = .5 * w.T @ I @ w
 
         assert calc_total_energy(mass, I, next_step[0:3], next_step[3:6], next_step[10:13], MU_EARTH) == KE
+
+def test_no_I():
+    params = RigidBodyParams(
+        mass_kg = 2,
+        I = None,
+        force_N = [1,0,0],
+        torque_Nm = [0,0,0]
+    )
+
+    state = [
+        0,0,0, # r = 0
+        1.1, 1.2, 1.3, # v != 0
+        1,0,0,0, # Identity quaternion
+        0,0,0 # w = 0
+    ]
+
+    expected = [
+        1.1, 1.2, 1.3,
+        0.5,0,0, # Some acceleration
+        0,0,0,0,
+        0,0,0
+    ]
+
+    dot = rigid_body_derivative(0, state, params)
+
+    assert np.array_equal(dot, expected)

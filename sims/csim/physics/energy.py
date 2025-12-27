@@ -34,7 +34,11 @@ def calc_kinetic_energy(v: np.ndarray, w: np.ndarray, mass_kg: np.ndarray, I: np
     """
 
     KE_translational = 0.5 * mass_kg * np.dot(v,v)
-    KE_rotational = 0.5 * (w.T @ I @ w)
+
+    if I is not None:
+        KE_rotational = 0.5 * (w.T @ I @ w)
+    else:
+        KE_rotational = 0
 
     return KE_rotational + KE_translational
 

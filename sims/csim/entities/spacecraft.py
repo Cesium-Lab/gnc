@@ -17,7 +17,7 @@ class Spacecraft:
     - state_dot function
     
     """
-    def __init__(self, mass: float, I: np.ndarray, state: np.ndarray, state_truth: np.ndarray = None):
+    def __init__(self, mass: float, I: np.ndarray):#, state: np.ndarray, state_truth: np.ndarray = None):
         """Keeps track of its measured state and truth state.
 
         Args:
@@ -28,9 +28,5 @@ class Spacecraft:
         """
         self.mass = mass
         self.I = I
-        self.state = state
-        self.truth = state_truth if state_truth else state
-
-
-    def thrust(self, t: float):
-        return 2000 if t<10 else 0
+        # self.state = state
+        # self.truth = state_truth if state_truth else state
