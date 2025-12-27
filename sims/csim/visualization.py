@@ -23,7 +23,7 @@ def plot_orbit(r: np.ndarray):
         mode="markers",
         marker=dict(
             size=1,
-            color="blue"
+            color="orange"
         ),
         name="Trajectory"
     )
