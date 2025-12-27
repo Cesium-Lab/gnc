@@ -5,3 +5,8 @@ Could also be in a folder with __init__.py imports
 - T, rho, P
 - also files
 """
+
+class Atmosphere:
+    def __init__(self):
+        pass
+
