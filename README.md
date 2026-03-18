@@ -3,12 +3,14 @@ Part 1 of the journey
 
 
 1. Estimation
-   1. Filtering
 2. Guidance (path planning assuming perfect estimation)
 3. Control (follow guidance assuming perfect estimation)
-4. System (All of GNC)
+4. Sims
+5. System (All of GNC)
    1. Might integrate some parsers
-5. Extras
+   2. Stationkeeping mini (large) project
+   3. lunar lander ooo
+6. Extras
    1. NMEA Parser
    2. TLE Parser
    3. Cart pendulum system but showing natural frequency too
