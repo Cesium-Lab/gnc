@@ -8,3 +8,6 @@
     - Shake, etc.
     - With no filtering, see that it explodes
 3. Complementary
+4. Robot moving in a moon crater
+   1. Lowkey SLAM was pretty cool
+   
