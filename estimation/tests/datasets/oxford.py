@@ -63,6 +63,7 @@ class IMUData:
 @dataclass
 class ViconData:
     t: np.ndarray
+    header: np.ndarray
     position: np.ndarray      # (N, 3)
     quaternion: np.ndarray    # (N, 4)
 
@@ -100,14 +101,17 @@ def parse_vicon_csv(path: str) -> ViconData:
     data = np.loadtxt(path, delimiter=",")
 
     t = data[:, 0]
+    header = data[:,1]
 
-    position = data[:, 1:4]
-    quaternion = data[:, 4:8]
+    position = data[:, 2:5]
+    xyz = data[:, 5:8] # (N,3)
+    w = data[:, 8] # (N,)
 
     return ViconData(
         t=t,
+        header = header,
         position=position,
-        quaternion=quaternion
+        quaternion=np.vstack((w, xyz.T)).T # numpy vectors suck
     )
 
 # ------------------------------
