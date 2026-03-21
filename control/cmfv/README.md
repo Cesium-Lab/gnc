@@ -24,3 +24,11 @@
   - plotting the sim results
 
 ### controllers.ipynb
+
+
+
+## Useful book stuff
+All in the `images/` folder
+
+Kv = 0.865*Cv
+Cv = 1.16*Kv
