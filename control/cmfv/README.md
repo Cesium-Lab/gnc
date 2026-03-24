@@ -23,6 +23,9 @@
   - running the sim
   - plotting the sim results
 
+### `rough.ipynb`
+- Valve with inertia (Module)
+
 ### controllers.ipynb
 
 
