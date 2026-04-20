@@ -1,4 +1,4 @@
-# gnc-playground
+# gnc
 Part 1 of the journey
 
 
