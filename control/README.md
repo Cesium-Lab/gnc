@@ -1,4 +1,11 @@
 # Controls
 - python control library (like MATLAB i guess)
 - LQR
-- 
+- MRAC
+- MIAC
+  - e.g. valve control system ID:
+  - Inject a PE signal (PRBS or multi-sine) into the valv
+  - Collect pressure/flow response dat
+  - Fit a linear model (A_hat, B_hat) via least square
+  - Design LQR/MPC controller for the identified mode
+  - Validate on hardware

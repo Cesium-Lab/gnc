@@ -4,6 +4,9 @@ Part 1 of the journey
 
 1. Estimation
    1. Filtering
+      1. U-D filter
+      2. Square root filter
+      3. MEKF vs. EKF
    2. IMU Datasets
       1. Oxford Inertial Odometry Dataset
 
@@ -14,11 +17,11 @@ Part 1 of the journey
 
 3. Control (follow guidance assuming perfect estimation)
 
-5. Sims (All of GNC)
+4. Sims (All of GNC)
    1. Might integrate some parsers
    2. Stationkeeping mini (large) project
    3. lunar lander ooo
-6. Extras
+5. Extras
    1. NMEA Parser
    2. TLE Parser
    3. Cart pendulum system but showing natural frequency too
