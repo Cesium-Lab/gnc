@@ -1,6 +1,7 @@
 # Controls
 - python control library (like MATLAB i guess)
 - LQR
+- MPC
 - MRAC
 - MIAC
   - e.g. valve control system ID:
@@ -9,3 +10,6 @@
   - Fit a linear model (A_hat, B_hat) via least square
   - Design LQR/MPC controller for the identified mode
   - Validate on hardware
+- Sys ID
+- 
+- 
