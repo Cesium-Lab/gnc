@@ -47,6 +47,9 @@ Generic, and not attached to any object
     - Points up and North
   - NED
     - Surface point centered, rotates with Earth
+  - Hill/RSW (LVLH)
+    - Target-centered, rotates with the target's orbit (Radial, along-track/transverse, cross-track)
+    - Used for relative motion / RPO (`csim.physics.relative_motion`)
   - Sensor (multiple)
 
 <!-- # Simulation -->
