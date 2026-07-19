@@ -28,7 +28,7 @@ MILE2FT = 5280
 FT2MILE = 1 / MILE2FT
 
 KM2M = 1000.0
-M2KM = 1/KM2M
+M2KM = 1 / KM2M
 
 M2FT = 3.28084
 FT2M = 1 / M2FT
@@ -53,21 +53,15 @@ LBF2N = 4.44822
 N2LBF = 1 / LBF2N
 
 
-G_METER = 6.6743e-11 # m3/kg s2
+G_METER = 6.6743e-11  # m3/kg s2
 G_KM = G_METER * M2KM**3
 
-SUN = {
-    'name': 'Sun',
-    'mass': 1.989e30,
-    'mu': 1.32712e11,
-    'radius': 695700.0
-}
+SUN = {"name": "Sun", "mass": 1.989e30, "mu": 1.32712e11, "radius": 695700.0}
 
 EARTH = {
-    'name': 'Earth',
-    'mass': 5.972e24,
-    'mu': 5.972e24*G_KM, # km3/s2
-    'mu_meter': 5.972e24*G_METER,
-    'radius': 6378.0
+    "name": "Earth",
+    "mass": 5.972e24,
+    "mu": 5.972e24 * G_KM,  # km3/s2
+    "mu_meter": 5.972e24 * G_METER,
+    "radius": 6378.0,
 }
-

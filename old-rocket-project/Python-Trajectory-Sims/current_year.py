@@ -1,0 +1,407 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+import trajectorylib as TL
+from trajectorylib.constants import (
+    LBM2KG,
+    M2FT,
+    MILE2FT,
+    FT2M,
+    HOUR2SEC,
+    MIN2SEC,
+    N2LBF,
+    IN2M,
+    EARTH,
+    RAD2DEG,
+)
+
+from time import time
+
+plt.style.use("dark_background")
+
+
+cb = EARTH
+
+
+def plot_3(t, thing, title=None, factor=1, fmt=""):
+    f = plt.figure()
+    plt.plot(
+        t[: flight.step], thing[: flight.step, 0] * factor, fmt, label="x rotation"
+    )
+    plt.plot(
+        t[: flight.step], thing[: flight.step, 1] * factor, fmt, label="y rotation"
+    )
+    plt.plot(
+        t[: flight.step], thing[: flight.step, 2] * factor, fmt, label="z rotation"
+    )
+    # plt.xlim(0,100)
+    # plt.ylim(0,100)
+    # plt.zlim(0,100)
+    if title:
+        plt.title(title)
+    # plt.grid(True)
+    plt.legend()
+    f.show()
+
+
+def plot_2(t, thing, title=None, factor=1):
+    f = plt.figure()
+    plt.plot(t[: flight.step], thing[: flight.step] * factor, label="x")
+    plt.plot(t[: flight.step], thing[: flight.step] * factor, label="y")
+    if title:
+        plt.title(title)
+    # plt.grid(True)
+    # plt.legend()
+    f.show()
+
+
+def plot_1(t, thing, title=None, factor=1):
+    f = plt.figure()
+    plt.plot(t[: flight.step], thing[: flight.step] * factor)
+    if title:
+        plt.title(title)
+    # plt.grid(True)
+    # plt.legend()
+    f.show()
+
+
+if __name__ == "__main__":
+    start = time()
+
+    # ----- Initial Conditions -----#
+
+    r0 = np.zeros(3)
+    v0 = np.zeros(3)
+    # r0 = np.array([0, 0, 50]) * FT2M
+    # v0 = np.array([0, 0, 30]) * FT2M
+
+    latitude = 35.34706755287037
+    # wind_speed = np.array([-27.1187, -11.1760])* MILE2FT * FT2M / HOUR2SEC
+
+    # wind_speed = np.array([-18.49,-7.62])* MILE2FT * FT2M / HOUR2SEC # 20 mph
+    wind_speed = np.array([-13.87, -5.72]) * MILE2FT * FT2M / HOUR2SEC  # 15 mph
+    # wind_speed = np.array([-9.2,-3.8])* MILE2FT * FT2M / HOUR2SEC # 10 mph
+
+    # wind_speed = np.array([0,0]) * MILE2FT * FT2M / HOUR2SEC
+
+    # print(norm(wind_speed) / (MILE2FT * FT2M / HOUR2SEC))
+
+    FAR_altitude = 2000 * FT2M
+
+    # tspan=40
+    tspan = 5 * MIN2SEC
+    dt = 0.01
+
+    dry_mass = 115.125 * LBM2KG  # kg
+    fuel_mass = 31751.4853592 / 1000
+    mass = np.array([dry_mass + fuel_mass, dry_mass])
+    # mass = np.array([73.731, 4.60E+01])
+    # mass = np.array([200, 150]) * LBM2KG
+    print(f"mass: {mass}")
+
+    # ----- Motor for the rocket -----#
+    motor = TL.Motor()
+    # motor.thrust_from_csv('test_motor.csv')
+    motor.thrust_from_rse(
+        "/Users/magi-nerv/Desktop/Rocket Project/SENIOR YEAR/Ares-Design-Software/OpenRocket/RSE files/2000lbf_3s_1500_.RSE"
+    )
+
+    # motor.thrust_from_step_throttle([900,600], [10, 15])
+    print(f"Total impulse: {motor.I_tot * N2LBF} lbfs")
+
+    # ----- Fluids inside the rocket -----#
+    density_ox = 1141  # kg/m3
+    density_fuel = 789  # kg/m3
+    of_ratio = 1.4
+    m_ox = fuel_mass * (of_ratio / (of_ratio + 1))
+    m_f = fuel_mass * (1 / (of_ratio + 1))
+
+    tank_diameter = 8 * IN2M
+
+    top_pos_ox = np.array([0, 0, 86.25]) * IN2M  # m
+    top_pos_fuel = np.array([0, 0, 114]) * IN2M  # m
+    oxygen = TL.Fluid(
+        top_pos=top_pos_ox,
+        burn_time=motor.tb,
+        density=density_ox,
+        wet_mass=m_ox,
+        diameter=tank_diameter,
+        name="Oxygen",
+    )
+    fuel = TL.Fluid(
+        top_pos=top_pos_fuel,
+        burn_time=motor.tb,
+        density=density_fuel,
+        wet_mass=m_f,
+        diameter=tank_diameter,
+        name="Fuel",
+    )
+
+    # ----- General rocket parameters -----#
+    rocket_diameter = 8.2 * IN2M
+
+    # ----- Nosecone Class -----#
+    nosecone_length = 35 * IN2M
+    nosecone_diameter = rocket_diameter
+    nosecone_mass = 4.6 * LBM2KG  # lazy way out
+    nosecone_thickness = 0.1 * IN2M
+
+    nosecone = TL.Nosecone(
+        length=nosecone_length,
+        shape="ogive",
+        D_o=nosecone_diameter,
+        thickness=nosecone_thickness,
+        name="Nosecone",
+    )
+
+    # ----- Bodytube Classes -----#
+    bt1_position = [0, 0, nosecone_length]  # m
+    bt1_length = 7.25 * IN2M  # m
+    bt1_density = 1750  # kg/m3 of carbon fiber
+    bt1_inner_diam = 8.1 * IN2M
+    bt1_outer_diam = rocket_diameter
+    bt1 = TL.Bodytube(
+        bt1_position,
+        bt1_length,
+        bt1_density,
+        D_i=bt1_inner_diam,
+        D_o=bt1_outer_diam,
+        name="Bodytube 1",
+    )
+
+    bt2_position = [0, 0, nosecone_length + bt1_length]  # m
+    bt2_length = 105.9 * IN2M  # m
+    bt2_density = 1750  # kg/m3 of carbon fiber
+    bt2_inner_diam = 8.1 * IN2M
+    bt2_outer_diam = rocket_diameter
+    bt2 = TL.Bodytube(
+        bt2_position,
+        bt2_length,
+        bt2_density,
+        D_i=bt2_inner_diam,
+        D_o=bt2_outer_diam,
+        name="Bodytube 2",
+    )
+
+    # ----- Boattail Classes -----#
+    tail_position = [0, 0, nosecone_length + bt1_length + bt2_length]  # m
+    tail_density = 1750  # kg/m3 of carbon fiber
+    tail_length = 14 * IN2M  # m
+    tail_rocket_diam = rocket_diameter
+    tail_inner_diam = 5.5 * IN2M  # m
+    tail_thickness = 0.1 * IN2M  # m
+    tail = TL.Boattail(
+        top_pos=tail_position,
+        length=tail_length,
+        density=tail_density,
+        thickness=tail_thickness,
+        D_front=tail_rocket_diam,
+        D_aft=tail_inner_diam,
+        name="Boattail",
+    )
+
+    # ----- Fin Classes -----#
+    fin_Ct = 6 * IN2M
+    fin_Cr = 14 * IN2M
+    fin_span = 9.25 * IN2M
+    fin_sweep_angle = 37.4  # degrees
+    fin_position = [
+        0,
+        0,
+        nosecone_length + bt1_length + bt2_length + tail_length - fin_Cr,
+    ]  # m
+    fin_thickness = 0.42 * IN2M
+    fin_density = 1750  # kg/m3 of carbon fiber
+
+    fin1 = TL.Fin(
+        top_pos=fin_position,
+        span=fin_span,
+        thickness=fin_thickness,
+        Ct=fin_Ct,
+        Cr=fin_Cr,
+        roll_orientation=0,
+        sweep_angle=fin_sweep_angle,
+        boattail_length=tail.length,
+        rocket_diam=tail.D_front,
+        aft_diam=tail.D_aft,
+        name="Fin1",
+        density=fin_density,
+    )
+
+    fin2 = TL.Fin(
+        top_pos=fin_position,
+        span=fin_span,
+        thickness=fin_thickness,
+        Ct=fin_Ct,
+        Cr=fin_Cr,
+        roll_orientation=90,
+        sweep_angle=fin_sweep_angle,
+        boattail_length=tail.length,
+        rocket_diam=tail.D_front,
+        aft_diam=tail.D_aft,
+        name="Fin2",
+        density=fin_density,
+    )
+
+    fin3 = TL.Fin(
+        top_pos=fin_position,
+        span=fin_span,
+        thickness=fin_thickness,
+        Ct=fin_Ct,
+        Cr=fin_Cr,
+        roll_orientation=180,
+        sweep_angle=fin_sweep_angle,
+        boattail_length=tail.length,
+        rocket_diam=tail.D_front,
+        aft_diam=tail.D_aft,
+        name="Fin3",
+        density=fin_density,
+    )
+
+    fin4 = TL.Fin(
+        top_pos=fin_position,
+        span=fin_span,
+        thickness=fin_thickness,
+        Ct=fin_Ct,
+        Cr=fin_Cr,
+        roll_orientation=270,
+        sweep_angle=fin_sweep_angle,
+        boattail_length=tail.length,
+        rocket_diam=tail.D_front,
+        aft_diam=tail.D_aft,
+        name="Fin4",
+        density=fin_density,
+    )
+
+    # ----- Rocket Class -----#
+    rocket = TL.Rocket(name="rocket", diameter=rocket_diameter, mass=mass, motor=motor)
+    rocket.add_nosecone(nosecone)
+    rocket.add_bodytube(bt1)
+    rocket.add_bodytube(bt2)
+    rocket.add_boattail(tail)
+    rocket.add_fin(fin1)
+    rocket.add_fin(fin2)
+    rocket.add_fin(fin3)
+    rocket.add_fin(fin4)
+
+    rocket.add_fluid(oxygen)
+    rocket.add_fluid(fuel)
+
+    rocket.init_drag()
+
+    # ----- Rocket Printing -----#
+
+    # rocket.print_components()
+    # CG = rocket.get_CG(0)
+    # CP = rocket.get_CP(0)
+    # print(f"CG: {CG}, CP: {CP}")
+
+    # plt.style.use('default')
+    # rocket.plot_components()
+    # plt.plot(CP[2],0, 'ro')
+    # plt.plot(CG[2], 0, 'bo')
+    # plt.plot(rocket.CG_loc_dry[2], 0, 'bx')
+    # plt.style.use('dark_background')
+    # plt.show()
+    # input()
+
+    # ----- Flight! -----#
+    flight = TL.Flight(
+        r0, v0, mass, tspan, dt, rocket=rocket, launch_site_alt=FAR_altitude
+    )
+    flight.define_wind(latitude, wind_speed)
+    flight.propogate(rail_constraints=True)
+
+    # print([i for i,mach in enumerate(flight.mach) if abs(mach - 0.6) < 0.005])
+
+    # ----- Post Flight Analysis -----#
+    max_alt = (max(flight.x[:, 2]) - flight.initial_altitude) * M2FT
+    max_speed = max(flight.v[:, 2])  # * M2FT
+    flight_time = flight.t[flight.step - 1]
+
+    print(f"Max Alt: {max_alt} ft")
+    print(f"Max Speed: {max_speed} m/s")
+    print(f"Flight time: {flight_time} s")
+
+    print(f"{time() - start}s, {max_alt} ft, {max_speed} m/s, {flight_time}s, ")
+
+    flight.plot_state_vector(length_unit="meter")
+    # flight.plot_state_vector(length_unit='feet')
+
+    flight.plot_3d(length_unit="feet")
+
+    plot_3(flight.t, flight.omega, "omega")
+
+    plot_3(flight.t, flight.stab_vector, "Stability vector")
+
+    plot_3(flight.t, flight.rocket_axis, "rocket_axis")
+    # print(flight.rocket_axis[0])
+
+    plot_3(flight.t, flight.alpha, "Alpha")
+
+    plot_3(flight.t, flight.thrust, "thrust")
+
+    plot_3(flight.t, flight.moment, "moment")
+
+    # unit_moment = np.array([TL.unit(moment) for moment in flight.moment])
+    # plot_3(flight.t, unit_moment, "moment")
+
+    plot_3(flight.t, flight.accel, "accel")
+
+    plot_3(flight.t, flight.drag, "drag")
+
+    # plot_3(flight.t, flight.v_rocket_wind, "v roket wind")
+
+    # plot_3(flight.altitude, flight.v_rocket_wind, "wind vs alt")
+
+    plot_2(flight.t, flight.wind, "Wind", factor=1 / (MILE2FT * FT2M / HOUR2SEC))
+
+    # plot_2(flight.t, flight.prev_pressure_derivative, "prev pressure deriv", factor = 1/(MILE2FT * FT2M / HOUR2SEC))
+
+    plot_1(flight.t, flight.angle_of_attack * RAD2DEG, "Angle of Attack")
+    # plot_1(flight.t, flight.altitude, "Alt", M2FT)
+
+    plot_1(flight.t, flight.mach, "mach")
+    plot_1(flight.t, flight.mass, "mass")
+    plot_1(flight.mach, flight.Cds[:, 0], "CDs")
+    plot_1(flight.mach, flight.Cds[:, 1], "CDs friction")
+    plot_1(flight.mach, flight.Cds[:, 2], "CDs base")
+    # plot_1(flight.t, flight.stability_cal, "stability")
+    # plot_1(flight.t, flight.dynamic_pressure, "Q")
+    # plot_1(flight.t, flight.rho, "rho")
+    plot_1(flight.altitude, flight.temperature, "temperature (C)")
+    plot_1(flight.altitude, flight.pressure, "pressure")
+    # plot_1(flight.t, flight.pitch, "pitch")
+    # print(flight.stab_vector[0:flight.step])
+
+    plt.show()
+    # plt.plot(flight.t[:flight.step],flight.omega[:flight.step,0] * RAD2DEG, label = "x rotation")
+    # plt.plot(flight.t[:flight.step],flight.omega[:flight.step,1] * RAD2DEG, label = "y rotation")
+    # plt.plot(flight.t[:flight.step],flight.omega[:flight.step,2] * RAD2DEG, label = "z rotation")
+    # plt.title("omega")
+    # plt.grid(True)
+    # plt.legend()
+    # plt.show()
+
+    # plt.plot(flight.t[:flight.step],flight.angle_of_attack[:flight.step] * RAD2DEG, label = "Angle of Attack")
+    # plt.title("Angle of Attack")
+    # plt.grid(True)
+    # plt.show()
+
+
+# """
+# method, program_time, alt (ft), max_speed (ft/s), flight_time (s), errors
+# vode, 0.49068737030029297, 354026.2368589088, 4350.558364131156, 306.1399999998666, 0
+# zvode, 0.5875959396362305, 354000.0968878023, 4350.376362899011, 306.1299999998666, 1
+# lsoda, 0.45406007766723633, 354074.8075485479, 4351.035623047526, 306.16999999986655, 0
+# dopri5, 1.959472894668579, 354094.7113075338, 4351.044155901694, 306.16999999986655, 0
+# dop853, 3.4007182121276855, 354086.0270183614, 4351.044155901694, 306.16999999986655, 0
+
+# """
+
+
+#     # print(f'Max altitude: {max(rocket.x[:, 2]) * M2FT} ft')
+#     # print(f'Max vertical speed: {max(rocket.v[:, 2]) * M2FT} ft/s')
+#     # print(f'Flight time: {rocket.t[rocket.step - 1]} s')
+#     # print()
