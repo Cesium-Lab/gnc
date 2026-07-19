@@ -116,7 +116,7 @@ def rv_to_coes(r_eci: np.ndarray, v_eci: np.ndarray, mu: float = MU_EARTH_KM):
         if r_dot_v < 0:
             ta = 2*np.pi - ta
 
-    return norm(a), e_norm, i, raan, aop, ta
+    return a, e_norm, i, raan, aop, ta
 
 def coes_to_rv(a: float, e: float, i: float, raan: float, aop: float, ta: float,
                mu: float = MU_EARTH_KM):

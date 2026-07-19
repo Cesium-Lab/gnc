@@ -163,6 +163,7 @@ class TestRigidBodyRk4Integration:
         assert np.array_equal(next_step[6:10], [1,0,0,0])
         assert np.array_equal(next_step[10:14], [0,0,0])
 
+    @pytest.mark.slow
     def test_pi_rotation(self):
         dt = 0.001
         t = 3.14159
@@ -195,6 +196,7 @@ class TestRigidBodyRk4Integration:
 
 class TestRigidBodyEnergy:
 
+    @pytest.mark.slow
     def test_stationary_with_gravity(self):
         dt = 0.01
         t = 60
@@ -225,6 +227,7 @@ class TestRigidBodyEnergy:
         assert (calc_total_energy(mass, I, next_step[0:3], next_step[3:6], next_step[10:14], MU_EARTH) 
                 == pytest.approx(-58617712, rel=0.0001))
         
+    @pytest.mark.slow
     def test_just_spinning(self):
         dt = 0.01
         t = 60
@@ -255,6 +258,7 @@ class TestRigidBodyEnergy:
         assert (calc_total_energy(mass, I, next_step[0:3], next_step[3:6], next_step[10:14], MU_EARTH) 
                 == 1600)
         
+    @pytest.mark.slow
     def test_just_accel(self):
         dt = 0.001
         t = 20

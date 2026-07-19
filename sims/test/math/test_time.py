@@ -36,6 +36,20 @@ def test_vallado_jd_to_greg():
     assert mi == 18
     assert se == pytest.approx(3.70368, rel=1e-5)
 
+def test_jd_to_greg_leap_year_does_not_corrupt_later_calls():
+    """makes sure that the list of month days used in jd_to_greg is not corrupted by a leap year call"""
+    T.jd_to_greg(2451545.0)  # 2000-01-01, a leap year
+
+    jd = 2449877.3458762
+    yr, mo, da, hr, mi, sec = T.jd_to_greg(jd)
+
+    assert yr == 1995
+    assert mo == 6
+    assert da == 8
+    assert hr == 20
+    assert mi == 18
+    assert sec == pytest.approx(3.70368, rel=1e-5)
+
 def test_vallado_jd_to_jc():
     # In example Vallado 4e Example 3-7 p. 196
     assert T.jd_to_julian_centuries(2453140.197) == pytest.approx(0.043674121031)

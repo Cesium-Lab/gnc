@@ -103,6 +103,17 @@ class TestRvToCoes:
         assert aop * RAD_TO_DEG == pytest.approx(340.552, rel=1e-5)
         assert ta * RAD_TO_DEG == pytest.approx(191.206, rel=1e-5)
 
+    def test_hyperbolic_a(self):
+        """hyperbolic orbit semi-major axis should be negative"""
+        r = np.array([7000.0, 0.0, 0.0])  # km
+        v = np.array([0.0, 15.0, 0.0])  # km/s
+
+        a, e, i, raan, aop, ta = rv_to_coes(r, v)
+
+        assert e > 1 # hyperbolic orbit
+        assert a < 0
+        assert a == pytest.approx(-3587.3055571396117, rel=1e-6)
+
     def test_180_inclination(self):
         """ http://orbitsimulator.com/formulas/OrbitalElements.html """
 
