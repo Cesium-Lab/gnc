@@ -5,5 +5,5 @@ Could also be `aero_forces.py`
 - skin friction drag
 - other drags
 - lift
-- 
+-
 """

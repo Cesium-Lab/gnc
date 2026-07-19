@@ -1,9 +1,10 @@
-# ruff: noqa: E741
 from __future__ import annotations
 import numpy as np
 from dataclasses import dataclass
 
 from ..math.quaternion import hamilton_product
+
+
 @dataclass
 class RigidBodyParams:
     mass_kg: float
@@ -11,12 +12,13 @@ class RigidBodyParams:
     force_N: np.ndarray
     torque_Nm: np.ndarray
 
+
 def rigid_body_derivative(t: float, state: np.ndarray, params: RigidBodyParams):
     v = state[3:6]
     q = state[6:10]
     w = state[10:13]
 
-    # Position derivative is velocity 
+    # Position derivative is velocity
     drdt = v
 
     # Velocity derivative is acceleration (Schaub 2.15)
@@ -31,7 +33,7 @@ def rigid_body_derivative(t: float, state: np.ndarray, params: RigidBodyParams):
 
     I = params.I
     if I is not None:
-        I_inv = np.linalg.inv(I) #TODO: maybe precalc this
+        I_inv = np.linalg.inv(I)  # TODO: maybe precalc this
         torque = np.asarray(params.torque_Nm)
 
         # τ = parameters.torque_body

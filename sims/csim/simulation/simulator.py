@@ -1,78 +1,75 @@
 import numpy as np
-from numpy.linalg import norm
+from typing import Callable
 
 from ..entities import Spacecraft
-from ..math import rk4_func, quat_apply, unit
+from ..math import rk4_func, unit
 from ..physics.rigid_body import rigid_body_derivative, RigidBodyParams
 from ..physics import grav_accel
-from ..world import MU_EARTH
-from ..physics.energy import calc_potential_energy, calc_kinetic_energy
-# TODO: def finish this
 
 # TODO: Different integrators for better ECI-ECEF OR interpolate every second or something
 
-class Simulator:
-    def __init__(self, state0: np.ndarray, t0: float, dt: float, n_steps: float, spacecraft: Spacecraft):
 
-        self.t = t0
+class Simulator:
+    """
+    Generic fixed-step simulator for any state size and dynamics
+    All dynamics-specific details (integrator, transformation, renormalization, etc.) are in
+    `step_fn`
+    """
+
+    def __init__(
+        self,
+        state0: np.ndarray,
+        t0: float,
+        dt: float,
+        n_steps: int,
+        step_fn: Callable[[float, np.ndarray], np.ndarray],
+        stop_fn: Callable[[np.ndarray], bool] = None,
+    ):
+        """
+        stop_fn: optional. Checked against the new state after each step; if it
+            returns True, simulate() stops early and trims self.X and self.t
+        """
+        self.t_curr = t0
         self.dt = dt
         self.n_steps = n_steps
-        self.sc = spacecraft
+        self.step_fn = step_fn
+        self.stop_fn = stop_fn
 
-        self.X = np.zeros((n_steps+1, 13))
-        self.a_meas = np.zeros((n_steps+1, 3))
-        self.w_meas = np.zeros((n_steps+1, 3))
+        n = len(state0)
+        self.X = np.zeros((n_steps + 1, n))
+        self.t = t0 + dt * np.arange(n_steps + 1)
         self.X[0] = state0
 
-        self.a_meas[0] = [0,0,0]
-        self.w_meas[0] = [0,0,0]
-
-    def step_one(self, state: np.ndarray):
-        """Return false if simulation is done"""
-
-        # Get measured angular velocity
-        w = state[10:13]
-        q_B2I = unit(state[6:10]) # Turns body vector into inertial vector
-        # q_B2I = state[6:10] # 
-        w_body = quat_apply(q_B2I, w)
-
-
-        # Simulate next state
-        grav = grav_accel(state[:3])
-        accel = grav
-        a_meas = accel - grav
-
-        # Propagate 1 step
-        sc = self.sc
-        params = RigidBodyParams(sc.mass, sc.I, accel*sc.mass, np.zeros(3))
-
-        next_state = rk4_func(self.t, self.dt, state, rigid_body_derivative, params)
-
-        next_state[6:10] = unit(next_state[6:10])
-        
-        return next_state, a_meas, w_body
-
     def simulate(self):
+        final_step = self.n_steps
+        for step in range(1, self.n_steps + 1):
+            self.X[step] = self.step_fn(self.t_curr, self.X[step - 1])
+            self.t_curr += self.dt
 
-        self.final_step = self.n_steps
-        
-        for step in range(1,self.n_steps+1):
+            if self.stop_fn is not None and self.stop_fn(self.X[step]):
+                final_step = step
+                break
 
-            next_step, a_meas, w_meas = self.step_one(self.X[step-1])
-            self.t += self.dt
-
-            self.X[step] = next_step
-            self.a_meas[step] = a_meas
-            self.w_meas[step] = w_meas
-
-            # Vz
-            # if step > 10 and self.X[step][2] <= 0:
-            #     # breakpoint()
-            #     self.final_step = step
-            #     break
+        self.X = self.X[: final_step + 1]
+        self.t = self.t[: final_step + 1]
 
 
-        self.X = self.X[:self.final_step]
+# Example step functions
 
 
-    
+def rigid_body_step_fn(
+    dt: float, spacecraft: Spacecraft
+) -> Callable[[float, np.ndarray], np.ndarray]:
+    """Builds the `step_fn(t, state) -> next_state` for Simulator, matching the
+    rigid-body-under-gravity-only behavior this file used to hardcode directly."""
+
+    def step_fn(t, state):
+        accel = grav_accel(state[:3])
+        params = RigidBodyParams(
+            spacecraft.mass, spacecraft.I, accel * spacecraft.mass, np.zeros(3)
+        )
+        next_state = rk4_func(t, dt, state, rigid_body_derivative, params)
+        next_state[6:10] = unit(next_state[6:10])
+        return next_state
+
+    return step_fn

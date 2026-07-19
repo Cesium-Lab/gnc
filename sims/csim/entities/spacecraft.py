@@ -1,9 +1,10 @@
 import numpy as np
 
-# TODO: may split between Spacecraft and SpacecraftInterface to mimic what spacecraft actually knows 
+
+# TODO: may split between Spacecraft and SpacecraftInterface to mimic what spacecraft actually knows
 class Spacecraft:
     """Can be a rocket or satellite or anything
-    
+
     TODO: change moments of inertia to a function?
     TODO:
     - from prev
@@ -15,9 +16,12 @@ class Spacecraft:
     - calc_CG #property?
     - get_mass #property?
     - state_dot function
-    
+
     """
-    def __init__(self, mass: float, I: np.ndarray):#, state: np.ndarray, state_truth: np.ndarray = None):
+
+    def __init__(
+        self, mass: float, I: np.ndarray
+    ):  # , state: np.ndarray, state_truth: np.ndarray = None):
         """Keeps track of its measured state and truth state.
 
         Args:

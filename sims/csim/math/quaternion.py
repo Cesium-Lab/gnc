@@ -2,6 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 from ..constants import RAD_TO_DEG, DEG_TO_RAD
 
+
 def unit(q: np.ndarray):
     q_norm = norm(q)
     if abs(q_norm) < 0.000001:
@@ -9,10 +10,12 @@ def unit(q: np.ndarray):
 
     return q / q_norm
 
+
 def conj(q: np.ndarray):
     q = -q
     q[0] *= -1
     return q
+
 
 def hamilton_product(q: np.ndarray, w: np.ndarray | list):
     """(Schaub 3.112)"""
@@ -26,12 +29,11 @@ def hamilton_product(q: np.ndarray, w: np.ndarray | list):
     #     [-qy, qx, qw]
     # ])
 
-
     prod = np.empty(4, dtype=np.float64)
-    prod[0] = -qx*wx - qy*wy - qz*wz
-    prod[1] =  qw*wx - qz*wy + qy*wz
-    prod[2] =  qw*wy + qz*wx - qx*wz
-    prod[3] =  qw*wz - qy*wx + qx*wy
+    prod[0] = -qx * wx - qy * wy - qz * wz
+    prod[1] = qw * wx - qz * wy + qy * wz
+    prod[2] = qw * wy + qz * wx - qx * wz
+    prod[3] = qw * wz - qy * wx + qx * wy
     return prod
     # return beta @ w
 
@@ -40,8 +42,9 @@ def hamilton_product(q: np.ndarray, w: np.ndarray | list):
 #                                               Angle Axis                                                    #
 # =========================================================================================================== #
 
+
 # ----- Quaternion and Axis rotation -----#
-def angle_axis_to_q(angle: float, axis: np.ndarray | list, degrees = False):
+def angle_axis_to_q(angle: float, axis: np.ndarray | list, degrees=False):
 
     angle_rad = angle * DEG_TO_RAD if degrees else angle
     unit_axis = unit(axis)
@@ -55,7 +58,7 @@ def angle_axis_to_q(angle: float, axis: np.ndarray | list, degrees = False):
     return np.array([w, *vector])
 
 
-def q_to_angle_axis(quat: np.ndarray | list, degrees = False):
+def q_to_angle_axis(quat: np.ndarray | list, degrees=False):
     w, x, y, z = quat
 
     angle = 2 * np.arccos(w)
@@ -88,24 +91,26 @@ def q_to_DCM(q: np.ndarray):
     # In the PDF, it is notated as s,i,j,k, not w,x,y,z
     s, i, j, k = q_norm
 
-    DCM = np.array([
-        [1 - 2*(j**2 + k**2), 2*(i*j + s*k),         2*(i*k - s*j)],
-        [2*(i*j - s*k),      1 - 2*(i**2 + k**2),   2*(j*k + s*i)],
-        [2*(i*k + s*j),      2*(j*k - s*i),         1 - 2*(i**2 + j**2)]
-    ])
+    DCM = np.array(
+        [
+            [1 - 2 * (j**2 + k**2), 2 * (i * j + s * k), 2 * (i * k - s * j)],
+            [2 * (i * j - s * k), 1 - 2 * (i**2 + k**2), 2 * (j * k + s * i)],
+            [2 * (i * k + s * j), 2 * (j * k - s * i), 1 - 2 * (i**2 + j**2)],
+        ]
+    )
     return DCM
 
 
 def DCM_to_q(DCM: np.ndarray):
     """
-        https://motoq.github.io/doc/tnotes/dcm
+    https://motoq.github.io/doc/tnotes/dcm
     """
 
-    assert np.shape(DCM) == (3,3)
+    assert np.shape(DCM) == (3, 3)
 
-    c11, c12, c13 = DCM[0,:]
-    c21, c22, c23 = DCM[1,:]
-    c31, c32, c33 = DCM[2,:]
+    c11, c12, c13 = DCM[0, :]
+    c21, c22, c23 = DCM[1, :]
+    c31, c32, c33 = DCM[2, :]
 
     tr = c11 + c22 + c33
 
@@ -130,7 +135,7 @@ def DCM_to_q(DCM: np.ndarray):
         x = (c31 + c13) / 4 / z
         y = (c23 + c32) / 4 / z
 
-    return np.array([w,x,y,z])
+    return np.array([w, x, y, z])
 
 
 # ----- Quaternion math! -----#
@@ -148,28 +153,26 @@ def mul(q1: np.ndarray, q2: np.ndarray):
         ]
     )
 
+
 # ----- Applies Quaternion to Vector -----#
 def quat_apply(quat: np.ndarray, v: np.ndarray, passive=True):
 
     quat = unit(quat)
-    v_quat = np.hstack(([0],v))
+    v_quat = np.hstack(([0], v))
 
     if passive:
         """ q'*v*q """
-        result = mul(
-            mul(conj(quat), v_quat),
-            quat)
+        result = mul(mul(conj(quat), v_quat), quat)
     else:
         """ q*v*q' """
-        result = mul(
-            mul(quat, v_quat),
-            conj(quat))
+        result = mul(mul(quat, v_quat), conj(quat))
 
     if abs(result[0]) > 0.0001:
         print(f"Quanternion is not normalized. Result vector of {result}")
 
     # Discards
     return result[1:4]
+
 
 # =========================================================================================================== #
 #                                                   Angles                                                    #

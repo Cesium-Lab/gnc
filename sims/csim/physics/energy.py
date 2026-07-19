@@ -1,6 +1,6 @@
-# ruff: noqa: E741
 # Energy sanity checks
 import numpy as np
+
 
 def calc_potential_energy(r: np.ndarray, mass_kg: float, mu: float):
     """Compute potential energy (currently only gravity). (Schaub 9.76)
@@ -20,7 +20,10 @@ def calc_potential_energy(r: np.ndarray, mass_kg: float, mu: float):
 
     return -mu * mass_kg / r_norm
 
-def calc_kinetic_energy(v: np.ndarray, w: np.ndarray, mass_kg: np.ndarray, I: np.ndarray):
+
+def calc_kinetic_energy(
+    v: np.ndarray, w: np.ndarray, mass_kg: np.ndarray, I: np.ndarray
+):
     """Compute kinetic energy (rotational and translational). (Schaub 4.55) \\
     Must compute with w and I in the same frame
     Args:
@@ -33,7 +36,7 @@ def calc_kinetic_energy(v: np.ndarray, w: np.ndarray, mass_kg: np.ndarray, I: np
         float: Kinetic energy [J]
     """
 
-    KE_translational = 0.5 * mass_kg * np.dot(v,v)
+    KE_translational = 0.5 * mass_kg * np.dot(v, v)
 
     if I is not None:
         KE_rotational = 0.5 * (w.T @ I @ w)
@@ -42,8 +45,15 @@ def calc_kinetic_energy(v: np.ndarray, w: np.ndarray, mass_kg: np.ndarray, I: np
 
     return KE_rotational + KE_translational
 
-def calc_total_energy(mass_kg: float, I: np.ndarray, r: np.ndarray | list, 
-                      v: np.ndarray, w: np.ndarray, mu: float):
+
+def calc_total_energy(
+    mass_kg: float,
+    I: np.ndarray,
+    r: np.ndarray | list,
+    v: np.ndarray,
+    w: np.ndarray,
+    mu: float,
+):
     """Compute total energy (potential is currently only under gravity) \\
     Must compute with w and I in the same frame
     Args:
