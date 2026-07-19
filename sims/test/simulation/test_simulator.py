@@ -9,7 +9,7 @@ sys.path.append(".")
 import numpy as np
 import matplotlib.pyplot as plt
 
-from csim.simulation import Simulator
+from csim.simulation import Simulator, rigid_body_step_fn
 from csim.entities import Spacecraft
 from csim.world import MU_EARTH, R_EARTH
 from csim.visualization import plot_orbit
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     I = np.diag([2,2,2])
 
     sc = Spacecraft(m, None)
-    sim = Simulator(state0, t0, dt, n_steps, sc)
+    sim = Simulator(state0, t0, dt, n_steps, rigid_body_step_fn(dt, sc))
 
     # sim.simulate()
 
