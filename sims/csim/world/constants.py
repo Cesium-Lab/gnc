@@ -1,4 +1,3 @@
-
 M_EARTH = 5.9733328e24
 """Earth mass [kg]"""
 

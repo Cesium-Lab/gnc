@@ -79,3 +79,15 @@ Things to keep in mind when designing
 
 
 
+
+
+# Commands
+```bash
+ruff check .
+ruff check . --fix
+
+ruff format .
+ruff format
+
+
+```
