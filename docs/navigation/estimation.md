@@ -201,3 +201,7 @@ TODO
 
 ## Q/R Gain Tuning
 - Scaling 
+
+# Links
+- https://arxiv.org/pdf/1910.03558
+- 
