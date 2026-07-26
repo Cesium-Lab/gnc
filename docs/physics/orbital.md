@@ -221,8 +221,21 @@ Links
 - **Atmospheric drag**: dominant in LEO, causes decay, scales with atmospheric density (varies with solar activity) and ballistic coefficient
 - **Solar radiation pressure**: small but non-negligible for high area-to-mass spacecraft or long missions
 - **Third-body effects**: sun/moon gravity perturbs Earth orbits, but becomes a *primary* force (not a perturbation) for cislunar trajectories — relevant given your Blue Origin lunar work
+### Restricted three-body problem & Lagrange points
+- CR3BP: two large primaries in circular orbits about their barycenter, a massless third body moving under both gravities
+- 5 Lagrange points: L1/L2/L3 (collinear, unstable), L4/L5 (triangular, stable for suitable mass ratios)
+- Halo/libration-point orbits around L1/L2 — periodic or quasi-periodic, relevant to cislunar/gateway-type missions. Worth knowing this exists and roughly why it's useful (low-energy transfers, persistent lunar-adjacent coverage) even without deriving it.
 ### Rigid body attitude dynamics
 - **Euler's equations**: Iω̇ + ω × (Iω) = τ — nonlinear even with zero external torque, because angular velocity components couple through the inertia tensor
 - Torque-free motion of an asymmetric body: rotation about the *intermediate* principal axis is unstable (the "tennis racket theorem") — a good one to have in your back pocket
 - **Gravity gradient torque**: differential gravity across a body's extent creates a restoring torque toward local vertical — a passive attitude stabilization mechanism
 - Angular momentum H = Iω is conserved (inertial frame, no external torque), even though ω itself isn't constant unless spinning about a principal axis
+
+## Kepler's laws
+
+## Lambert's problem
+
+## Different orbits
+
+## Trajectories TO moon and stuff
+

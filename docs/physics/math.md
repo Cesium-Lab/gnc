@@ -47,10 +47,5 @@ TODO
 
 ![alt text](image-2.png)
 
-# Rotations
-https://www.youtube.com/watch?v=wEAFF38Ud8k
-
-
-## Quaternions
 
 ## Principal Rotation Vector
