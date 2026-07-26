@@ -199,6 +199,18 @@ TODO
 - Result: in-plane (x, y) motion couples through the orbital rate n; out-of-plane (z) motion decouples into a simple harmonic oscillator
 - Natural motion: in-plane relative orbits trace 2:1 ellipses around the target *unless* there's a net along-track drift term — always check for that drift term when reading a relative trajectory
 - Key limitation: only valid for a circular (or near-circular) reference orbit and small relative separation. Eccentric references need the extended Tschauner-Hempel / Yamanaka-Ankersen formulations.
+
+Links
+- [Paper](https://sci-hub.ru/10.2514/8.8704)
+- [Derivation (easy because they don't do it in the paper)](https://ensatellite.com/hills-equations/)
+
+![alt text](image-3.png)
+
+![alt text](image-17.png)
+![alt text](image-16.png)
+![alt text](image-18.png)
+
+
 ### Orbital maneuvers & propulsion
 - **Hohmann transfer**: two-impulse, minimum-energy transfer between coplanar circular orbits — both Δv's come straight out of vis-viva
 - **Bi-elliptic transfer**: beats Hohmann in total Δv for large orbit-radius ratios, at the cost of transfer time
