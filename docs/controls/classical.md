@@ -207,12 +207,14 @@ Key note: **hitting a gain of -1 ($\pm180\degree$) is bad and makes things flip 
 - Also what advanced feedback controller design (AA 212) goes into
 - not just SISO
 
+
+
 ![alt text](images/classical/image-15.png)
 ![alt text](images/classical/image-19.png)
 
+
 ### Solution
 ![alt text](images/classical/image-18.png)
-
 ### With TF
 
 - **Controller Canonical Form**
@@ -237,31 +239,59 @@ Key note: **hitting a gain of -1 ($\pm180\degree$) is bad and makes things flip 
 TODO: better images
 
 - Must be full rank matrix
-  - ![alt text](images/classical/image-20.png)
+  - ![alt text](images/classical/image-102.png)
 - Can drive poles to anywhere (with desired characteristic polynomial)
+- Advanced way of deriving
+  - ![alt text](images/classical/image-105.png)
+  - ![alt text](images/classical/image-202.png)
 
-### Controller Canonical Form Pole Placement
-TODO: from 212
+### Controller Pole Placement
+- Place $eig(A - BK_x)$ at $eig(A_{cl})$
+- Procedure for SISO
+  - ![alt text](images/classical/image-8.png)
+  - ![alt text](images/classical/image-7.png)
 
 
 ## Observability
 Now have estimate of state
 - Must be full rank
-  - ![alt text](images/classical/image-24.png)
+  - ![alt text](images/classical/image-103.png)
 - Observation of state converges on real state (with desired characteristic polynomial)
+- Advanced way of deriving
+  - ![alt text](images/classical/image-104.png)
+
+## Observer Pole Placemenet
+- ![alt text](images/classical/image-10.png)
+- Want poles to be 2-5 to the left of fastest CL control pole so that it controls something it is actually accurate for
+- Procedure for SISO
+  - ![alt text](images/classical/image-11.png)
 
 
 ### Luenberger Observer
 - Observer has its own dynamics based on measurement error from incorrect estimate
+  - ![alt text](images/classical/image-3.png)
   - ![alt text](images/classical/image-25.png)
   - ![alt text](images/classical/image-27.png)
-- As long as stable, it converges
+- As long as stable, it converges (ocl = observer closed loop)
   - ![alt text](images/classical/image-26.png)
+  - ![alt text](images/classical/image-9.png)
 
 ## **Separation principle**
 - Can separate controllability and observability design
   - ONLY for linear systems
   - Means I can make a diagonal uncoupled matrix
+
+
+## Similarity
+- Same system can have different SS representations
+![alt text](images/classical/image-1.png)
+![alt text](images/classical/image-6.png)
+
+
+## Duality
+- Controller and Observer are similar in a way
+- 
+
 
 
 
@@ -270,7 +300,15 @@ Now have estimate of state
 - **Pole placement**: choose feedback gain K such that eigenvalues of (A − BK) land at desired locations (Ackermann's formula for SISO). Direct but doesn't optimize any cost, just places poles wherever you ask.
 
 
+## Linearity
+- How to linearize it
+![alt text](image.png)
+
 
 # APPENDIX
 
 ![alt text](images/classical/image-4.png)
+
+
+
+TODO: finish 212

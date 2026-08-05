@@ -29,3 +29,10 @@ https://www.youtube.com/watch?v=wEAFF38Ud8k
 
 # World
 - Different datums
+
+
+# Van Loan Discretization
+
+[Derivation](https://personales.upv.es/asala/DocenciaOnline/material/DiscretizRuidoVanLoanEN.pdf)
+[Derivation 2](https://arxiv.org/pdf/2505.18187)
+

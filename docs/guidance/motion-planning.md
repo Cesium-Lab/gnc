@@ -1,0 +1,2 @@
+
+motion_planning.md — A*/RRT/potential fields, trajectory parameterization (splines, min snap/jerk). This is genuinely a different skill lineage (discrete search, robotics-flavored) from continuous trajectory optimization, worth keeping separate rather than folding in.
