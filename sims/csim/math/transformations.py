@@ -94,12 +94,12 @@ def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m = 0.0, deg = True):
 
     return r_ECEF
 
-def ECEF_to_geodetic_LLA(r_ecef: np.ndarray, deg=True) -> tuple[float, float, float]:
+def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, float]:
     """Vallado 4e Algorithm 13 p. 173 (Borkowski method).
 
     Parameters
     ----------
-    r_ecef : np.ndarray (3,)
+    r_ECEF : np.ndarray (3,)
         Earth-centered, Earth-fixed position [m].
     deg : bool
         Whether output angles are in degrees.
@@ -111,7 +111,7 @@ def ECEF_to_geodetic_LLA(r_ecef: np.ndarray, deg=True) -> tuple[float, float, fl
     alt_m : float
         Height above WGS84 reference ellipsoid [m].
     """
-    x, y, z = r_ecef
+    x, y, z = r_ECEF
 
     r_horizontal_sat = np.hypot(x, y)
     a = R_EARTH
@@ -158,6 +158,57 @@ def ECEF_to_geodetic_LLA(r_ecef: np.ndarray, deg=True) -> tuple[float, float, fl
         lon_gd /= DEG_TO_RAD
 
     return lat_gd, lon_gd, alt_m
+
+def geocentric_LLA_to_PCPF(lat: float, lon: float, alt_m = 0.0, r_body_m = R_EARTH, deg = True):
+    """Convert latitude, longitude, and altitude to planet-centered, planet-fixed.
+    Spherical body.
+
+    Parameters
+    ----------
+    lat, lon : float
+        Lat,lon [deg if deg=True, else rad]
+    alt_m : float
+        Altitude above SPHERICAL surface [m]
+    r_body_m : float
+        Body radius [m]
+    deg : bool
+        Whether input angles are in degrees
+
+    Returns
+    -------
+    r_PCPF : np.ndarray (3,)
+        Body-fixed position [m]
+    """
+    if deg:
+        lat *= DEG_TO_RAD
+        lon *= DEG_TO_RAD
+        
+    rho = r_body_m + alt_m
+    
+    r_PCPF = np.array([
+        rho * np.cos(lat) * np.cos(lon),
+        rho * np.cos(lat) * np.sin(lon),
+        rho * np.sin(lat)
+    ])
+    
+    return r_PCPF
+
+def PCPF_to_geocentric_LLA(r_PCPF: np.ndarray, r_body_m=R_EARTH, deg=True):
+    x, y, z = r_PCPF
+
+    rho = np.linalg.norm(r_PCPF)
+    if rho < 1e-9:
+        raise ValueError("Coordinates undefined at body center.")
+
+    lat = np.arctan2(z, np.hypot(x, y))
+    lon = np.arctan2(y, x)
+    alt_m = rho - r_body_m
+
+    if deg:
+        lat /= DEG_TO_RAD
+        lon /= DEG_TO_RAD
+
+    return lat, lon, alt_m
 
 ################################################################################
 #               ITRF <--> GCRS
@@ -279,6 +330,7 @@ def R_matrix(jd_ut1: float):
     return np.array([[C, S, 0], [-S, C, 0], [0, 0, 1]])
 
 
+# TODO: fix with dX and dY
 def _X_Y_s_a(t_tt: float):
     t = t_tt
     t2 = t * t
