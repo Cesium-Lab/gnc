@@ -3,20 +3,21 @@
 import numpy as np
 from ..world import MU_EARTH_KM
 from numpy.linalg import norm
+from ..math.transformations import dcm_x, dcm_z
 
 ####################################################################################################
 #               Kepler
 ####################################################################################################
 
 
-def kelper_eq_ellipse(M: float, e: float, tol=1e-9, max_iter=100):
+def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
     """`(M,e) -> E` \\
     Solve Kelper's equation (elliptic) `M = E - e*sin(E)` using iteration \\
     Vallado 4e Algorithm 2 p. 65
 
     Args:
         M (float): Mean anomaly [rad]
-        e (float): Eccentricity
+        e (float): Eccentricity [0, 1)
         tol (float, optional): Tolerance needed to break iterating. Defaults to 1e-9.
         max_iter (int, optional): Maximum number of iterations. Defaults to 100.
 
@@ -45,14 +46,14 @@ def kelper_eq_ellipse(M: float, e: float, tol=1e-9, max_iter=100):
 ####################################################################################################
 
 
-def rv_to_coes(r_eci: np.ndarray, v_eci: np.ndarray, mu: float = MU_EARTH_KM):
-    """Convert ECI position and velocity vectors to classical Keplerian orbital elements. \\
+def rv_to_coes(r_I: np.ndarray, v_I: np.ndarray, mu: float = MU_EARTH_KM):
+    """Convert inertial position and velocity vectors to classical Keplerian orbital elements. \\
     Can put r and v in meters, but `mu` must be in meters as well \\
     Vallado 4e Algorithm 9 p. 113
 
     Args:
-        r_eci (np.ndarray): Position of satellite [km] or [m] (ECI)
-        v_eci (np.ndarray): Velocity of satellite [km/s] or [m/s] (ECI)
+        r_I (np.ndarray): Inertial position of satellite [km] or [m]
+        v_I (np.ndarray): Inertial velocity of satellite [km/s] or [m/s]
         mu (float, optional): Gravitational parameter of central body [km3/s2] or [m3/s2]. Defaults to MU_EARTH_KM [km3/s2].
 
     Returns:
@@ -65,7 +66,7 @@ def rv_to_coes(r_eci: np.ndarray, v_eci: np.ndarray, mu: float = MU_EARTH_KM):
     - `nu`: True anomaly [rad]
     """
     # Specific relative angular momentum
-    h = np.cross(r_eci, v_eci)
+    h = np.cross(r_I, v_I)
     h_norm = norm(h)
 
     # Vector pointing to ascending node
@@ -74,13 +75,13 @@ def rv_to_coes(r_eci: np.ndarray, v_eci: np.ndarray, mu: float = MU_EARTH_KM):
     equatorial_orbit = abs(n_norm - 0.0) < 1e-5
 
     # Norms to make this easier
-    r_norm = norm(r_eci)
-    v_norm = norm(v_eci)
+    r_norm = norm(r_I)
+    v_norm = norm(v_I)
     v2 = v_norm**2
-    r_dot_v = np.dot(r_eci, v_eci)
+    r_dot_v = np.dot(r_I, v_I)
 
     # Eccentricity
-    e = ((v2 - mu / r_norm) * r_eci - r_dot_v * v_eci) / mu
+    e = ((v2 - mu / r_norm) * r_I - r_dot_v * v_I) / mu
     e_norm = norm(e)
     circular_orbit = abs(e_norm - 0.0) < 1e-5
 
@@ -112,7 +113,7 @@ def rv_to_coes(r_eci: np.ndarray, v_eci: np.ndarray, mu: float = MU_EARTH_KM):
     # True anomaly [rad]
     ta = 0
     if not circular_orbit:
-        ta = np.arccos(np.dot(e, r_eci) / e_norm / r_norm)
+        ta = np.arccos(np.dot(e, r_I) / e_norm / r_norm)
         if r_dot_v < 0:
             ta = 2 * np.pi - ta
 
@@ -146,7 +147,7 @@ def coes_to_rv(
         NotImplementedError: If elliptical equitorial (e!=0 and i=0)
 
     Returns:
-        tuple: (`r_eci`, `v_eci`) Position and velocity vectors (ECI) [m] and [m/s] OR [km] and [km/s]
+        tuple: (`r_I`, `v_I`) Inertial position and velocity vectors [m] and [m/s] OR [km] and [km/s]
     """
 
     # TODO: There should be actual logic for Circular Equatorial, Circular Inclined, and Elliptical Equatorial
@@ -175,43 +176,19 @@ def coes_to_rv(
 
     # Position in perifocal frame with components (P, Q, W) where P points to periapsis
     r_mag = p / (1 + e * np.cos(ta))
-    r_pf = r_mag * np.array([np.cos(ta), np.sin(ta), 0.0])
+    r_PQW = r_mag * np.array([np.cos(ta), np.sin(ta), 0.0])
 
     # Velocity in perifocal frame
-    v_pf = np.sqrt(mu / p) * np.array([-np.sin(ta), e + np.cos(ta), 0.0])
+    v_PQW = np.sqrt(mu / p) * np.array([-np.sin(ta), e + np.cos(ta), 0.0])
 
     # Rotation matrix from perifocal to ECI
-    # R = R3(-raan) * R1(-i) * R3(-aop)
-    sin_raan = np.sin(raan)
-    cos_raan = np.cos(raan)
-    sin_i = np.sin(i)
-    cos_i = np.cos(i)
-    sin_aop = np.sin(aop)
-    cos_aop = np.cos(aop)
+    dcm_I_wrt_PQW = dcm_z(-raan) @ dcm_x(-i) @ dcm_z(-aop)
 
-    # Combined rotation matrix (perifocal to ECI)
-    R = np.array(
-        [
-            [
-                cos_raan * cos_aop - sin_raan * sin_aop * cos_i,
-                -cos_raan * sin_aop - sin_raan * cos_aop * cos_i,
-                sin_raan * sin_i,
-            ],
-            [
-                sin_raan * cos_aop + cos_raan * sin_aop * cos_i,
-                -sin_raan * sin_aop + cos_raan * cos_aop * cos_i,
-                -cos_raan * sin_i,
-            ],
-            [sin_aop * sin_i, cos_aop * sin_i, cos_i],
-        ]
-    )
+    # Transform to inertial
+    r_I = dcm_I_wrt_PQW @ r_PQW
+    v_I = dcm_I_wrt_PQW @ v_PQW
 
-    # Transform to ECI
-    r_eci = R @ r_pf
-    v_eci = R @ v_pf
-
-    return r_eci, v_eci
-
+    return r_I, v_I
 
 # TODO: parabolic and hyperbolic depending on which orbits I want to simulate
 

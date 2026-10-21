@@ -4,7 +4,7 @@ import pytest
 
 sys.path.append(".")
 
-from csim.math.coes import kelper_eq_ellipse, rv_to_coes, coes_to_rv
+from csim.math.coes import kepler_eq, rv_to_coes, coes_to_rv
 from csim.constants import DEG_TO_RAD, RAD_TO_DEG
 from csim.world import MU_EARTH
 
@@ -13,7 +13,7 @@ def test_kelper():
     """Vallado 4e Example 2-1 p. 66"""
     M = 235.4 * DEG_TO_RAD
     e = 0.4
-    E = kelper_eq_ellipse(M, e)
+    E = kepler_eq(M, e)
 
     assert E * RAD_TO_DEG == pytest.approx(220.512074767522)
 

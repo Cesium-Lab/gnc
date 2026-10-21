@@ -27,6 +27,9 @@ GPS_TO_UTC = -18
 DAY_TO_SEC = 86400
 SEC_TO_DAY = 1 / DAY_TO_SEC
 
+MIN_TO_SEC = 60
+SEC_TO_MIN = 1.0 / 60
+
 SIDEREAL_DAY_TO_SEC = 86164.090517
 SEC_TO_SIDEREAL_DAY = 1 / SIDEREAL_DAY_TO_SEC
 
@@ -46,3 +49,10 @@ N_TO_LBF = 1 / LBF_TO_N
 # Mass
 KG_TO_LBM = 2.20462
 LBM_TO_KG = 1 / KG_TO_LBM
+
+########################################
+#               Distance
+########################################
+
+M_TO_KM = 1.0/1000
+KM_TO_M = 1000.0

@@ -11,7 +11,7 @@ from ..world import MU_EARTH, R_EARTH, J2_EARTH
 
 
 def grav_accel(
-    r: np.ndarray, mu: float = MU_EARTH, *, use_j2=True, r_cb: float = R_EARTH
+    r: np.ndarray, mu: float = MU_EARTH, j2=None, r_cb: float = R_EARTH
 ):
     """Gravity acceleration \\
     Vallado 4e Equation 1-14 p. 23 np.array([axy*x, axy*y, az*z]) \\
@@ -22,8 +22,8 @@ def grav_accel(
     Args:
         r (np.ndarray): Position from center of center body [m/s]
         mu (float, optional): Gravitational parameter [m3/s2] Defaults to MU_EARTH.
-        use_j2 (bool, optional): Whether to use J2. Defaults to True.
-        r_cb (float, optional): (FOR J2) Radius of central body [m]. Defaults to R_EARTH.
+        j2 (bool, optional): J2 constant. If None, then no J2 is used.
+        r_cb (float, optional): (FOR J2) Radius of central body for J2 [m]. Defaults to R_EARTH.
 
     Returns:
         np.ndarray: Gravitational acceleration [m/s2]
@@ -43,9 +43,9 @@ def grav_accel(
     g = -mu / (norm(r) ** 3) * r
 
     # J2
-    if use_j2:
+    if j2:
         x, y, z = r
-        coeff = 3 / 2 * J2_EARTH * mu * r_cb**2 / (2 * r_norm**5)
+        coeff = 3 * J2_EARTH * mu * r_cb**2 / (2 * r_norm**5)
         axy = coeff * ((5 * z * z) / (r_norm * r_norm) - 1)
         az = coeff * ((5 * z * z) / (r_norm * r_norm) - 3)
         g += np.array([axy * x, axy * y, az * z])
