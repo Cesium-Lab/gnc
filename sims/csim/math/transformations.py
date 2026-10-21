@@ -52,106 +52,112 @@ def dcm_z(theta: float):
 ################################################################################
 
 
-def surface_lla_to_ecef(lat_deg: float, lon_deg: float, alt_m=0):
-    """From geodetic site coordinates to position vector \\
+def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m = 0.0, deg = True):
+    """Convert WGS84 geodetic lat, lon, and alt to ECEF\\
     Vallado 4e Example 3.1 p. 140
 
-    Args:
-        lat_deg (float): Geodetic latitude [rad]
-        lon_deg (float): Geodetic longitude [rad]
-        alt_m (int, optional): Altitude (MSL) [m]. Defaults to 0.
+    Parameters
+    ----------
+    lat, lon : float
+        Lat,lon [deg if deg=True, else rad]
+    alt_km : float
+        Altitude above SPHERICAL surface [km]
+    r_body_km : float
+        Body radius [km]
+    deg : bool
+        Whether input angles are in degrees
 
-    Returns:
-        np.ndarray: Position vector (ECEF) [m]
+    Returns
+    -------
+    r_ECEF : np.ndarray (3,)
+        Earth-fixed position [km]
     """
+    if deg:
+        lat *= DEG_TO_RAD
+        lon *= DEG_TO_RAD
 
-    lat_gd = lat_deg * DEG_TO_RAD
-    lon_gd = lon_deg * DEG_TO_RAD
 
-    sin_lat = np.sin(lat_gd)
-    cos_lat = np.cos(lat_gd)
+    sin_lat = np.sin(lat)
+    cos_lat = np.cos(lat)
 
-    denom = np.sqrt(1 - ECC_EARTH**2 * sin_lat**2)
-    C = R_EARTH / denom
-    S = C * (1 - ECC_EARTH**2)
+    e2 = ECC_EARTH**2
+    C = R_EARTH / np.sqrt(1 - e2 * sin_lat**2)
+    S = C * (1 - e2)
 
-    # Site coordinates [km]
+    # Site coordinates [m]
     r_horizontal = (C + alt_m) * cos_lat
     r_vertical = (S + alt_m) * sin_lat
 
-    r = np.array(
-        [r_horizontal * np.cos(lon_gd), r_horizontal * np.sin(lon_gd), r_vertical]
+    r_ECEF = np.array(
+        [r_horizontal * np.cos(lon), r_horizontal * np.sin(lon), r_vertical]
     )
 
-    return r
+    return r_ECEF
 
+def ECEF_to_geodetic_LLA(r_ecef: np.ndarray, deg=True) -> tuple[float, float, float]:
+    """Vallado 4e Algorithm 13 p. 173 (Borkowski method).
 
-def r_to_surface_lla(r_ecef: np.ndarray):
-    # TODO: cite
+    Parameters
+    ----------
+    r_ecef : np.ndarray (3,)
+        Earth-centered, Earth-fixed position [m].
+    deg : bool
+        Whether output angles are in degrees.
+
+    Returns
+    -------
+    lat, lon : float
+        Geodetic latitude and longitude [deg if deg=True, else rad].
+    alt_m : float
+        Height above WGS84 reference ellipsoid [m].
+    """
     x, y, z = r_ecef
 
+    r_horizontal_sat = np.hypot(x, y)
     a = R_EARTH
     b = R_EARTH_POLAR
-    e2 = 1 - (b * b) / (a * a)
 
-    r = np.sqrt(x * x + y * y)
+    if r_horizontal_sat < 1e-9:
+        if abs(z) < 1e-9:
+            raise ValueError("LLA undefined at Earth's center.")
 
-    # FIX 1: longitude
-    lon = np.arctan2(y, x)
+        lat_gd = np.copysign(np.pi / 2, z)
+        lon_gd = 0.0
+        alt_m = abs(z) - b
 
-    # Stable geodetic latitude iteration (recommended)
-    lat = np.arctan2(z, r)
-    for _ in range(5):
-        N = a / np.sqrt(1 - e2 * np.sin(lat) ** 2)
-        lat = np.arctan2(z + e2 * N * np.sin(lat), r)
+    else:
+        lon_gd = np.arctan2(y, x)
 
-    h = r / np.cos(lat) - N
+        E = (b*abs(z) - (a**2 - b**2)) / (a*r_horizontal_sat)
+        F = (b*abs(z) + (a**2 - b**2)) / (a*r_horizontal_sat)
 
-    return lat, lon, h
+        P = 4*(E*F + 1) / 3
+        Q = 2*(E**2 - F**2)
+        D = P**3 + Q**2
 
+        if D > 0:
+            v = np.cbrt(np.sqrt(D) - Q) - np.cbrt(np.sqrt(D) + Q)
+        else:
+            v = 2*np.sqrt(-P)*np.cos(
+                np.arccos(Q/(P*np.sqrt(-P))) / 3
+            )
 
-# def r_to_surface_lla(r_ecef: np.ndarray) -> tuple[float, float, float]:
-#     """Vallado 4e Algorithm 13 p. 173
+        G = (np.sqrt(E**2 + v) + E) / 2
+        t = np.sqrt(G**2 + (F - v*G)/(2*G - E)) - G
 
-#     Args:
-#         r_ecef (np.ndarray): Position vector (ECEF) [m]
+        lat_gd = np.arctan2(a*(1-t**2), 2*b*t)
+        lat_gd = np.copysign(lat_gd, z)
 
-#     Returns:
-#         tuple: Tuple with geodetic latitude [deg], longitude [deg], and ellipsoid altitude
-#     """
-#     ri, rj, rk = r_ecef
+        alt_m = (
+            (r_horizontal_sat - a*t)*np.cos(lat_gd)
+            + (abs(z) - b)*abs(np.sin(lat_gd))
+        )
 
-#     r_horizontal_sat = np.sqrt(ri**2 + rj**2)
-#     a = R_EARTH
+    if deg:
+        lat_gd /= DEG_TO_RAD
+        lon_gd /= DEG_TO_RAD
 
-#     # Vallado had this wrong :/
-#     # b = np.sqrt(R_EARTH_POLAR*(1-ECC_EARTH**2))*np.sign(rk)
-#     b = R_EARTH_POLAR
-
-#     E = (b*rk - (a**2 - b**2)) / (a*r_horizontal_sat)
-
-#     lon = np.arcsin(rj/r_horizontal_sat)
-
-#     # Sanity check
-#     # print(lat)
-#     # print(np.arccos(ri/r_horizontal_sat))
-
-#     F = (b*rk + (a**2 - b**2)) / (a*r_horizontal_sat)
-#     P = 4*(E*F + 1) / 3
-#     Q = 2*(E**2 - F**2)
-#     D = P**3 - Q**2
-
-#     if D>0:
-#         v = (np.sqrt(D) - Q)**(1/3) - (np.sqrt(D) + Q)**(1/3)
-#     else:
-#         v = 2*np.sqrt(-P)*np.cos(1/3*np.arccos(Q/(P*np.sqrt(-P))))
-
-#     G = 1/2*(np.sqrt(E**2 + v) + E)
-#     t = np.sqrt(G**2 + (F - v*G)/(2*G - E)) - G
-#     lat_gd = np.arctan(a*(1-t**2)/(2*b*t))
-#     h_ellp = (r_horizontal_sat - a*t)*np.cos(lat_gd) + (rk-b)*np.sin(lat_gd)
-
-#     return (lat_gd, lon, h_ellp)
+    return lat_gd, lon_gd, alt_m
 
 ################################################################################
 #               ITRF <--> GCRS
