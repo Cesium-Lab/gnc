@@ -70,7 +70,7 @@ def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m = 0.0, deg = True):
     Returns
     -------
     r_ECEF : np.ndarray (3,)
-        Earth-fixed position [km]
+        Earth-fixed position [m]
     """
     if deg:
         lat *= DEG_TO_RAD
