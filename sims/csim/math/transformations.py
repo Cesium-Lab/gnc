@@ -211,6 +211,45 @@ def PCPF_to_geocentric_LLA(r_PCPF: np.ndarray, r_body_m=R_EARTH, deg=True):
     return lat, lon, alt_m
 
 ################################################################################
+#               PCI <--> PCPF
+################################################################################
+
+# TODO: test
+def PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
+    """Convert rotating-frame position and velocity to inertial coordinates.
+    
+    Somewhat simplified version of itrf-gcrs in Vallado 4e Section 3.7 pp. 203
+    
+    Uses a constant body rotation rate, neglecting precession and nutation.
+
+    Parameters
+    ----------
+    r_PCPF, v_PCPF : np.ndarray (3,)
+        Position [km] and rotating-frame velocity [km/s]
+    t_utc, t_ref : float
+        Current and reference UTC timestamps [s]
+    theta_ref : float
+        Rotation angle at reference epoch [rad]
+    w_body : float
+        Body rotation rate [rad/s]
+
+    Returns
+    -------
+    r_PCI, v_PCI : np.ndarray (3,)
+        Inertial position [km] and velocity [km/s]
+    """
+    # Rotation angle
+    # theta_PCPF_wrt_PCI = calc_theta_g(t_utc, theta_ref, t_ref, w_body)
+    theta_PCPF_wrt_PCI = (theta_ref + w_body * (t_utc - t_ref)) % (2 * np.pi)
+    
+    dcm_PCI_wrt_PCPF = dcm_z(theta_PCPF_wrt_PCI).T
+    
+    r_PCI = dcm_PCI_wrt_PCPF @ r_PCPF
+    v_PCI = dcm_PCI_wrt_PCPF @ (v_PCPF + np.cross([0,0,w_body], r_PCPF))
+    
+    return r_PCI, v_PCI
+
+################################################################################
 #               ITRF <--> GCRS
 ################################################################################
 
@@ -312,7 +351,7 @@ def W_matrix(xp: float, yp: float, t_tt: float):
 
 def R_matrix(jd_ut1: float):
     """Sidereal rotation matrix for ITRF <--> GCRS.
-    Computes intermediate Earth Rotation Angle using `jd_ut1` \\
+    Computes intermediate Earth   Angle using `jd_ut1` \\
     Vallado 4e p. 213
 
     Args:
