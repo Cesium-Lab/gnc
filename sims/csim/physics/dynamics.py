@@ -6,6 +6,7 @@ n-body
 import numpy as np
 from ..world.constants import MU_EARTH, R_EARTH
 from .gravity import grav_accel
+from .hcw import calc_Phi
 
 def two_body(state: np.ndarray, mu=MU_EARTH, j2=None, r_cb=R_EARTH) -> np.ndarray:
     """Two body dynamics

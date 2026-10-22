@@ -1,5 +1,6 @@
 from __future__ import annotations
 import numpy as np
+from ..math.transformations import PCI_to_RSW
 
 def calc_Phi(t: float, n: float):
     """Phi for HCW circular orbit"""
@@ -63,3 +64,62 @@ def rv_hcw_2d(t: float, n: float, r0: np.ndarray, v0: np.ndarray) -> tuple[np.nd
     """
     r,v = rv_hcw_3d(t, n, np.pad(r0, (0,1)), np.pad(v0, (0,1)))
     return r[:2], v[:2]
+
+# TODO: integrate with closed-form solution
+def hcw_dynamics(state: np.ndarray, a_rsw: np.ndarray, n: float):
+    """HCW dynamics (circular orbit)
+    Vallado 4e Equation 6-61 p. 393
+
+    Parameters
+    ----------
+    state : np.ndarray
+        state in RSW coordinates [m, m/s]
+    a : np.ndarray
+        acceleration due to force in RSW coordinates [N]
+    n : float
+        mean motion [1/s]
+    """
+    r,v = state[0:3], state[3:6]
+    
+    a = a_rsw + np.array([
+        2*n*v[1] + 3*n*n*r[0],
+        -2*n*v[0],
+        -n*n*r[2]
+    ])
+    
+    return np.concatenate((v,a))
+
+def hcw_RSW_to_PCI(rv_target_PCI: np.ndarray, rv_chaser_RSW: np.ndarray, mu: float):
+    """Convert relative hcw state in RSW to absolute chaser PCI state.
+    Simplified version of Vallado 4e Algorithm 49 p. 414
+
+    Parameters
+    ----------
+    rv_target_PCI : np.ndarray (6,)
+        Target position and velocity in PCI [m, m/s]
+    rv_chaser_RSW : np.ndarray (6,)
+        Chaser relative position and velocity in RSW [m, m/s]
+
+    Returns
+    -------
+    rv_chaser_PCI : np.ndarray (6,)
+        Absolute chaser state in PCI [m, m/s]
+    """
+    r_t_PCI, v_t_PCI = rv_target_PCI[0:3], rv_target_PCI[3:6]
+    
+    dcm_RSW_wrt_PCI = PCI_to_RSW(rv_target_PCI)
+    r_rel_RSW, v_rel_RSW = rv_chaser_RSW[:3], rv_chaser_RSW[3:]
+    
+    
+    # Angular velocity of RSW frame, expressed in PCI
+    omega_RSW_PCI_PCI = np.cross(r_t_PCI, v_t_PCI) / np.linalg.norm(r_t_PCI)**2
+
+    # Relative position and velocity in PCI
+    r_rel_PCI = dcm_RSW_wrt_PCI.T @ r_rel_RSW
+    v_rel_PCI = dcm_RSW_wrt_PCI.T @ v_rel_RSW + np.cross(omega_RSW_PCI_PCI, r_rel_PCI)
+
+    # Absolute chaser state
+    r_chaser_PCI = r_t_PCI + r_rel_PCI
+    v_chaser_PCI = v_t_PCI + v_rel_PCI
+
+    return np.concatenate((r_chaser_PCI, v_chaser_PCI))

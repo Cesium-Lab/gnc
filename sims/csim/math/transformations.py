@@ -2,10 +2,11 @@
 
 import numpy as np
 
-from ..world import R_EARTH, R_EARTH_POLAR, ECC_EARTH, W_EARTH
+from ..world import R_EARTH, R_EARTH_POLAR, ECC_EARTH, W_EARTH, MU_EARTH
 from ..constants import DEG_TO_RAD, SEC_TO_DAY, ARCSEC_TO_RAD
 from .time import jd_to_julian_centuries
 from .CIP.parse import import_table, get_summation
+from .quaternion import unit
 
 ################################################################################
 #               Angle
@@ -46,7 +47,18 @@ def dcm_z(theta: float):
             [0, 0, 1],
         ]
     )
-    
+################################################################################
+#               Intermediate
+################################################################################
+
+# TODO: test
+def PCI_to_RSW(rv_PCI: np.ndarray) -> np.ndarray:
+    r_hat = unit(rv_PCI[0:3])
+    w_hat = unit(np.cross(rv_PCI[0:3], rv_PCI[3:6]))
+    s_hat = np.cross(w_hat, r_hat)
+
+    return np.vstack((r_hat, s_hat, w_hat))
+
 ################################################################################
 #               LLA <--> ECEF
 ################################################################################
