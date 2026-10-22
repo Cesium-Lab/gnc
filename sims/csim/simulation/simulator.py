@@ -40,8 +40,9 @@ class Simulator:
         self.t = t0 + dt * np.arange(n_steps + 1)
         self.X[0] = state0
 
-    def simulate(self):
-        final_step = self.n_steps
+    def simulate(self, t: float):
+        """Simulates length of t. If t is None then simulates all"""
+        final_step = self.n_steps if t is None else t//self.dt
         for step in range(1, self.n_steps + 1):
             self.X[step] = self.step_fn(self.t_curr, self.X[step - 1])
             self.t_curr += self.dt

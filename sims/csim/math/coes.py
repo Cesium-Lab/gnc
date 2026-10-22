@@ -9,6 +9,15 @@ from ..math.transformations import dcm_x, dcm_z
 #               Kepler
 ####################################################################################################
 
+def E_from_ta(ta: float, e: float):
+    rhs = np.sqrt((1-e)/(1+e)) * np.tan(ta/2)
+    E = 2 * np.arctan(rhs)
+    return E
+
+def ta_from_E(E: float, e: float):
+    rhs = np.sqrt((1+e)/(1-e)) * np.tan(E/2)
+    ta = 2 * np.arctan(rhs)
+    return ta
 
 def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
     """`(M,e) -> E` \\
@@ -127,7 +136,7 @@ def coes_to_rv(
     raan: float,
     aop: float,
     ta: float,
-    mu: float = MU_EARTH_KM,
+    ECI float = MU_EARTH_KM,
 ):
     """
     if `mu` in units of [m3/s2] then `a`, `r`, and `v` should/will be too.

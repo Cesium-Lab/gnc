@@ -53,11 +53,20 @@ def dcm_z(theta: float):
 
 # TODO: test
 def PCI_to_RSW(rv_PCI: np.ndarray) -> np.ndarray:
-    r_hat = unit(rv_PCI[0:3])
-    w_hat = unit(np.cross(rv_PCI[0:3], rv_PCI[3:6]))
+    r, v = rv_PCI[0:3], rv_PCI[3:6]
+    r_hat = unit(r)
+    w_hat = unit(np.cross(r, v))
     s_hat = np.cross(w_hat, r_hat)
 
     return np.vstack((r_hat, s_hat, w_hat))
+
+def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
+    r, v = rv_PCI[0:3], rv_PCI[3:6]
+    w_hat = unit(np.cross(r, v))
+    t_hat = unit(v)
+    n_hat = np.cross(t_hat, w_hat)
+
+    return np.vstack((n_hat, t_hat, w_hat))
 
 ################################################################################
 #               LLA <--> ECEF
