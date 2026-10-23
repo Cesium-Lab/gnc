@@ -24,8 +24,28 @@ def test_vallado_hubble():
     assert np.allclose(r_m, [-143.000, 137.279, -17.766], atol=0.001)
     assert np.allclose(v_m, [-0.10, 0.27, -0.01], atol=0.01)
     
-    # M = 235.4 * DEG_TO_RAD
-    # e = 0.4
-    # E = kepler_eq(M, e)
-
-    # assert E * RAD_TO_DEG == pytest.approx(220.512074767522)
+def test_curtis_example_7_1():
+    """Motion"""
+    pass
+    
+def test_curtis_example_7_2():
+    """Targeting"""
+    pass
+    
+def test_curtis_example_7_3():
+    """Targeting"""
+    pass
+    
+# problems 1,2,5
+def test_curtis_problem_7_7():
+    r0 = np.array([1,0,0]) * KM_TO_M
+    v0 = np.array([0, 10, 0])
+    
+    n = 2*np.pi / (90 * MIN_TO_SEC)
+    
+    r,v = rv_hcw_3d(15 * MIN_TO_SEC, n, r0, v0)
+    
+    assert np.linalg.norm(r) == pytest.approx(11.2 * KM_TO_M, abs=0.05 * KM_TO_M)
+    
+    
+    
