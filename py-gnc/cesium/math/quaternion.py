@@ -139,7 +139,7 @@ def DCM_to_q(DCM: np.ndarray):
 
 
 # ----- Quaternion math! -----#
-def mul(q1: np.ndarray, q2: np.ndarray):
+def quat_mult(q1: np.ndarray, q2: np.ndarray):
 
     w1, x1, y1, z1 = q1
     w2, x2, y2, z2 = q2
@@ -162,10 +162,10 @@ def quat_apply(quat: np.ndarray, v: np.ndarray, passive=True):
 
     if passive:
         """ q'*v*q """
-        result = mul(mul(conj(quat), v_quat), quat)
+        result = quat_mult(quat_mult(conj(quat), v_quat), quat)
     else:
         """ q*v*q' """
-        result = mul(mul(quat, v_quat), conj(quat))
+        result = quat_mult(quat_mult(quat, v_quat), conj(quat))
 
     if abs(result[0]) > 0.0001:
         print(f"Quanternion is not normalized. Result vector of {result}")

@@ -7,9 +7,6 @@ MU_EARTH = 3.986004418e14
 MU_EARTH_KM = 398600.4418
 """Earth standard gravitational parameter km3/s2"""
 
-MU_EARTH_KM = 398600.4418
-"""Earth standard gravitational parameter km3/s2"""
-
 R_EARTH = 6378137.630
 """Earth mean equitorial radius [m] (Vallado 4e p. 132)"""
 
