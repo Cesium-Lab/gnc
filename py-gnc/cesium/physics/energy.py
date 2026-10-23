@@ -29,7 +29,7 @@ def calc_kinetic_energy(
     Args:
         v (np.ndarray): Absolute velocity vector [m/s] 
         w (np.ndarray): Angular velocity vector in specified frame [rad/s]
-        mass_kg (np.ndarray): Mass of rigid body [kg]
+        mass_kg (float): Mass of rigid body [kg]
         I (np.ndarray): Moment of inertia tensor in specified frame [kg*m2]
 
     Returns:
@@ -59,7 +59,7 @@ def calc_total_energy(
     Args:
         mass_kg (float): Mass of rigid body [kg]
         I (np.ndarray): Moment of inertia tensor in specified frame [kg*m2]
-        r (np.ndarray | list): Absolute position vector (relative to center of central body [m]) (typically the earth)
+        r (np.ndarray): Absolute position vector (relative to center of central body [m]) (typically the earth)
         v (np.ndarray): Absolute velocity vector [m/s] 
         w (np.ndarray): Angular velocity vector in specified frame [rad/s]
         mu (float): Gravitational parameter of central body [m3/s2] (typically the earth)

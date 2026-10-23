@@ -1,12 +1,10 @@
 """
 n-body
 """
-
-
 import numpy as np
 from numpy.linalg import norm
 from ..world.constants import MU_EARTH, R_EARTH, J2_EARTH
-from ..math.coes import rv_to_coes, coes_to_rv, kepler_eq, E_from_ta, ta_from_E
+from ..orbital.coes import rv_to_coes, coes_to_rv, kepler_eq, E_from_ta, ta_from_E
 from .gravity import grav_accel
 from .hcw import calc_Phi
 

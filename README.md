@@ -1,7 +1,12 @@
 # gnc
-Part 1 of the journey
+
+- Decision making
+  - What to do
+- Guidance
+  - How to move
 
 
+<!-- 
 1. Estimation
    1. Filtering
    2. IMU Datasets
@@ -14,14 +19,17 @@ Part 1 of the journey
 
 3. Control (follow guidance assuming perfect estimation)
 
-5. Sims (All of GNC)
+4. Sims (All of GNC)
    1. Might integrate some parsers
    2. Stationkeeping mini (large) project
    3. lunar lander ooo
-6. Extras
+5. Extras
    1. NMEA Parser
    2. TLE Parser
    3. Cart pendulum system but showing natural frequency too
 
 ## Data flow-ish
 Measurements (from sim) --> Navigation --> Guidance --> Control --> Actuator (to sim)
+
+
+ -->
