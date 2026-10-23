@@ -28,4 +28,4 @@ jobs:
 
       - name: Run all simulation tests
         run: |
-          python -m pytest sims/test/ -v -o addopts= -m ""
+          python -m pytest py-gnc -v -o addopts= -m ""
