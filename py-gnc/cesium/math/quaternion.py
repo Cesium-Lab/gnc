@@ -1,24 +1,47 @@
 import numpy as np
 from numpy.linalg import norm
 from ..constants import RAD_TO_DEG, DEG_TO_RAD
-
-
-def unit(q: np.ndarray):
-    q_norm = norm(q)
-    if abs(q_norm) < 0.000001:
-        return np.zeros(len(q))
-
-    return q / q_norm
-
+from .base import unit
 
 def conj(q: np.ndarray):
+    """Conjugate of a scalar-first quaternion.
+
+    Parameters
+    ----------
+    q : np.ndarray (4,)
+        Quaternion `[w, x, y, z]`.
+
+    Returns
+    -------
+    np.ndarray (4,)
+        Conjugate quaternion `[w, -x, -y, -z]`.
+    """
     q = -q
     q[0] *= -1
     return q
 
 
 def hamilton_product(q: np.ndarray, w: np.ndarray | list):
-    """(Schaub 3.112)"""
+    """Hamilton product of a quaternion with a pure-vector quaternion, `q * [0, w]`.
+
+    Used for quaternion kinematics, `q_dot = 0.5 * hamilton_product(q, w)`.
+
+    Parameters
+    ----------
+    q : np.ndarray (4,)
+        Scalar-first attitude quaternion `[w, x, y, z]`.
+    w : np.ndarray or list (3,)
+        Angular velocity of body expressed in body frame [rad/s].
+
+    Returns
+    -------
+    np.ndarray (4,)
+        Quaternion product `q * [0, w]`.
+
+    References
+    ----------
+    Schaub, Equation 3.112.
+    """
     qw, qx, qy, qz = q
     wx, wy, wz = w
 
@@ -45,6 +68,22 @@ def hamilton_product(q: np.ndarray, w: np.ndarray | list):
 
 # ----- Quaternion and Axis rotation -----#
 def angle_axis_to_q(angle: float, axis: np.ndarray | list, degrees=False):
+    """Convert a rotation angle and axis to a scalar-first quaternion.
+
+    Parameters
+    ----------
+    angle : float
+        Rotation angle about `axis` [deg if `degrees` is True, else rad].
+    axis : np.ndarray or list (3,)
+        Rotation axis. Does not need to be unit length.
+    degrees : bool, optional
+        If True, `angle` is in degrees; otherwise radians. Default is False.
+
+    Returns
+    -------
+    np.ndarray (4,)
+        Unit quaternion `[w, x, y, z]`.
+    """
 
     angle_rad = angle * DEG_TO_RAD if degrees else angle
     unit_axis = unit(axis)
@@ -59,6 +98,23 @@ def angle_axis_to_q(angle: float, axis: np.ndarray | list, degrees=False):
 
 
 def q_to_angle_axis(quat: np.ndarray | list, degrees=False):
+    """Convert a scalar-first unit quaternion to a rotation angle and axis.
+
+    Parameters
+    ----------
+    quat : np.ndarray or list (4,)
+        Unit quaternion `[w, x, y, z]`.
+    degrees : bool, optional
+        If True, return `angle` in degrees; otherwise radians. Default is False.
+
+    Returns
+    -------
+    angle : float
+        Rotation angle [deg if `degrees` is True, else rad]. 0 for a near-identity
+        rotation.
+    axis : np.ndarray (3,)
+        Unit rotation axis, or zeros for a near-identity rotation.
+    """
     w, x, y, z = quat
 
     angle = 2 * np.arccos(w)
@@ -78,7 +134,27 @@ def q_to_angle_axis(quat: np.ndarray | list, degrees=False):
 
 # ----- Quaternion and Rotation Matrix -----#
 def q_to_DCM(q: np.ndarray):
-    """https://motoq.github.io/doc/tnotes/dcm"""
+    """Convert a scalar-first quaternion to a passive direction cosine matrix.
+
+    Parameters
+    ----------
+    q : np.ndarray (4,)
+        Quaternion `[w, x, y, z]`. Normalized internally.
+
+    Returns
+    -------
+    DCM : np.ndarray (3, 3)
+        Passive DCM equivalent to `q`. Zeros if `q` is the zero quaternion.
+
+    Raises
+    ------
+    ValueError
+        If `q` does not have 4 elements.
+
+    References
+    ----------
+    https://motoq.github.io/doc/tnotes/dcm
+    """
     if len(q) != 4:
         raise ValueError(f"Input quaternion should have 4 elements. Input was {q}")
 
@@ -102,7 +178,22 @@ def q_to_DCM(q: np.ndarray):
 
 
 def DCM_to_q(DCM: np.ndarray):
-    """
+    """Convert a passive direction cosine matrix to a scalar-first quaternion.
+
+    Uses the largest-diagonal method for numerical stability.
+
+    Parameters
+    ----------
+    DCM : np.ndarray (3, 3)
+        Passive direction cosine matrix.
+
+    Returns
+    -------
+    np.ndarray (4,)
+        Quaternion `[w, x, y, z]`.
+
+    References
+    ----------
     https://motoq.github.io/doc/tnotes/dcm
     """
 
@@ -140,6 +231,20 @@ def DCM_to_q(DCM: np.ndarray):
 
 # ----- Quaternion math! -----#
 def quat_mult(q1: np.ndarray, q2: np.ndarray):
+    """Hamilton product of two scalar-first quaternions, `q1 * q2`.
+
+    Parameters
+    ----------
+    q1 : np.ndarray (4,)
+        Left quaternion `[w, x, y, z]`.
+    q2 : np.ndarray (4,)
+        Right quaternion `[w, x, y, z]`.
+
+    Returns
+    -------
+    np.ndarray (4,)
+        Quaternion product `q1 * q2`.
+    """
 
     w1, x1, y1, z1 = q1
     w2, x2, y2, z2 = q2
@@ -156,6 +261,24 @@ def quat_mult(q1: np.ndarray, q2: np.ndarray):
 
 # ----- Applies Quaternion to Vector -----#
 def quat_apply(quat: np.ndarray, v: np.ndarray, passive=True):
+    """Rotate a vector, or re-express it in a rotated frame, using a quaternion.
+
+    Parameters
+    ----------
+    quat : np.ndarray (4,)
+        Quaternion `[w, x, y, z]`. Normalized internally.
+    v : np.ndarray (3,)
+        Vector to transform.
+    passive : bool, optional
+        If True, compute `q' * v * q`, expressing `v` in the frame rotated by
+        `quat` (frame transformation). If False, compute `q * v * q'`, rotating
+        `v` within the same frame. Default is True.
+
+    Returns
+    -------
+    np.ndarray (3,)
+        Transformed vector.
+    """
 
     quat = unit(quat)
     v_quat = np.hstack(([0], v))

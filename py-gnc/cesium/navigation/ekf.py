@@ -9,17 +9,22 @@ from collections.abc import Callable
 
 @dataclass
 class EkfParams:
-    """Extended Kalman Filter Parameters for Nx1 state, Mx1 measurements, Ux1 inputs
-    - `f`: **state transition model getter**
-        f(state: np.ndarray [Nx1], input: np.ndarray [Ux1]) --> next_state_estimation: np.ndarray [Nx1]
-    - `F`: **jacobian of state transition model getter**
-        F(state: np.ndarray [Nx1], input: np.ndarray [Ux1]) --> jacobian_F: np.ndarray [NxN]
-    - `h`: **observation model getter**
-        h(state: np.ndarray [Nx1]) --> expected_measurement: np.ndarray [Mx1]
-    - `H`: **jacobian of observation model getter**
-        H(state: np.ndarray [Nx1]) --> jacobian_H: np.ndarray [MxN]
-    - `Q`: **process noise covariance** (np.ndarray) [NxN]
-    - `R`: **measurement noise covariance** (np.ndarray) [MxM]
+    """Extended Kalman filter models for an N-state, M-measurement, U-input system.
+
+    Attributes
+    ----------
+    f : Callable
+        State transition model, `f(x (N,), u (U,)) -> x_next (N,)`.
+    F : Callable
+        Jacobian of `f` with respect to the state, `F(x (N,), u (U,)) -> (N, N)`.
+    h : Callable
+        Observation model, `h(x (N,)) -> z_expected (M,)`.
+    H : Callable
+        Jacobian of `h` with respect to the state, `H(x (N,)) -> (M, N)`.
+    Q : np.ndarray (N, N)
+        Process noise covariance.
+    R : np.ndarray (M, M)
+        Measurement noise covariance.
     """
 
     f: Callable[[np.ndarray, np.ndarray], np.ndarray]
@@ -32,26 +37,43 @@ class EkfParams:
 
 @dataclass
 class EkfState:
-    """Extended Kalman Filter State (Nx1 state)
-    - `x`: **State vector** (np.ndarray) [Nx1]
-    - `P`: **State covariance** (np.ndarray) [NxN]"""
+    """Extended Kalman filter estimate for an N-state system.
+
+    Attributes
+    ----------
+    x : np.ndarray (N,)
+        State estimate (mean).
+    P : np.ndarray (N, N)
+        State estimate covariance.
+    """
 
     x: np.ndarray  # Mean vector
     P: np.ndarray  # Covariance matrix
 
 
 class EKF:
-    """https://en.wikipedia.org/wiki/Extended_Kalman_filter
+    """Extended Kalman filter.
 
-    Important attributes:
-    - `state`: np.ndarray (State [Nx1])
+    Important Attributes
+    ----------
+    state : EkfState
+        Current state estimate and covariance, updated in place by `predict` and
+        `update`.
+
+    References
+    ----------
+    - https://en.wikipedia.org/wiki/Extended_Kalman_filter
+    - https://algorithmsbook.com/files/dm.pdf
     """
 
     def __init__(self, state0: EkfState, params: EkfParams):
         """
-        Args:
-            state0 (State): Starting state
-            params (EkfParams): Starting EKF Parameters
+        Parameters
+        ----------
+        state0 : EkfState
+            Initial state estimate and covariance.
+        params : EkfParams
+            Dynamics and measurement models and their noise covariances.
         """
         self.state = state0
         self.f = params.f
@@ -63,13 +85,12 @@ class EKF:
         self.eye = np.eye(len(params.Q))
 
     def predict(self, u: np.ndarray) -> None:
-        """Predicts state. Modifies member state and also returns it
+        """Prediction step: propagate `self.state` to the next time step in place.
 
-        Args:
-            u (np.ndarray): Input vector [Ux1]
-
-        Returns:
-            State: predicted next state k+1
+        Parameters
+        ----------
+        u : np.ndarray (U,)
+            Control input applied over the step.
         """
         # I like getting variables out at the beginning
         x, P = self.state.x, self.state.P
@@ -83,15 +104,14 @@ class EKF:
         self.state = EkfState(x_next, P_next)
 
     def update(self, z: np.ndarray) -> None:
-        """Updates state. Modifies member state and also returns it
+        """Measurement update step: correct `self.state` in place with a measurement.
 
-        Args:
-            z (np.ndarray): Observation vector [Mx1]
-            params (dict): (Optional) Dict with extra parameters for f() and F()
-                (like params["dt"])
+        Uses the Joseph-form covariance update for numerical stability.
 
-        Returns:
-            State: final updated next state k+1
+        Parameters
+        ----------
+        z : np.ndarray (M,)
+            Measurement vector.
         """
         # I like getting variables out at the beginning
         x_est, P_est = self.state.x, self.state.P

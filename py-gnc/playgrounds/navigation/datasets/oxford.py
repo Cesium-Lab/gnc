@@ -53,6 +53,24 @@ G_TO_M_S2 = 9.80665
 
 @dataclass
 class IMUData:
+    """IMU samples from an Oxford Inertial Odometry Dataset `imu*.csv` file.
+
+    Attributes
+    ----------
+    t : np.ndarray (N,)
+        Sample timestamps [s].
+    attitude : np.ndarray (N, 3)
+        Device attitude as roll, pitch, yaw [rad].
+    gyro : np.ndarray (N, 3)
+        Body angular rates [rad/s].
+    accel : np.ndarray (N, 3)
+        User acceleration, with gravity removed [m/s2].
+    gravity : np.ndarray (N, 3)
+        Gravity vector in the device frame [m/s2].
+    mag : np.ndarray (N, 3)
+        Magnetic field [microtesla].
+    """
+
     t: np.ndarray
     attitude: np.ndarray      # (N, 3) roll, pitch, yaw
     gyro: np.ndarray          # (N, 3) rad/s
@@ -62,6 +80,20 @@ class IMUData:
 
 @dataclass
 class ViconData:
+    """Ground-truth motion-capture samples from a `vi*.csv` file.
+
+    Attributes
+    ----------
+    t : np.ndarray (N,)
+        Sample timestamps [s].
+    header : np.ndarray (N,)
+        Vicon header (frame sequence) values.
+    position : np.ndarray (N, 3)
+        Position in the Vicon world frame [m].
+    quaternion : np.ndarray (N, 4)
+        Scalar-first attitude quaternions `[w, x, y, z]`.
+    """
+
     t: np.ndarray
     header: np.ndarray
     position: np.ndarray      # (N, 3)
@@ -72,6 +104,18 @@ class ViconData:
 # ------------------------------
 
 def parse_imu_csv(path: str) -> IMUData:
+    """Load an Oxford Inertial Odometry Dataset IMU file.
+
+    Parameters
+    ----------
+    path : str
+        Path to an `imu*.csv` file.
+
+    Returns
+    -------
+    IMUData
+        Parsed IMU samples, with accelerations converted from G to [m/s2].
+    """
     data = np.loadtxt(path, delimiter=",")
 
     t = data[:, 0]
@@ -98,6 +142,18 @@ def parse_imu_csv(path: str) -> IMUData:
 # ------------------------------
 
 def parse_vicon_csv(path: str) -> ViconData:
+    """Load an Oxford Inertial Odometry Dataset Vicon ground-truth file.
+
+    Parameters
+    ----------
+    path : str
+        Path to a `vi*.csv` file.
+
+    Returns
+    -------
+    ViconData
+        Parsed ground truth, with quaternions reordered to scalar-first.
+    """
     data = np.loadtxt(path, delimiter=",")
 
     t = data[:, 0]

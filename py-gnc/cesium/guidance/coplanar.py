@@ -7,7 +7,32 @@ from ...math.coes import E_from_ta
 
 # TODO: Example 6-1 p. 326
 def guid_hohmann(r_i: float, r_f: float, mu = MU_EARTH):
-    """Vallado 4e Algorithm 36 p. 325"""
+    """Hohmann transfer between two coplanar circular orbits.
+
+    Parameters
+    ----------
+    r_i : float
+        Radius of initial circular orbit [m].
+    r_f : float
+        Radius of final circular orbit [m].
+    mu : float, optional
+        Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    a_trans : float
+        Semi-major axis of transfer ellipse [m].
+    t_trans : float
+        Transfer time (half transfer-orbit period) [s].
+    dv_a : float
+        Delta-v of first burn, at departure; positive is prograde [m/s].
+    dv_b : float
+        Delta-v of second burn, at arrival; positive is prograde [m/s].
+
+    References
+    ----------
+    Vallado 4e, Algorithm 36, p. 325.
+    """
     a_trans = (r_i + r_f) / 2.0
     
     v_i = np.sqrt(mu/r_i)
@@ -24,7 +49,41 @@ def guid_hohmann(r_i: float, r_f: float, mu = MU_EARTH):
    
 # TODO: Example 6-2 p. 327
 def guid_bielliptic(r_i: float, r_b: float, r_f: float, mu = MU_EARTH) -> tuple[float, float, float, float, float, float, float]:
-    """Vallado 4e Algorithm 37 p. 326"""
+    """Bi-elliptic transfer between two coplanar circular orbits.
+
+    Parameters
+    ----------
+    r_i : float
+        Radius of initial circular orbit [m].
+    r_b : float
+        Radius of intermediate burn point, i.e. apoapsis of both transfer
+        ellipses [m].
+    r_f : float
+        Radius of final circular orbit [m].
+    mu : float, optional
+        Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    a_trans1 : float
+        Semi-major axis of first transfer ellipse [m].
+    a_trans2 : float
+        Semi-major axis of second transfer ellipse [m].
+    t_trans1 : float
+        Time on first transfer ellipse [s].
+    t_trans2 : float
+        Time on second transfer ellipse [s].
+    dv_a : float
+        Delta-v of first burn, at `r_i`; positive is prograde [m/s].
+    dv_b : float
+        Delta-v of second burn, at `r_b`; positive is prograde [m/s].
+    dv_c : float
+        Delta-v of third burn, at `r_f`; positive is prograde [m/s].
+
+    References
+    ----------
+    Vallado 4e, Algorithm 37, p. 326.
+    """
     a_trans1 = (r_i + r_b) / 2.0
     a_trans2 = (r_b + r_f) / 2.0
     
@@ -46,7 +105,42 @@ def guid_bielliptic(r_i: float, r_b: float, r_f: float, mu = MU_EARTH) -> tuple[
 
 # TODO: Example 6-3 p. 334
 def guid_one_tangent(r_i: float, r_f: float, ta_trans_b, burn_at_periapsis: True, mu = MU_EARTH, deg = False):
-    """Vallado 4e Algorithm 38 p. 333"""
+    """One-tangent burn transfer between two coplanar circular orbits.
+
+    First burn is tangent to initial orbit; second burn at final orbit is not tangent.
+
+    Parameters
+    ----------
+    r_i : float
+        Radius of initial circular orbit [m].
+    r_f : float
+        Radius of final circular orbit [m].
+    ta_trans_b : float
+        True anomaly on transfer orbit at second burn [rad, or deg if
+        `deg` is True].
+    burn_at_periapsis : bool
+        True if first burn is at periapsis of transfer orbit, False if
+        at apoapsis.
+    mu : float, optional
+        Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+    deg : bool, optional
+        If True, `ta_trans_b` is in degrees; otherwise radians. Default is False.
+
+    Returns
+    -------
+    a_trans : float
+        Semi-major axis of transfer orbit [m].
+    t_trans : float
+        Transfer time [s].
+    dv_a : float
+        Delta-v of first (tangential) burn; positive is prograde [m/s].
+    dv_b : float
+        Magnitude of second burn delta-v [m/s].
+
+    References
+    ----------
+    Vallado 4e, Algorithm 38, p. 333.
+    """
     
     R_inv = r_i/r_f
     

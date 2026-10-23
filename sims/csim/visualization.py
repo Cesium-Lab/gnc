@@ -5,7 +5,22 @@ from .world import R_EARTH
 
 
 def makesphere(x, y, z, radius, resolution=10):
-    """Return the coordinates for plotting a sphere centered at (x,y,z)"""
+    """Surface coordinates of a sphere, for plotting.
+
+    Parameters
+    ----------
+    x, y, z : float
+        Center of the sphere, in the plot frame.
+    radius : float
+        Sphere radius, in the same units as the center.
+    resolution : int, optional
+        Number of latitude samples; longitude uses twice as many. Default is 10.
+
+    Returns
+    -------
+    X, Y, Z : np.ndarray (2 * resolution, resolution)
+        Grid coordinates of the sphere surface.
+    """
     u, v = np.mgrid[0 : 2 * np.pi : resolution * 2j, 0 : np.pi : resolution * 1j]
     X = radius * np.cos(u) * np.sin(v) + x
     Y = radius * np.sin(u) * np.sin(v) + y
@@ -14,6 +29,13 @@ def makesphere(x, y, z, radius, resolution=10):
 
 
 def plot_orbit(r: np.ndarray):
+    """Plot a satellite trajectory around Earth in an interactive 3D figure.
+
+    Parameters
+    ----------
+    r : np.ndarray (N, 3)
+        Satellite position history in ECI [m], one position per row.
+    """
     # plot orbits
     fig = go.Figure()
 
@@ -74,6 +96,13 @@ def plot_orbit(r: np.ndarray):
 
 
 def plot_rocket(r: np.ndarray):
+    """Plot a rocket trajectory around Earth in an interactive 3D figure.
+
+    Parameters
+    ----------
+    r : np.ndarray (N, 3)
+        Rocket position history in an Earth-centered frame [m], one position per row.
+    """
     # plot orbits
     fig = go.Figure()
 

@@ -3,8 +3,18 @@ import numpy as np
 
 # TODO: may split between Spacecraft and SpacecraftInterface to mimic what spacecraft actually knows
 class Spacecraft:
-    """Can be a rocket or satellite or anything
+    """Mass properties of a simulated vehicle (rocket, satellite, etc.).
 
+    Attributes
+    ----------
+    mass : float
+        Vehicle mass [kg].
+    I : np.ndarray (3, 3) or None
+        Moment of inertia tensor about the center of mass, in the body frame
+        [kg*m2]. None disables rotational dynamics.
+
+    Notes
+    -----
     TODO: change moments of inertia to a function?
     TODO:
     - from prev
@@ -22,13 +32,14 @@ class Spacecraft:
     def __init__(
         self, mass: float, I: np.ndarray
     ):  # , state: np.ndarray, state_truth: np.ndarray = None):
-        """Keeps track of its measured state and truth state.
-
-        Args:
-            mass (float): Initial mass [kg]
-            I (np.ndarray): Initial moment of inertia tensor (whether changing or not) [kg m2]
-            state (np.ndarray): Initial measured state [p, v, q, w]
-            state_truth (np.ndarray): Initial truth state [p, v, q, w]
+        """
+        Parameters
+        ----------
+        mass : float
+            Initial vehicle mass [kg].
+        I : np.ndarray (3, 3) or None
+            Initial moment of inertia tensor about the center of mass, in the body
+            frame [kg*m2]. None disables rotational dynamics.
         """
         self.mass = mass
         self.I = I

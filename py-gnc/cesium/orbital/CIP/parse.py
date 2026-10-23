@@ -25,6 +25,27 @@ planetary_effect_cols = [
 
 
 def import_table(filename: str):
+    """Parse an IERS Conventions Table 5.2 file (CIP X, Y, or s series).
+
+    Parameters
+    ----------
+    filename : str
+        Name of the table file in this directory (e.g. `"tab5.2a.txt"`).
+
+    Returns
+    -------
+    coeffs_microarcsec : np.ndarray (6,)
+        Polynomial-part coefficients, constant term first [microarcsec].
+    the_data : list of np.ndarray
+        One array per power of `t` (`j = 0, 1, ...`). Each row holds the sine and
+        cosine amplitudes [microarcsec] followed by the 14 fundamental-argument
+        multipliers.
+
+    Raises
+    ------
+    ImportError
+        If the file is empty or is not a Table 5.2 file.
+    """
     base = Path(__file__).resolve().parent
     filename = base / filename
 
@@ -84,6 +105,20 @@ def import_table(filename: str):
 
 
 def approx_5th_deg_spline(t_tt, coeffs) -> float:
+    """Evaluate the 5th-degree polynomial part of the IAU 2006 CIP series.
+
+    Parameters
+    ----------
+    t_tt : float
+        Julian centuries since J2000 in Terrestrial Time (TT).
+    coeffs : array_like (6,)
+        Polynomial coefficients, constant term first [microarcsec].
+
+    Returns
+    -------
+    float
+        Polynomial value [microarcsec].
+    """
     return (
         coeffs[0]
         + coeffs[1] * t_tt
@@ -127,14 +162,21 @@ FUNDAMENTAL_ARGUMENTS_RAD = np.array(
 
 
 def fundamental_arguments(t_tt: float):
-    """Gets all fundamental Delaunay arguments \\
-    Vallado 4e 3-58 anf 3-59 p.210-211
+    """Compute the 14 fundamental nutation arguments (Delaunay and planetary).
 
-    Args:
-        t_tt (float): Julian century (TT)
+    Parameters
+    ----------
+    t_tt : float
+        Julian centuries since J2000 in Terrestrial Time (TT).
 
-    Returns:
-        np.ndarray: (14,) vector with all fundamental nutation arguments [rad]
+    Returns
+    -------
+    args : np.ndarray (14,)
+        Fundamental nutation arguments, wrapped to `[0, 2*pi)` [rad].
+
+    References
+    ----------
+    Vallado 4e, Equations 3-58 and 3-59, p. 210-211.
     """
     t = t_tt
     t2 = t * t
@@ -149,22 +191,53 @@ def fundamental_arguments(t_tt: float):
 
 
 # def trigonometric_argument(coeffs: np.ndarray, t_tt: float):
-#     """Trigonometric argument a_p_i \\
-#     Vallado 4e 3-63 p. 213
+#     """Trigonometric argument `a_p_i` of the CIP series.
 
-#     Args:
-#         coeffs (np.ndarray): (N,14) vector of coefficients from nutation table
-#         t_tt (float): Julian century (TT)
+#     Parameters
+#     ----------
+#     coeffs : np.ndarray (N, 14)
+#         Fundamental-argument multipliers from the nutation table.
+#     t_tt : float
+#         Julian centuries since J2000 in Terrestrial Time (TT).
 
-#     Returns:
-#         float: trigonometric_argument
+#     Returns
+#     -------
+#     float
+#         Trigonometric argument [rad].
+
+#     References
+#     ----------
+#     Vallado 4e, Equation 3-63, p. 213.
 #     """
 #     args = fundamental_arguments(t_tt)
 #     return coeffs * args
 
 
 def get_summation(rows: np.ndarray, t_tt: float):
-    """One of those summation terms on Vallado 4e p. 214 for calculating X,Y, and s"""
+    """Evaluate one periodic summation term of the CIP X, Y, or s series.
+
+    Parameters
+    ----------
+    rows : np.ndarray (N, 16)
+        Table rows for a single power of `t`. Each row holds the sine and cosine
+        amplitudes [microarcsec] followed by the 14 fundamental-argument multipliers.
+    t_tt : float
+        Julian centuries since J2000 in Terrestrial Time (TT).
+
+    Returns
+    -------
+    float
+        Sum of the periodic terms [microarcsec].
+
+    Raises
+    ------
+    ImportError
+        If a row does not have 16 entries.
+
+    References
+    ----------
+    Vallado 4e, p. 214.
+    """
     sum = 0
     for row in rows:
         if len(row) != 16:

@@ -10,34 +10,47 @@ from ...math.transformations import PCI_to_NTW
 #                              Isp: float, F: float, m: float, scale: str = "short", 
 #                              nsteps: int = 1000, iter = 1000, lambda_guess = 1.0,
 #                              mu: float = MU_EARTH, deg = False) -> tuple[float, float]:
-#     """Low Thrust Transfer \\
-#     Vallado 4e Algorithm 47 p. 387
+#     """Low-thrust transfer between circular orbits with an inclination change.
 
 #     Parameters
 #     ----------
 #     a_init : float
-#         Initial semi-major axis [m]
+#         Semi-major axis of initial circular orbit [m].
 #     a_final : float
-#         Final semi-major axis [m]
+#         Semi-major axis of final circular orbit [m].
 #     i_init : float
-#         Initial inclination [rad or deg]
+#         Initial inclination [rad, or deg if `deg` is True].
 #     i_final : float
-#         Final inclination [rad or deg]
+#         Final inclination [rad, or deg if `deg` is True].
 #     Isp : float
-#         Specific impulse [s]
+#         Specific impulse of thruster [s].
 #     F : float
-#         Thrust [N]
+#         Thrust magnitude [N].
 #     m : float
-#         Mass [kg]
+#         Initial spacecraft mass [kg].
+#     scale : str, optional
+#         Transfer scale. Only "short" is implemented. Default is "short".
+#     nsteps : int, optional
+#         Integration steps per initial orbital period. Default is 1000.
+#     iter : int, optional
+#         Maximum number of iterations. Default is 1000.
+#     lambda_guess : float, optional
+#         Initial guess for steering Lagrange multiplier. Default is 1.0.
 #     mu : float, optional
-#         Gravitational parameter of central body [m3/s2]
+#         Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+#     deg : bool, optional
+#         If True, inclinations are in degrees; otherwise radians. Default is False.
 
 #     Returns
 #     -------
 #     tau : float
-#         Time of transfer [s]
+#         Transfer time [s].
 #     dV : float
-#         Delta-V for maneuver [m/s] 
+#         Total delta-v for maneuver [m/s].
+
+#     References
+#     ----------
+#     Vallado 4e, Algorithm 47, p. 387.
 #     """
     
 #     if scale != "short":

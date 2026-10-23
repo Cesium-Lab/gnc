@@ -24,12 +24,12 @@ def test_unit():
 
 def test_mul():
     q1 = [2, 2, 2, 2]
-    q2 = Q.quat_mul(q1, q1)
+    q2 = Q.quat_mult(q1, q1)
     assert np.array_equal(q2, [-8, 8, 8, 8])
 
     q1 = [3, 1, -2, 1]
     q2 = [2, -1, 2, 3]
-    q2 = Q.quat_mul(q1, q2)
+    q2 = Q.quat_mult(q1, q2)
     assert np.array_equal(q2, [8, -9, -2, 11])
 
 

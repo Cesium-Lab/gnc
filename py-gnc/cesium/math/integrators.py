@@ -21,6 +21,27 @@ def rk4_func(
     x_dot: Callable[[float, np.ndarray], np.ndarray],
     params=None,
 ):
+    """Advance a state one step with the classic 4th-order Runge-Kutta method.
+
+    Parameters
+    ----------
+    t : float
+        Time at the start of the step [s].
+    dt : float
+        Step size [s].
+    x_prev : float or np.ndarray
+        State at time `t`.
+    x_dot : Callable
+        Derivative function with signature `x_dot(t, x, params) -> dx/dt`.
+    params : object, optional
+        Extra parameters passed through to `x_dot` (e.g. `RigidBodyParams`).
+        Default is None.
+
+    Returns
+    -------
+    float or np.ndarray
+        State at time `t + dt`.
+    """
     k1 = x_dot(t, x_prev, params)
     k2 = x_dot(t + dt / 2, x_prev + dt * k1 / 2, params)
     k3 = x_dot(t + dt / 2, x_prev + dt * k2 / 2, params)

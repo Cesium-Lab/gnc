@@ -8,21 +8,25 @@ from ..orbital.coes import rv_to_coes, coes_to_rv, kepler_eq, E_from_ta, ta_from
 from .gravity import grav_accel
 
 def two_body(state: np.ndarray, mu=MU_EARTH, j2=None, r_cb=R_EARTH) -> np.ndarray:
-    """Two body dynamics
-    
-    [x, y, z, vx, vy, vz] -> [vx, vy, vz, ax, ay, az]
+    """Time derivative under two-body gravity, optionally with J2.
 
     Parameters
     ----------
-    state : np.ndarray
-        State - `[x, y, z, vx, vy, vz]`
+    state : np.ndarray (6,)
+        Satellite position and velocity in the inertial frame (e.g. ECI),
+        `[x, y, z, vx, vy, vz]` [m, m/s].
     mu : float, optional
-        Gravitational parameter of central body, by default `MU_EARTH` [km3/s2]
+        Gravitational parameter of the central body [m3/s2]. Default is `MU_EARTH`.
+    j2 : float, optional
+        J2 value for perturbation. If None, J2 is not applied.
+        Default is None.
+    r_cb : float, optional
+        Equatorial radius of the central body, used for J2 if it is enabled [m]. Default is `R_EARTH`.
 
     Returns
     -------
-    x_dot : np.ndarray (6,)
-        State derivative - `[vx, vy, vz, ax, ay, az]`
+    state_dot : np.ndarray (6,)
+        State derivative, `[vx, vy, vz, ax, ay, az]` [m/s, m/s2].
     """
     r,v = state[0:3], state[3:6]
     a = grav_accel(r,mu,j2,r_cb)
@@ -31,29 +35,33 @@ def two_body(state: np.ndarray, mu=MU_EARTH, j2=None, r_cb=R_EARTH) -> np.ndarra
     return state_dot
 
 def synodic_dynamics(state: np.ndarray, mu1: float, mu2: float, r1_bc: float, r2_bc: float, w_s: float) -> np.ndarray:
-    """Circular restricted three-body problem (CR3BP). Constant `w_s` and circular orbits
-    
-    [x, y, z, vx, vy, vz] -> [vx, vy, vz, ax, ay, az]
+    """Time derivative under circular restricted three-body problem.
+
+    The state is expressed in the rotating synodic frame centered at the
+    barycenter, with the larger body on the -x axis and the smaller body on the
+    +x axis. The primaries are on circular orbits with constant rate `w_s`.
 
     Parameters
     ----------
-    state : np.ndarray
-        State - `[x, y, z, vx, vy, vz]`
+    state : np.ndarray (6,)
+        Satellite position and velocity in the synodic frame,
+        `[x, y, z, vx, vy, vz]` [m, m/s].
     mu1 : float
-        Gravitational parameter of larger central body [km3/s2]
+        Gravitational parameter of larger central body [m3/s2].
     mu2 : float
-        Gravitational parameter of smaller central body [km3/s2]
+        Gravitational parameter of smaller central body [m3/s2].
     r1_bc : float
-        Distance from larger central body to barycenter [km]
+        Distance from larger central body to barycenter [m].
     r2_bc : float
-        Distance from smaller central body to barycenter [km]
+        Distance from smaller central body to barycenter [m].
     w_s : float
-        Angular velocity of system [rad/s]
+        Angular velocity of the synodic frame [rad/s].
 
     Returns
     -------
     state_dot : np.ndarray (6,)
-        State derivative - `[vx, vy, vz, ax, ay, az]`
+        State derivative in the synodic frame, `[vx, vy, vz, ax, ay, az]`
+        [m/s, m/s2].
     """
     
     assert mu1 > mu2

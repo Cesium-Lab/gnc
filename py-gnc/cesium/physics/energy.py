@@ -2,41 +2,63 @@
 import numpy as np
 
 
-def calc_potential_energy(r: np.ndarray, mass_kg: float, mu: float):
-    """Compute potential energy (currently only gravity). (Schaub 9.76)
+def calc_potential_energy(r: np.ndarray, mass: float, mu: float):
+    """Compute potential energy of a point mass (currently only gravity)
 
-    Args:
-        mass (float): Mass of rigid body [kg]
-        r (np.ndarray): Absolute position vector relative to center of central body [m] (typically the earth)
-        mu (float): Gravitational parameter of central body [m3/s2] (typically the earth)
+    Parameters
+    ----------
+    r : np.ndarray (3,)
+        Position of the body relative to the central body's center (e.g. ECI) [m].
+    mass : float
+        Mass of the body [kg].
+    mu : float
+        Gravitational parameter of the central body (e.g. `MU_EARTH`) [m3/s2].
 
-    Returns:
-        float: Potential energy [J]
+    Returns
+    -------
+    float
+        Potential energy [J]. 0 if `r` is at the central body's center.
+
+    References
+    ----------
+    Schaub, Equation 9.76.
     """
     r_norm = np.linalg.norm(r)
 
     if r_norm < 1e-6:
         return 0
 
-    return -mu * mass_kg / r_norm
+    return -mu * mass / r_norm
 
 
 def calc_kinetic_energy(
-    v: np.ndarray, w: np.ndarray, mass_kg: np.ndarray, I: np.ndarray
+    v: np.ndarray, w: np.ndarray, mass: np.ndarray, I: np.ndarray
 ):
-    """Compute kinetic energy (rotational and translational). (Schaub 4.55) \\
-    Must compute with w and I in the same frame
-    Args:
-        v (np.ndarray): Absolute velocity vector [m/s] 
-        w (np.ndarray): Angular velocity vector in specified frame [rad/s]
-        mass_kg (float): Mass of rigid body [kg]
-        I (np.ndarray): Moment of inertia tensor in specified frame [kg*m2]
+    """Compute translational plus rotational kinetic energy of a rigid body.
 
-    Returns:
-        float: Kinetic energy [J]
+    Parameters
+    ----------
+    v : np.ndarray (3,)
+        Inertial velocity of the body's center of mass [m/s].
+    w : np.ndarray (3,)
+        Angular velocity of the body, in the same frame as `I` (typically body) [rad/s].
+    mass : float
+        Mass of the body [kg].
+    I : np.ndarray (3, 3) or None
+        Moment of inertia tensor about the center of mass, in the same frame as
+        `w` [kg*m2]. If None, rotational energy is ignored.
+
+    Returns
+    -------
+    float
+        Kinetic energy [J].
+
+    References
+    ----------
+    Schaub, Equation 4.55.
     """
 
-    KE_translational = 0.5 * mass_kg * np.dot(v, v)
+    KE_translational = 0.5 * mass * np.dot(v, v)
 
     if I is not None:
         KE_rotational = 0.5 * (w.T @ I @ w)
@@ -49,23 +71,33 @@ def calc_kinetic_energy(
 def calc_total_energy(
     mass_kg: float,
     I: np.ndarray,
-    r: np.ndarray | list,
+    r: np.ndarray,
     v: np.ndarray,
     w: np.ndarray,
     mu: float,
 ):
-    """Compute total energy (potential is currently only under gravity) \\
-    Must compute with w and I in the same frame
-    Args:
-        mass_kg (float): Mass of rigid body [kg]
-        I (np.ndarray): Moment of inertia tensor in specified frame [kg*m2]
-        r (np.ndarray): Absolute position vector (relative to center of central body [m]) (typically the earth)
-        v (np.ndarray): Absolute velocity vector [m/s] 
-        w (np.ndarray): Angular velocity vector in specified frame [rad/s]
-        mu (float): Gravitational parameter of central body [m3/s2] (typically the earth)
+    """Compute total (kinetic plus potential) energy of a rigid body.
 
-    Returns:
-        float: Total energy [J]
+    Parameters
+    ----------
+    mass_kg : float
+        Mass of the body [kg].
+    I : np.ndarray (3, 3) or None
+        Moment of inertia tensor about the center of mass, in the same frame as
+        `w` [kg*m2]. If None, rotational energy is ignored.
+    r : np.ndarray (3,)
+        Position of the body relative to the central body's center (e.g. ECI) [m].
+    v : np.ndarray (3,)
+        Inertial velocity of the body's center of mass [m/s].
+    w : np.ndarray (3,)
+        Angular velocity of the body, in the same frame as `I` (typically body) [rad/s].
+    mu : float
+        Gravitational parameter of the central body (e.g. `MU_EARTH`) [m3/s2].
+
+    Returns
+    -------
+    float
+        Total energy [J].
     """
     PE = calc_potential_energy(r, mass_kg, mu)
     KE = calc_kinetic_energy(v, w, mass_kg, I)
