@@ -97,8 +97,8 @@ def pkepler(r0: np.ndarray, v0: np.ndarray, dt: float, r_cb = R_EARTH, mu = MU_E
     """
     a, e, i, raan, aop, ta = rv_to_coes(r0, v0, mu)
 
-    if not (0 < e < 1):
-        raise ValueError("Requires a noncircular elliptical orbit")
+    if not (0 <= e < 1):
+        raise ValueError("Requires an elliptical orbit")
     
     E = E_from_ta(ta, e)
     M = E - e*np.sin(E)

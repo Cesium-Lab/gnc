@@ -81,8 +81,6 @@ from ...math.transformations import PCI_to_NTW
 #         rv_curr_ECI = 0.0
 #         dcm_ECI_to_NTW = PCI_to_NTW(rv_curr_ECI)
 #         a_ECI = dcm_ECI_to_NTW.T @ a_NTW
-        
-#         v = v0
             
 #         if norm(a_final - a_curr < eps) and norm(a_final - a_curr < eps):
 #             print(f"Converged in {i} iterations")
