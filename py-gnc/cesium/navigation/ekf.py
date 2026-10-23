@@ -31,7 +31,7 @@ class EkfParams:
 
 
 @dataclass
-class State:
+class EkfState:
     """Extended Kalman Filter State (Nx1 state)
     - `x`: **State vector** (np.ndarray) [Nx1]
     - `P`: **State covariance** (np.ndarray) [NxN]"""
@@ -47,7 +47,7 @@ class EKF:
     - `state`: np.ndarray (State [Nx1])
     """
 
-    def __init__(self, state0: State, params: EkfParams):
+    def __init__(self, state0: EkfState, params: EkfParams):
         """
         Args:
             state0 (State): Starting state
@@ -80,7 +80,7 @@ class EKF:
         F = self.F(x, u)
         P_next = F @ P @ F.T + Q
 
-        self.state = State(x_next, P_next)
+        self.state = EkfState(x_next, P_next)
 
     def update(self, z: np.ndarray) -> None:
         """Updates state. Modifies member state and also returns it
@@ -109,4 +109,4 @@ class EKF:
 
         # P_next = (I - K@H) @ P_est
 
-        self.state = State(x_next, P_next)
+        self.state = EkfState(x_next, P_next)

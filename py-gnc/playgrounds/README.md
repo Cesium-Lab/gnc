@@ -1,4 +1,4 @@
-# Estimation
+# Navigation
 
 ## Project Ideas
 1. Noise characterization of all of the sensors
