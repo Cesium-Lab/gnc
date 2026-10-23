@@ -1,9 +1,8 @@
 import sys
 import numpy as np
 
-sys.path.append(".")
 
-from csim.math.integrators import rk4_func
+from cesium.math.integrators import rk4_func
 
 #################################################################
 #               Constant

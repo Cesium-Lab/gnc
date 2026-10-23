@@ -3,12 +3,11 @@ import numpy as np
 import pytest
 from numpy.linalg import norm
 
-sys.path.append(".")
 
-import csim.math.transformations as Trans
-from csim.world import W_EARTH
-from csim.constants import DEG_TO_RAD, ARCSEC_TO_RAD, RAD_TO_ARCSEC, RAD_TO_DEG, M_TO_KM, KM_TO_M
-from csim.math.time import greg_to_jd
+import cesium.math.transformations as Trans
+from cesium.world import W_EARTH
+from cesium.constants import DEG_TO_RAD, ARCSEC_TO_RAD, RAD_TO_ARCSEC, RAD_TO_DEG, M_TO_KM, KM_TO_M
+from cesium.math.time import greg_to_jd
 
 #########################################################################################################
 #               LLA to R

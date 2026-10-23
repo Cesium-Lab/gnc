@@ -1,15 +1,14 @@
 import sys
 
-sys.path.append(".")
 
 import numpy as np
 
-# from csim.physics.energy import calc_total_energy
-# from csim.physics.rigid_body import rigid_body_derivative, RigidBodyParams
-# from csim.math.integrators import rk4_func
-from csim.world import R_EARTH
+# from cesium.physics.energy import calc_total_energy
+# from cesium.physics.rigid_body import rigid_body_derivative, RigidBodyParams
+# from cesium.math.integrators import rk4_func
+from cesium.world import R_EARTH
 
-from csim.physics import grav_accel
+from cesium.physics import grav_accel
 
 
 def test_normal_grav_edge_cases():

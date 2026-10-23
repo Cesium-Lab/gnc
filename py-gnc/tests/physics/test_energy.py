@@ -2,14 +2,13 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.append(".")
 
-from csim.physics.energy import (
+from cesium.physics.energy import (
     calc_kinetic_energy,
     calc_potential_energy,
     calc_total_energy,
 )
-from csim.world import MU_EARTH
+from cesium.world import MU_EARTH
 
 
 def test_PE_values_of_0():

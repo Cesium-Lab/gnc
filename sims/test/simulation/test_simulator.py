@@ -6,7 +6,7 @@ sys.path.append(".")
 
 from csim.simulation import Simulator, rigid_body_step_fn
 from csim.entities import Spacecraft
-from csim.world import MU_EARTH, R_EARTH
+from cesium.world import MU_EARTH, R_EARTH
 
 
 # TODO: actual tests?

@@ -2,11 +2,10 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.append(".")
 
-from csim.math.coes import kepler_eq, rv_to_coes, coes_to_rv
-from csim.constants import DEG_TO_RAD, RAD_TO_DEG
-from csim.world import MU_EARTH, MU_EARTH_KM
+from cesium.math.coes import kepler_eq, rv_to_coes, coes_to_rv
+from cesium.constants import DEG_TO_RAD, RAD_TO_DEG
+from cesium.world import MU_EARTH, MU_EARTH_KM
 
 
 def test_kelper():

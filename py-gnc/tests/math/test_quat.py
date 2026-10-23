@@ -1,10 +1,9 @@
 import sys
 import numpy as np
 
-sys.path.append(".")
 
-import csim.math.quaternion as Q
-from csim.math.quaternion import DEG_TO_RAD
+import cesium.math.quaternion as Q
+from cesium.math.quaternion import DEG_TO_RAD
 
 
 def test_conjugate():

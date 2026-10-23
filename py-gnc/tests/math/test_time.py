@@ -2,9 +2,8 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.append(".")
 
-import csim.math.time as T
+import cesium.math.time as T
 
 
 def test_vallado_greg_to_jd_examples():

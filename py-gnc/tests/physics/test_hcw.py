@@ -2,12 +2,11 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.append(".")
 
-from csim.physics.hcw import rv_hcw_3d
+from cesium.physics.hcw import rv_hcw_3d
 
-from csim.world import MU_EARTH, R_EARTH
-from csim.constants import KM_TO_M, MIN_TO_SEC
+from cesium.world import MU_EARTH, R_EARTH
+from cesium.constants import KM_TO_M, MIN_TO_SEC
 
 
 def test_vallado_hubble():

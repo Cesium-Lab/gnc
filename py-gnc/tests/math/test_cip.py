@@ -1,9 +1,8 @@
 import sys
 import numpy as np
 
-sys.path.append(".")
-import csim.math.CIP.parse as P
-from csim.constants import RAD_TO_ARCSEC, RAD_TO_DEG
+import cesium.math.CIP.parse as P
+from cesium.constants import RAD_TO_ARCSEC, RAD_TO_DEG
 
 
 def test_fundamental_arguments_no_time():

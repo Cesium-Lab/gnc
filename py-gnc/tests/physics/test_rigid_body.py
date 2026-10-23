@@ -1,13 +1,12 @@
 import sys
 
-sys.path.append(".")
 import pytest
 
 import numpy as np
-from csim.physics.energy import calc_total_energy
-from csim.physics.rigid_body import rigid_body_derivative, RigidBodyParams
-from csim.math.integrators import rk4_func
-from csim.world import MU_EARTH
+from cesium.physics.energy import calc_total_energy
+from cesium.physics.rigid_body import rigid_body_derivative, RigidBodyParams
+from cesium.math.integrators import rk4_func
+from cesium.world import MU_EARTH
 
 
 def propagate(dt: float, tmax: float, state0: np.ndarray, params: RigidBodyParams):
