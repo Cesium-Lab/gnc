@@ -563,9 +563,9 @@ def PN_matrix(t_tt: float, dX=0.0, dY=0.0):
     t_tt : float
         Julian centuries since J2000 in Terrestrial Time (TT).
     dX : float, optional
-        CIP X correction from EOP data [arcsec]. Default is 0.0. Currently unused.
+        CIP X correction from EOP data [rad]. Default is 0.0. Currently unused.
     dY : float, optional
-        CIP Y correction from EOP data [arcsec]. Default is 0.0. Currently unused.
+        CIP Y correction from EOP data [rad]. Default is 0.0. Currently unused.
 
     Returns
     -------
@@ -593,33 +593,46 @@ def PN_matrix(t_tt: float, dX=0.0, dY=0.0):
     return mat @ rot3_s
 
 
-def itrf_to_gcrs_matrices(
-    xp: float,
-    yp: float,
-    jd_utc: float,
-    dX: float = 0,
-    dY: float = 0,
-    deltaUT1_s: float = 0,
-    deltaAT_s: float = 32,
-):
+@dataclass(frozen=True)
+class EOP:
+    """Earth orientation parameters for a single epoch (from IERS data).
+
+    Fields other than `deltaAT_s` default to zero. Leaving them at zero gives a
+    lower-accuracy transformation (ignoring polar motion alone is ~10 m in LEO).
+
+    Attributes
+    ----------
+    xp, yp : float
+        Polar-motion coordinates of the CIP in the ITRS [rad].
+    dX, dY : float
+        CIP offset corrections [rad].
+    deltaUT1_s : float
+        UT1 - UTC [s].
+    deltaAT_s : float
+        TAI - UTC (leap seconds) [s]. Default is 37 (valid since 2017).
+    lod_s : float
+        Excess length of day [s]. (Vallado Equation 3-75)
+    """
+
+    xp: float = 0.0
+    yp: float = 0.0
+    dX: float = 0.0
+    dY: float = 0.0
+    deltaUT1_s: float = 0.0
+    deltaAT_s: float = 37.0
+    lod_s: float = 0.0
+
+
+def itrf_to_gcrs_matrices(jd_utc: float, eop: EOP = EOP()):
     """Compute the PN, R, and W matrices for the ITRF <--> GCRS transformation.
 
     Parameters
     ----------
-    xp : float
-        x polar-motion coordinate of the CIP in the ITRS, from EOP data [rad].
-    yp : float
-        y polar-motion coordinate of the CIP in the ITRS, from EOP data [rad].
     jd_utc : float
         Julian date in UTC.
-    dX : float, optional
-        CIP X correction from EOP data [arcsec]. Default is 0.
-    dY : float, optional
-        CIP Y correction from EOP data [arcsec]. Default is 0.
-    deltaUT1_s : float, optional
-        UT1 - UTC offset from EOP data [s]. Default is 0.
-    deltaAT_s : float, optional
-        TAI - UTC offset (leap seconds) [s]. Default is 32.
+    eop : EOP, optional
+        Earth orientation parameters at `jd_utc`. Default is `EOP()` (zero
+        polar motion, UT1 = UTC, 37 leap seconds).
 
     Returns
     -------
@@ -640,53 +653,23 @@ def itrf_to_gcrs_matrices(
     Vallado 4e, Algorithm 23, p. 221.
     """
 
-    jd_ut1 = jd_utc + deltaUT1_s * SEC_TO_DAY
-    jd_tai = jd_utc + deltaAT_s * SEC_TO_DAY
+    jd_ut1 = jd_utc + eop.deltaUT1_s * SEC_TO_DAY
+    jd_tai = jd_utc + eop.deltaAT_s * SEC_TO_DAY
     jd_tt = jd_tai + 32.184 * SEC_TO_DAY
     t_tt = jd_to_julian_centuries(jd_tt)
 
-    W = W_matrix(xp, yp, t_tt)
+    W = W_matrix(eop.xp, eop.yp, t_tt)
     R = R_matrix(jd_ut1)
-    PN = PN_matrix(t_tt, dX, dY)
+    PN = PN_matrix(t_tt, eop.dX, eop.dY)
 
     return PN, R, W
-
-@dataclass
-class EOP:
-    """Earth orientation parameters for a single epoch (from IERS data).
-    Attributes
-    ----------
-    xp, yp : float
-        Polar-motion coordinates of the CIP in the ITRS [rad].
-    dX, dY : float
-        CIP offset corrections [rad].
-    deltaUT1_s : float
-        UT1 - UTC [s].
-    deltaAT_s : float
-        TAI - UTC (leap seconds) [s].
-    lod_s : float
-        Excess length of day [s].
-    """
-    xp: float = 0.0
-    yp: float = 0.0
-    dX: float = 0.0
-    dY: float = 0.0
-    deltaUT1_s: float = 0.0
-    deltaAT_s: float = 37.0
-    lod_s: float = 0.0
 
 
 def itrf_to_gcrs(
     r_itrf: np.ndarray,
     v_itrf: np.ndarray,
-    xp: float,
-    yp: float,
     jd_utc: float,
-    dX: float = 0,
-    dY: float = 0,
-    deltaUT1_s: float = 0,
-    deltaAT_s: float = 32,
-    lod_s: float = 0,
+    eop: EOP = EOP(),
 ) -> tuple[np.ndarray, np.ndarray]:
     """Transform a satellite's position and velocity from ITRF (ECEF) to GCRS (ECI).
 
@@ -699,23 +682,11 @@ def itrf_to_gcrs(
         Satellite position in ITRF [m] (or [km], matching `v_itrf`).
     v_itrf : np.ndarray (3,)
         Satellite velocity relative to ITRF [m/s] (or [km/s], matching `r_itrf`).
-    xp : float
-        x polar-motion coordinate of the CIP in the ITRS, from EOP data [rad].
-    yp : float
-        y polar-motion coordinate of the CIP in the ITRS, from EOP data [rad].
     jd_utc : float
         Julian date in UTC.
-    dX : float, optional
-        CIP X correction from EOP data [arcsec]. Default is 0.
-    dY : float, optional
-        CIP Y correction from EOP data [arcsec]. Default is 0.
-    deltaUT1_s : float, optional
-        UT1 - UTC offset from EOP data [s]. Default is 0.
-    deltaAT_s : float, optional
-        TAI - UTC offset (leap seconds) [s]. Default is 32.
-    lod_s : float, optional
-        Excess length of day from EOP data [s], which slightly reduces Earth's
-        rotation rate. Default is 0.
+    eop : EOP, optional
+        Earth orientation parameters at `jd_utc`. `eop.lod_s` slightly reduces
+        Earth's rotation rate in the velocity term. Default is `EOP()`.
 
     Returns
     -------
@@ -728,11 +699,11 @@ def itrf_to_gcrs(
     ----------
     Vallado 4e, Algorithm 23, p. 221.
     """
-    PN, R, W = itrf_to_gcrs_matrices(xp, yp, jd_utc, dX, dY, deltaUT1_s, deltaAT_s)
+    PN, R, W = itrf_to_gcrs_matrices(jd_utc, eop)
 
     r_tirs = W @ r_itrf
     v_tirs = W @ v_itrf
-    w_earth_tirs = np.array([0, 0, W_EARTH * (1 - lod_s * SEC_TO_DAY)])
+    w_earth_tirs = np.array([0, 0, W_EARTH * (1 - eop.lod_s * SEC_TO_DAY)])
 
     r_gcrs = PN @ R @ r_tirs
     v_gcrs = PN @ R @ (v_tirs + np.cross(w_earth_tirs, r_tirs))

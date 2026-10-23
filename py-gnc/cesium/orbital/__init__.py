@@ -1,5 +1,6 @@
 from .coes import rv_to_coes, coes_to_rv
 from .transformations import (
+    EOP,
     itrf_to_gcrs_matrices,
     itrf_to_gcrs,
     ECEF_to_geodetic_LLA,
@@ -9,6 +10,7 @@ from .transformations import (
 __all__ = [
     "rv_to_coes",
     "coes_to_rv",
+    "EOP",
     "itrf_to_gcrs_matrices",
     "itrf_to_gcrs",
     "ECEF_to_geodetic_LLA",

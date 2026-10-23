@@ -159,14 +159,16 @@ def test_vallado_full_itrf():
     expected = np.array([5102.508959, 6123.011403, 6378.136925])
     jd = greg_to_jd(2004, 4, 6, 7, 51, 28.386009)
 
-    xp = -0.140682 * ARCSEC_TO_RAD
-    yp = 0.333309 * ARCSEC_TO_RAD
-    dAT = 32
-    dUT1 = 0.4399619
-    dX = -0.000205 * ARCSEC_TO_RAD
-    dY = -0.000136 * ARCSEC_TO_RAD
+    eop = Trans.EOP(
+        xp=-0.140682 * ARCSEC_TO_RAD,
+        yp=0.333309 * ARCSEC_TO_RAD,
+        dX=-0.000205 * ARCSEC_TO_RAD,
+        dY=-0.000136 * ARCSEC_TO_RAD,
+        deltaUT1_s=-0.4399619,
+        deltaAT_s=32,
+    )
 
-    PN, R, W = Trans.itrf_to_gcrs_matrices(xp, yp, jd, dX, dY, dUT1, dAT)
+    PN, R, W = Trans.itrf_to_gcrs_matrices(jd, eop)
 
     # Tests that determinant is 1
     assert np.linalg.det(PN @ R @ W) == pytest.approx(1, 1e-9)
@@ -185,17 +187,17 @@ def test_vallado_full_itrf_rv():
     v_expected = np.array([-4.743220161, 0.790536495, 5.533755724])
     jd = greg_to_jd(2004, 4, 6, 7, 51, 28.386009)
 
-    xp = -0.140682 * ARCSEC_TO_RAD
-    yp = 0.333309 * ARCSEC_TO_RAD
-    dAT = 32
-    dUT1 = -0.4399619
-    lod = 0.0015563
-    dX = -0.000205 * ARCSEC_TO_RAD
-    dY = -0.000136 * ARCSEC_TO_RAD
-
-    r_gcrs, v_gcrs = Trans.itrf_to_gcrs(
-        r_itrf, v_itrf, xp, yp, jd, dX, dY, dUT1, dAT, lod
+    eop = Trans.EOP(
+        xp=-0.140682 * ARCSEC_TO_RAD,
+        yp=0.333309 * ARCSEC_TO_RAD,
+        dX=-0.000205 * ARCSEC_TO_RAD,
+        dY=-0.000136 * ARCSEC_TO_RAD,
+        deltaUT1_s=-0.4399619,
+        deltaAT_s=32,
+        lod_s=0.0015563,
     )
+
+    r_gcrs, v_gcrs = Trans.itrf_to_gcrs(r_itrf, v_itrf, jd, eop)
 
     assert np.allclose(r_gcrs, r_expected, rtol=1e-4)
     assert np.allclose(v_gcrs, v_expected, rtol=1e-4)
