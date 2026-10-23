@@ -7,7 +7,7 @@ from cesium.constants import DEG_TO_RAD, RAD_TO_DEG
 from cesium.world import MU_EARTH, MU_EARTH_KM
 
 
-def test_kepler():
+def test_kelper():
     """Vallado 4e Example 2-1 p. 66"""
     M = 235.4 * DEG_TO_RAD
     e = 0.4
@@ -31,7 +31,7 @@ class TestRvToCoes:
         assert aop * RAD_TO_DEG == pytest.approx(53.38, rel=1e-4)
         assert ta * RAD_TO_DEG == pytest.approx(92.335, rel=1e-5)
 
-        # Vallado 4e p. 115, converted to meters
+        """Vallado 4e p. 115 but in meters"""
         r = np.array([6524.834, 6862.875, 6448.296]) * 1000  # m
         v = np.array([4.901327, 5.533756, -1.976341]) * 1000  # m/s
 
