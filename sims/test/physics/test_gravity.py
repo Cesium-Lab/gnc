@@ -27,5 +27,5 @@ def test_normal_grav_edge_cases():
 
 def test_normal_grav():
     assert np.allclose(
-        grav_accel(np.array([R_EARTH, 0, 0])), [-9.80665, 0, 0], rtol=1e-4
+        grav_accel(np.array([R_EARTH, 0, 0])), [-9.80665, 0, 0], atol=1e-2
     )

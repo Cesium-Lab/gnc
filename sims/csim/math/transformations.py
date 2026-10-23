@@ -2,116 +2,276 @@
 
 import numpy as np
 
-from ..world import R_EARTH, R_EARTH_POLAR, ECC_EARTH
+from ..world import R_EARTH, R_EARTH_POLAR, ECC_EARTH, W_EARTH, MU_EARTH
 from ..constants import DEG_TO_RAD, SEC_TO_DAY, ARCSEC_TO_RAD
 from .time import jd_to_julian_centuries
 from .CIP.parse import import_table, get_summation
+from .quaternion import unit
+
+################################################################################
+#               Angle
+################################################################################
+
+
+def wrap_to_pi(x):
+  return (x + np.pi) % (2 * np.pi) - np.pi
+
+def wrap_to_2pi(x):
+  return x % (2 * np.pi)
+
+def dcm_x(theta: float):
+    """Passive DCM from frame 1 to frame 2, rotated by theta [rad] (x2 = dcm @ x1)"""
+    return np.array(
+        [
+            [1, 0, 0],
+            [0, np.cos(theta), np.sin(theta)],
+            [0, -np.sin(theta), np.cos(theta)],
+        ]
+    )
+
+
+def dcm_y(theta: float):
+    """Passive DCM from frame 1 to frame 2, rotated by theta [rad] (x2 = dcm @ x1)"""
+    return np.array(
+        [
+            [np.cos(theta), 0, -np.sin(theta)],
+            [0, 1, 0],
+            [np.sin(theta), 0, np.cos(theta)],
+        ]
+    )
+
+
+def dcm_z(theta: float):
+    """Passive DCM from frame 1 to frame 2, rotated by theta [rad] (x2 = dcm @ x1)"""
+    return np.array(
+        [
+            [np.cos(theta), np.sin(theta), 0],
+            [-np.sin(theta), np.cos(theta), 0],
+            [0, 0, 1],
+        ]
+    )
+################################################################################
+#               Intermediate
+################################################################################
+
+# TODO: test
+def PCI_to_RSW(rv_PCI: np.ndarray) -> np.ndarray:
+    r, v = rv_PCI[0:3], rv_PCI[3:6]
+    r_hat = unit(r)
+    w_hat = unit(np.cross(r, v))
+    s_hat = np.cross(w_hat, r_hat)
+
+    return np.vstack((r_hat, s_hat, w_hat))
+
+def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
+    r, v = rv_PCI[0:3], rv_PCI[3:6]
+    w_hat = unit(np.cross(r, v))
+    t_hat = unit(v)
+    n_hat = np.cross(t_hat, w_hat)
+
+    return np.vstack((n_hat, t_hat, w_hat))
 
 ################################################################################
 #               LLA <--> ECEF
 ################################################################################
 
 
-def surface_lla_to_ecef(lat_deg: float, lon_deg: float, alt_m=0):
-    """From geodetic site coordinates to position vector \\
+def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m = 0.0, deg = True):
+    """Convert WGS84 geodetic lat, lon, and alt to ECEF\\
     Vallado 4e Example 3.1 p. 140
 
-    Args:
-        lat_deg (float): Geodetic latitude [rad]
-        lon_deg (float): Geodetic longitude [rad]
-        alt_m (int, optional): Altitude (MSL) [m]. Defaults to 0.
+    Parameters
+    ----------
+    lat, lon : float
+        Lat,lon [deg if deg=True, else rad]
+    alt_km : float
+        Altitude above SPHERICAL surface [km]
+    r_body_km : float
+        Body radius [km]
+    deg : bool
+        Whether input angles are in degrees
 
-    Returns:
-        np.ndarray: Position vector (ECEF) [m]
+    Returns
+    -------
+    r_ECEF : np.ndarray (3,)
+        Earth-fixed position [m]
     """
+    if deg:
+        lat *= DEG_TO_RAD
+        lon *= DEG_TO_RAD
 
-    lat_gd = lat_deg * DEG_TO_RAD
-    lon_gd = lon_deg * DEG_TO_RAD
 
-    sin_lat = np.sin(lat_gd)
-    cos_lat = np.cos(lat_gd)
+    sin_lat = np.sin(lat)
+    cos_lat = np.cos(lat)
 
-    denom = np.sqrt(1 - ECC_EARTH**2 * sin_lat**2)
-    C = R_EARTH / denom
-    S = C * (1 - ECC_EARTH**2)
+    e2 = ECC_EARTH**2
+    C = R_EARTH / np.sqrt(1 - e2 * sin_lat**2)
+    S = C * (1 - e2)
 
-    # Site coordinates [km]
+    # Site coordinates [m]
     r_horizontal = (C + alt_m) * cos_lat
     r_vertical = (S + alt_m) * sin_lat
 
-    r = np.array(
-        [r_horizontal * np.cos(lon_gd), r_horizontal * np.sin(lon_gd), r_vertical]
+    r_ECEF = np.array(
+        [r_horizontal * np.cos(lon), r_horizontal * np.sin(lon), r_vertical]
     )
 
-    return r
+    return r_ECEF
 
+def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, float]:
+    """Vallado 4e Algorithm 13 p. 173 (Borkowski method).
 
-def r_to_surface_lla(r_ecef: np.ndarray):
-    # TODO: cite
-    x, y, z = r_ecef
+    Parameters
+    ----------
+    r_ECEF : np.ndarray (3,)
+        Earth-centered, Earth-fixed position [m].
+    deg : bool
+        Whether output angles are in degrees.
 
+    Returns
+    -------
+    lat, lon : float
+        Geodetic latitude and longitude [deg if deg=True, else rad].
+    alt_m : float
+        Height above WGS84 reference ellipsoid [m].
+    """
+    x, y, z = r_ECEF
+
+    r_horizontal_sat = np.hypot(x, y)
     a = R_EARTH
     b = R_EARTH_POLAR
-    e2 = 1 - (b * b) / (a * a)
 
-    r = np.sqrt(x * x + y * y)
+    if r_horizontal_sat < 1e-9:
+        if abs(z) < 1e-9:
+            raise ValueError("LLA undefined at Earth's center.")
 
-    # FIX 1: longitude
+        lat_gd = np.copysign(np.pi / 2, z)
+        lon_gd = 0.0
+        alt_m = abs(z) - b
+
+    else:
+        lon_gd = np.arctan2(y, x)
+
+        E = (b*abs(z) - (a**2 - b**2)) / (a*r_horizontal_sat)
+        F = (b*abs(z) + (a**2 - b**2)) / (a*r_horizontal_sat)
+
+        P = 4*(E*F + 1) / 3
+        Q = 2*(E**2 - F**2)
+        D = P**3 + Q**2
+
+        if D > 0:
+            v = np.cbrt(np.sqrt(D) - Q) - np.cbrt(np.sqrt(D) + Q)
+        else:
+            v = 2*np.sqrt(-P)*np.cos(
+                np.arccos(Q/(P*np.sqrt(-P))) / 3
+            )
+
+        G = (np.sqrt(E**2 + v) + E) / 2
+        t = np.sqrt(G**2 + (F - v*G)/(2*G - E)) - G
+
+        lat_gd = np.arctan2(a*(1-t**2), 2*b*t)
+        lat_gd = np.copysign(lat_gd, z)
+
+        alt_m = (
+            (r_horizontal_sat - a*t)*np.cos(lat_gd)
+            + (abs(z) - b)*abs(np.sin(lat_gd))
+        )
+
+    if deg:
+        lat_gd /= DEG_TO_RAD
+        lon_gd /= DEG_TO_RAD
+
+    return lat_gd, lon_gd, alt_m
+
+def geocentric_LLA_to_PCPF(lat: float, lon: float, alt_m = 0.0, r_body_m = R_EARTH, deg = True):
+    """Convert latitude, longitude, and altitude to planet-centered, planet-fixed.
+    Spherical body.
+
+    Parameters
+    ----------
+    lat, lon : float
+        Lat,lon [deg if deg=True, else rad]
+    alt_m : float
+        Altitude above SPHERICAL surface [m]
+    r_body_m : float
+        Body radius [m]
+    deg : bool
+        Whether input angles are in degrees
+
+    Returns
+    -------
+    r_PCPF : np.ndarray (3,)
+        Body-fixed position [m]
+    """
+    if deg:
+        lat *= DEG_TO_RAD
+        lon *= DEG_TO_RAD
+        
+    rho = r_body_m + alt_m
+    
+    r_PCPF = np.array([
+        rho * np.cos(lat) * np.cos(lon),
+        rho * np.cos(lat) * np.sin(lon),
+        rho * np.sin(lat)
+    ])
+    
+    return r_PCPF
+
+def PCPF_to_geocentric_LLA(r_PCPF: np.ndarray, r_body_m=R_EARTH, deg=True):
+    x, y, z = r_PCPF
+
+    rho = np.linalg.norm(r_PCPF)
+    if rho < 1e-9:
+        raise ValueError("Coordinates undefined at body center.")
+
+    lat = np.arctan2(z, np.hypot(x, y))
     lon = np.arctan2(y, x)
+    alt_m = rho - r_body_m
 
-    # Stable geodetic latitude iteration (recommended)
-    lat = np.arctan2(z, r)
-    for _ in range(5):
-        N = a / np.sqrt(1 - e2 * np.sin(lat) ** 2)
-        lat = np.arctan2(z + e2 * N * np.sin(lat), r)
+    if deg:
+        lat /= DEG_TO_RAD
+        lon /= DEG_TO_RAD
 
-    h = r / np.cos(lat) - N
+    return lat, lon, alt_m
 
-    return lat, lon, h
+################################################################################
+#               PCI <--> PCPF
+################################################################################
 
+# TODO: test
+def PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
+    """Convert rotating-frame position and velocity to inertial coordinates.
+    
+    Somewhat simplified version of itrf-gcrs in Vallado 4e Section 3.7 pp. 203
+    
+    Uses a constant body rotation rate, neglecting precession and nutation.
 
-# def r_to_surface_lla(r_ecef: np.ndarray) -> tuple[float, float, float]:
-#     """Vallado 4e Algorithm 13 p. 173
+    Parameters
+    ----------
+    r_PCPF, v_PCPF : np.ndarray (3,)
+        Position [km] and rotating-frame velocity [km/s]
+    t_utc, t_ref : float
+        Current and reference UTC timestamps [s]
+    theta_ref : float
+        Rotation angle at reference epoch [rad]
+    w_body : float
+        Body rotation rate [rad/s]
 
-#     Args:
-#         r_ecef (np.ndarray): Position vector (ECEF) [m]
-
-#     Returns:
-#         tuple: Tuple with geodetic latitude [deg], longitude [deg], and ellipsoid altitude
-#     """
-#     ri, rj, rk = r_ecef
-
-#     r_horizontal_sat = np.sqrt(ri**2 + rj**2)
-#     a = R_EARTH
-
-#     # Vallado had this wrong :/
-#     # b = np.sqrt(R_EARTH_POLAR*(1-ECC_EARTH**2))*np.sign(rk)
-#     b = R_EARTH_POLAR
-
-#     E = (b*rk - (a**2 - b**2)) / (a*r_horizontal_sat)
-
-#     lon = np.arcsin(rj/r_horizontal_sat)
-
-#     # Sanity check
-#     # print(lat)
-#     # print(np.arccos(ri/r_horizontal_sat))
-
-#     F = (b*rk + (a**2 - b**2)) / (a*r_horizontal_sat)
-#     P = 4*(E*F + 1) / 3
-#     Q = 2*(E**2 - F**2)
-#     D = P**3 - Q**2
-
-#     if D>0:
-#         v = (np.sqrt(D) - Q)**(1/3) - (np.sqrt(D) + Q)**(1/3)
-#     else:
-#         v = 2*np.sqrt(-P)*np.cos(1/3*np.arccos(Q/(P*np.sqrt(-P))))
-
-#     G = 1/2*(np.sqrt(E**2 + v) + E)
-#     t = np.sqrt(G**2 + (F - v*G)/(2*G - E)) - G
-#     lat_gd = np.arctan(a*(1-t**2)/(2*b*t))
-#     h_ellp = (r_horizontal_sat - a*t)*np.cos(lat_gd) + (rk-b)*np.sin(lat_gd)
-
-#     return (lat_gd, lon, h_ellp)
+    Returns
+    -------
+    r_PCI, v_PCI : np.ndarray (3,)
+        Inertial position [km] and velocity [km/s]
+    """
+    # Rotation angle
+    # theta_PCPF_wrt_PCI = calc_theta_g(t_utc, theta_ref, t_ref, w_body)
+    theta_PCPF_wrt_PCI = (theta_ref + w_body * (t_utc - t_ref)) % (2 * np.pi)
+    
+    dcm_PCI_wrt_PCPF = dcm_z(theta_PCPF_wrt_PCI).T
+    
+    r_PCI = dcm_PCI_wrt_PCPF @ r_PCPF
+    v_PCI = dcm_PCI_wrt_PCPF @ (v_PCPF + np.cross([0,0,w_body], r_PCPF))
+    
+    return r_PCI, v_PCI
 
 ################################################################################
 #               ITRF <--> GCRS
@@ -215,7 +375,7 @@ def W_matrix(xp: float, yp: float, t_tt: float):
 
 def R_matrix(jd_ut1: float):
     """Sidereal rotation matrix for ITRF <--> GCRS.
-    Computes intermediate Earth Rotation Angle using `jd_ut1` \\
+    Computes intermediate Earth   Angle using `jd_ut1` \\
     Vallado 4e p. 213
 
     Args:
@@ -233,6 +393,7 @@ def R_matrix(jd_ut1: float):
     return np.array([[C, S, 0], [-S, C, 0], [0, 0, 1]])
 
 
+# TODO: fix with dX and dY
 def _X_Y_s_a(t_tt: float):
     t = t_tt
     t2 = t * t

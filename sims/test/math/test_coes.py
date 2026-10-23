@@ -4,16 +4,16 @@ import pytest
 
 sys.path.append(".")
 
-from csim.math.coes import kelper_eq_ellipse, rv_to_coes, coes_to_rv
+from csim.math.coes import kepler_eq, rv_to_coes, coes_to_rv
 from csim.constants import DEG_TO_RAD, RAD_TO_DEG
-from csim.world import MU_EARTH
+from csim.world import MU_EARTH, MU_EARTH_KM
 
 
 def test_kelper():
     """Vallado 4e Example 2-1 p. 66"""
     M = 235.4 * DEG_TO_RAD
     e = 0.4
-    E = kelper_eq_ellipse(M, e)
+    E = kepler_eq(M, e)
 
     assert E * RAD_TO_DEG == pytest.approx(220.512074767522)
 
@@ -24,7 +24,7 @@ class TestRvToCoes:
         r = np.array([6524.834, 6862.875, 6448.296])  # km
         v = np.array([4.901327, 5.533756, -1.976341])  # km/s
 
-        a, e, i, raan, aop, ta = rv_to_coes(r, v)
+        a, e, i, raan, aop, ta = rv_to_coes(r, v, MU_EARTH_KM)
 
         assert a == pytest.approx(36127.343, rel=1e-6)
         assert e == pytest.approx(0.832853, rel=1e-6)
@@ -52,7 +52,7 @@ class TestRvToCoes:
         r = np.array([100, 1300, -6000])  # km
         v = np.array([0.1, -1.0, 2.1])  # km/s
 
-        a, e, i, raan, aop, ta = rv_to_coes(r, v)
+        a, e, i, raan, aop, ta = rv_to_coes(r, v, MU_EARTH_KM)
 
         assert a == pytest.approx(3203.754267903962, rel=1e-6)
         assert e == pytest.approx(0.9955257908191099, rel=1e-6)
@@ -67,7 +67,7 @@ class TestRvToCoes:
         r = np.array([6000, 4713.675910949817, 1000])  # km
         v = np.array([4.446, -5.658, 0])  # km/s (circular orbit)
 
-        a, e, i, raan, _, _ = rv_to_coes(r, v)
+        a, e, i, raan, _, _ = rv_to_coes(r, v, MU_EARTH_KM)
 
         assert a == pytest.approx(7692.648, rel=1e-4)
         assert e == pytest.approx(0, abs=1e-3)
@@ -81,7 +81,7 @@ class TestRvToCoes:
         r = np.array([6800, 0, 0])  # km
         v = np.array([0, 8.656278815328648, 0])  # km/s
 
-        a, e, i, _, _, _ = rv_to_coes(r, v)
+        a, e, i, _, _, _ = rv_to_coes(r, v, MU_EARTH_KM)
 
         assert a == pytest.approx(9421.974578532005, rel=1e-4)
         assert e == pytest.approx(0.2782829179465395, abs=1e-4)
@@ -94,7 +94,7 @@ class TestRvToCoes:
         r = np.array([6686, 0, 968.35])  # km
         v = np.array([0, 0, -5.899127972862638])  # km/s
 
-        a, e, i, raan, aop, ta = rv_to_coes(r, v)
+        a, e, i, raan, aop, ta = rv_to_coes(r, v, MU_EARTH_KM)
 
         assert a == pytest.approx(4790.6431, rel=1e-5)
         assert e == pytest.approx(0.4305248975978197, rel=1e-4)
@@ -110,7 +110,7 @@ class TestRvToCoes:
         r = np.array([7000.0, 0.0, 0.0])  # km
         v = np.array([0.0, 15.0, 0.0])  # km/s
 
-        a, e, i, raan, aop, ta = rv_to_coes(r, v)
+        a, e, i, raan, aop, ta = rv_to_coes(r, v, MU_EARTH_KM)
 
         assert e > 1  # hyperbolic orbit
         assert a < 0
@@ -122,7 +122,7 @@ class TestRvToCoes:
         r = np.array([7000, 2, 0])  # km
         v = np.array([1.2, -2, 0])  # km/s
 
-        a, e, i, _, _, _ = rv_to_coes(r, v)
+        a, e, i, _, _, _ = rv_to_coes(r, v, MU_EARTH_KM)
 
         assert a == pytest.approx(3675.56885, rel=1e-5)
         assert e == pytest.approx(0.930685, rel=1e-4)
@@ -142,14 +142,14 @@ class TestCoesToRv:
         aop = 53.38 * DEG_TO_RAD
         ta = 92.335 * DEG_TO_RAD
 
-        r, v = coes_to_rv(a, e, i, raan, aop, ta)
+        r, v = coes_to_rv(a, e, i, raan, aop, ta, MU_EARTH_KM)
 
         assert np.allclose(r, [6525.344, 6861.535, 6449.125], atol=0.1)
         assert np.allclose(v, [4.902276, 5.533124, -1.975709], atol=0.0001)
 
         # Convert to m now
         a = a * 1000
-        r, v = coes_to_rv(a, e, i, raan, aop, ta, MU_EARTH)  # use m3/s2 constant
+        r, v = coes_to_rv(a, e, i, raan, aop, ta)  # use m3/s2 constant
         assert np.allclose(r, [6525344, 6861535, 6449125], atol=0.1)
         assert np.allclose(v, [4902.276, 5533.124, -1975.709], atol=0.0001)
 
@@ -163,7 +163,7 @@ class TestCoesToRv:
         aop = 77.26657593515651 * DEG_TO_RAD
         ta = 181.10299292301673 * DEG_TO_RAD
 
-        r, v = coes_to_rv(a, e, i, raan, aop, ta)
+        r, v = coes_to_rv(a, e, i, raan, aop, ta, MU_EARTH_KM)
 
         assert np.allclose(r, [100.0, 1300.0, -6000.0], atol=0.00001)
         assert np.allclose(v, [0.1, -1.0, 2.1], atol=0.0001)
@@ -178,7 +178,27 @@ class TestCoesToRv:
         aop = 353.8847334059262 * DEG_TO_RAD
         ta = 177.87427980631205 * DEG_TO_RAD
 
-        r, v = coes_to_rv(a, e, i, raan, aop, ta)
+        r, v = coes_to_rv(a, e, i, raan, aop, ta, MU_EARTH_KM)
 
         assert np.allclose(r, [6686, 0.0, 968.35], atol=1e-6)
         assert np.allclose(v, [1.0, 0.0, -5.899127972862638], atol=1e-4)
+
+class TestRoundTrip:
+    
+    def test_coes_roundtrip(self):
+        test_cases = [
+            (7000e3, 0.0, 0.0, 0.0, 0.0, 1.0),
+            (7000e3, 0.0, 0.5, 0.3, 0.0, 1.0),
+            (7000e3, 0.2, 0.0, 0.0, 0.4, 1.0),
+            (7000e3, 0.2, 0.5, 0.3, 0.4, 1.0),
+            (7000e3, 0.0, np.pi, 0.0, 0.0, 1.0),
+            (7000e3, 0.2, np.pi, 0.0, 0.4, 1.0),
+        ]
+
+        for case in test_cases:
+            r0, v0 = coes_to_rv(*case, mu=MU_EARTH)
+            coes = rv_to_coes(r0, v0, MU_EARTH)
+            r1, v1 = coes_to_rv(*coes, mu=MU_EARTH)
+
+            assert np.allclose(r0, r1, rtol=1e-10, atol=1e-6)
+            assert np.allclose(v0, v1, rtol=1e-10, atol=1e-9)
