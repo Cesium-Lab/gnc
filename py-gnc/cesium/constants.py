@@ -38,6 +38,9 @@ DAY_TO_YEAR = 1 / YEAR_TO_DAY
 SIDEREAL_YEAR_TO_DAY = 365.256363
 DAY_TO_SIDEREAL_YEAR = 1 / SIDEREAL_YEAR_TO_DAY
 
+JD_CENTURY_TO_DAY = 36525.0
+J2000_JD = 2451545.0
+
 ########################################
 #               Physics Stuff
 ########################################

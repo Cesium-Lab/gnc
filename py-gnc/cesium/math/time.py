@@ -1,5 +1,7 @@
 import numpy as np
 
+from ..constants import JD_CENTURY_TO_DAY, J2000_JD
+
 LMonth = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 """List of month lengths as discussed in Vallado 3.6.4"""
 
@@ -9,42 +11,115 @@ LMonth = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 
 
 def jd_to_mjd(jd: float):
-    """Julian Date to Mean Julian Date (Vallado 4e p. 183)"""
+    """Convert a Julian date to a Modified Julian Date.
+
+    Parameters
+    ----------
+    jd : float
+        Julian date (any time standard).
+
+    Returns
+    -------
+    mjd : float
+        Modified Julian Date, in the same time standard as `jd`.
+
+    References
+    ----------
+    Vallado 4e, p. 183.
+    """
     return jd - 2400000.5
 
 
 def mjd_to_jd(mjd: float):
-    """Julian Date to Mean Julian Date (Vallado 4e p. 183)"""
+    """Convert a Modified Julian Date to a Julian date.
+
+    Parameters
+    ----------
+    mjd : float
+        Modified Julian Date (any time standard).
+
+    Returns
+    -------
+    jd : float
+        Julian date, in the same time standard as `mjd`.
+
+    References
+    ----------
+    Vallado 4e, p. 183.
+    """
     return mjd + 2400000.5
 
 
 def jd_to_julian_centuries(jd: float):
-    """Works with any time standard (e.g. TT, TAI, UT1) Vallado 4e 3-42 p. 184"""
-    return (jd - 2451545.0) / 36525
+    """Convert a Julian date to Julian centuries since J2000.
 
+    Parameters
+    ----------
+    jd : float
+        Julian date in any time standard (e.g. TT, TAI, UT1).
+
+    Returns
+    -------
+    float
+        Julian centuries since J2000, in the same time standard as `jd`.
+
+    References
+    ----------
+    Vallado 4e, Equation 3-42, p. 184.
+    """
+    return (jd - J2000_JD) / JD_CENTURY_TO_DAY
 
 def julian_centuries_to_jd(julian_centuries: float):
-    """Works with any time standard (e.g. TT, TAI, UT1) Vallado 4e 3-42 p. 184"""
-    return (julian_centuries * 36525) + 2451545.0
+    """Convert Julian centuries since J2000 to a Julian date.
+
+    Parameters
+    ----------
+    julian_centuries : float
+        Julian centuries since J2000 in any time standard (e.g. TT, TAI, UT1).
+
+    Returns
+    -------
+    jd : float
+        Julian date, in the same time standard as `julian_centuries`.
+
+    References
+    ----------
+    Vallado 4e, Equation 3-42, p. 184.
+    """
+    return (julian_centuries * JD_CENTURY_TO_DAY) + J2000_JD
 
 
 def greg_to_jd(
-    yr: float, mo: float, d: float, h: float, min: float, s: float, meeus=True
+    yr: int, mo: int, d: int, h: int, min: int, s: float, meeus=True
 ):
-    """Gregorian date to Julian Date. \\
-    Vallado 4e p. 183
+    """Convert a Gregorian calendar date and time to a Julian date.
 
-    Args:
-        yr (float): Year
-        mo (float): Month
-        d (float): Day
-        h (float): Hour
-        m (float): Minute
-        s (float): Second
-        meeus (bool, optional): Whether to use Meeus's method (more accurate). Defaults to True.
+    Parameters
+    ----------
+    yr : int
+        Year (e.g. 2026).
+    mo : int
+        Month, 1-12.
+    d : int
+        Day of the month.
+    h : int
+        Hour, 0-23.
+    min : int
+        Minute, 0-59.
+    s : float
+        Second.
+    meeus : bool, optional
+        If True, use Meeus's method, which is valid over a wider range of dates.
+        Otherwise use Vallado's method (valid 1900-2100). Default is True.
 
-    Returns:
-        float: Julian Date
+    Returns
+    -------
+    jd : float
+        Julian date, in the same time standard as the input date.
+
+    References
+    ----------
+    Vallado 4e, p. 183.
     """
 
     if meeus:
@@ -68,13 +143,25 @@ def greg_to_jd(
 
 
 def jd_to_greg(jd: float):
-    """Turns julian date into Gregorian calendar date (Vallado 4e Algorithm 22 p. 202)
+    """Convert a Julian date to a Gregorian calendar date and time.
 
-    Args:
-        jd (float): Julian date
+    Parameters
+    ----------
+    jd : float
+        Julian date.
 
-    Returns:
-        tuple: (year, month, day, hour, minute, second)
+    Returns
+    -------
+    year : int
+    month : int
+    day : int
+    hour : int
+    minute : int
+    second : float
+
+    References
+    ----------
+    Vallado 4e, Algorithm 22, p. 202.
     """
     month_lengths = list(LMonth)
 
@@ -103,7 +190,7 @@ def jd_to_greg(jd: float):
     min = np.trunc((T - hr) * 60)
     sec = (T - hr - min / 60) * 3600
 
-    return (year, month + 1, day_of_yr - day_sum, hr, min, sec)
+    return year, month + 1, day_of_yr - day_sum, hr, min, sec
 
 
 ################################################################################
@@ -111,28 +198,50 @@ def jd_to_greg(jd: float):
 ################################################################################
 
 
-def dms_to_rad(deg: float, min: float, sec: float):
-    """Just to make it easier (Vallado 4e Algorithm 17 p. 197)
+def dms_to_rad(deg: int, min: int, sec: float):
+    """Convert an angle in degrees, arcminutes, and arcseconds to radians.
 
-    Args:
-        deg: Degrees
-        min: Minutes
-        sec: Seconds
+    Parameters
+    ----------
+    deg : int
+        Whole degrees.
+    min : int
+        Arcminutes.
+    sec : float
+        Arcseconds.
 
-    Returns:
-        float: angle [rad]
+    Returns
+    -------
+    angle_rad : float
+        Angle [rad].
+
+    References
+    ----------
+    Vallado 4e, Algorithm 17, p. 197.
     """
     return (deg + min / 60 + sec / 3600) * np.pi / 180.0
 
 
 def rad_to_dms(angle_rad: float):
-    """Just to make it easier (Vallado 4e Algorithm 18 p. 198)
+    """Convert an angle in radians to degrees, arcminutes, and arcseconds.
 
-    Args:
-        angle_rad (float): Angle [rad]
+    Parameters
+    ----------
+    angle_rad : float
+        Angle [rad].
 
-    Returns:
-        tuple: deg, min, sec
+    Returns
+    -------
+    deg : int
+        Whole degrees.
+    min : int
+        Whole arcminutes.
+    sec : float
+        Arcseconds.
+
+    References
+    ----------
+    Vallado 4e, Algorithm 18, p. 198.
     """
     temp = angle_rad * 180.0 / np.pi
     deg = np.trunc(temp)
