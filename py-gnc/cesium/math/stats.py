@@ -1,3 +1,11 @@
+"""
+Basic statistical math
+
+Gaussian/uniform/multivariate sampling
+Covariance/correlation calculations
+White noise generation
+"""
+
 import numpy as np
 from scipy.linalg import sqrtm
 
@@ -19,6 +27,10 @@ def noise(cov: np.ndarray, seed=None):
         mean=np.zeros_like(cov[0]),
         cov=cov
     )
+    
+def noise_vec(std_dev: float, n: int):
+    """(n,) length vector of noise"""
+    return np.random.normal(0.0, std_dev, size=n)
 
 def rms(y: np.ndarray):
   """Calculates the Root Mean Square (RMS) of a numpy array."""

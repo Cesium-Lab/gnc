@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 
-from cesium.physics.hcw import rv_hcw_3d
+from cesium.orbital.hcw import rv_hcw_3d
 
 from cesium.world import MU_EARTH, R_EARTH
 from cesium.constants import KM_TO_M, MIN_TO_SEC
