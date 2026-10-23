@@ -127,14 +127,15 @@ def greg_to_jd(
             yr -= 1
             mo += 12
 
-        B = 2 - int(yr / 100) + int(int(yr / 100) / 4)
+        A = yr // 100
+        B = 2 - A + A // 4
         C = ((s / 60 + min) / 60 + h) / 24
-        jd = int(365.25 * (yr + 4716)) + int(30.6001 * (mo + 1)) + d + B - 1524.5 + C
+        jd = np.floor(365.25 * (yr + 4716)) + np.floor(30.6001 * (mo + 1)) + d + B - 1524.5 + C
     else:
         jd = (
             367 * yr
-            - int(7 * (yr + int((mo + 9) / 12)) / 4)
-            + int(275 * mo / 9)
+            - np.floor(7 * (yr + (mo + 9) // 12) / 4)
+            + np.floor(275 * mo / 9)
             + d
             + 1721013.5
             + ((s / 60 + min) / 60 + h) / 24

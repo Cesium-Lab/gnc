@@ -1,6 +1,9 @@
 M_EARTH = 5.9733328e24
 """Earth mass [kg]"""
 
+MU_SUN = 1.32712440018e20
+"""Sun standard gravitational parameter [m3/s2] (Vallado 4e p. 1043 + more from internet)"""
+
 MU_EARTH = 3.986004418e14
 """Earth standard gravitational parameter [m3/s2]"""
 
@@ -34,3 +37,23 @@ J3_EARTH = -0.0000025327
 
 G0 = 9.80665
 """Standard gravity m/s2"""
+
+ECLIPTIC_ANGLE = 23.43928
+"""Ecliptic angle [deg]"""
+
+
+
+# # km3/s2
+# 
+# MU_EARTH = 398600.4418
+# MU_MOON = 4903.0
+# MU_VENUS = 324858.630
+# MU_JUPITER = 126686511.000
+
+# MU_PLUTO = 870.9
+# MU_CHARON = 101.0
+
+# # km
+# R_MOON = 1738.0
+# R_SUN = 695508.0 
+
