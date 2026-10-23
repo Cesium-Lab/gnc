@@ -92,34 +92,32 @@ def synodic_dynamics(state: np.ndarray, mu1: float, mu2: float, r1_bc: float, r2
 
 # TODO: test
 def pkepler(r0: np.ndarray, v0: np.ndarray, dt: float, r_cb = R_EARTH, mu = MU_EARTH, j2 = J2_EARTH) -> tuple[np.ndarray, np.ndarray]:
-    a,e,i,raan,aop,ta = rv_to_coes(r0, v0, mu)
+    """Approximate implementation
+    Vallado 4e Algorithm 65 p. 691
+    """
+    a, e, i, raan, aop, ta = rv_to_coes(r0, v0, mu)
+
+    if not (0 < e < 1):
+        raise ValueError("Requires a noncircular elliptical orbit")
     
-    if norm(e) > 1e-9:
-        E = E_from_ta(ta, e)
-    else:
-        raise ValueError("Make eccentricity not 0 or implement solutions=")
-    
+    E = E_from_ta(ta, e)
     M = E - e*np.sin(E)
+    
     p = a*(1 - e*e)
     n0 = np.sqrt(mu / a**3)
     
     # No perturbations included for now except J2
-    raan -= 3 * n0* r_cb**2 * j2 / 2 / p**2 * np.cos(i) * dt
-    aop += 3 * n0* r_cb**2 * j2 / 4 / p**2 * (4 - 5*np.sin(i)**2) * dt
+    factor = n0 * j2 * (r_cb/p)**2
+    raan -= 3/2 * factor * np.cos(i) * dt
+    aop += 3/4 * factor * (4 - 5*np.sin(i)**2) * dt
     M += n0*dt
     
-    p = a*(1-e*e) # In case it changed after perturbations
-    
     E = kepler_eq(M,e)
+    ta = ta_from_E(E, e)
     
-    if norm(e) > 1e-9:
-        ta = ta_from_E(E, e)
-    else:
-        raise ValueError("Make eccentricity not 0 or implement solutions=")
+    r,v = coes_to_rv(a,e,i,raan,aop,ta,mu)
     
-    r,v = coes_to_rv(a,e,i,raan,aop,ta)
-    
-    return np.concatenate((r,v))
+    return r,v
     
     
         

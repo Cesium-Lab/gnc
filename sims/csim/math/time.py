@@ -76,7 +76,7 @@ def jd_to_greg(jd: float):
     Returns:
         tuple: (year, month, day, hour, minute, second)
     """
-    month_lengths = LMonth.copy()
+    month_lengths = list(LMonth)
 
     T_1900 = (jd - 2415019.5) / 365.25
     year = 1900 + np.trunc(T_1900)

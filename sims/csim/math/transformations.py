@@ -16,6 +16,9 @@ from .quaternion import unit
 def wrap_to_pi(x):
   return (x + np.pi) % (2 * np.pi) - np.pi
 
+def wrap_to_2pi(x):
+  return x % (2 * np.pi)
+
 def dcm_x(theta: float):
     """Passive DCM from frame 1 to frame 2, rotated by theta [rad] (x2 = dcm @ x1)"""
     return np.array(
