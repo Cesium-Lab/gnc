@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cesium-gnc"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["numpy", "scipy"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "ipykernel",
+    "plotly",
+]
+
+[tool.setuptools.packages.find]
+include = ["cesium*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -m 'not slow'"
+markers = [
+    "slow: long-running fixed-step integration tests",
+]
+
+[tool.ruff.lint]
+# Single-letter physics variable names (r, v, w, ...) are idiomatic here.
+ignore = ["E741"]

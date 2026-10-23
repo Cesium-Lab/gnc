@@ -2,9 +2,9 @@ import numpy as np
 from typing import Callable
 
 from ..entities import Spacecraft
-from ..math import rk4_func, unit
-from ..physics.rigid_body import rigid_body_derivative, RigidBodyParams
-from ..physics import grav_accel
+from cesium.math import rk4_func, unit
+from cesium.physics.rigid_body import rigid_body_derivative, RigidBodyParams
+from cesium.physics.gravity import grav_accel
 
 # TODO: Different integrators for better ECI-ECEF OR interpolate every second or something
 
