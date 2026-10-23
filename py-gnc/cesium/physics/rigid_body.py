@@ -1,9 +1,9 @@
+"""Similar to AA 242A"""
 from __future__ import annotations
 import numpy as np
 from dataclasses import dataclass
 
 from ..math.quaternion import hamilton_product
-
 
 @dataclass
 class RigidBodyParams:

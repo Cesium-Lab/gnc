@@ -3,8 +3,9 @@
 import numpy as np
 from ..world.constants import MU_EARTH
 from numpy.linalg import norm
-from ..math.transformations import dcm_x, dcm_z
+from ..math.rotations import dcm_x, dcm_z
 from ..math.quaternion import unit
+from ..world import R_EARTH, J2_EARTH
 
 ####################################################################################################
 #               Kepler
@@ -56,6 +57,36 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
         E_n = E_guess
 
     raise ValueError(f"Did not converge for {M=}, {e=}")
+
+# TODO: test
+def pkepler(r0: np.ndarray, v0: np.ndarray, dt: float, r_cb = R_EARTH, mu = MU_EARTH, j2 = J2_EARTH) -> tuple[np.ndarray, np.ndarray]:
+    """Approximate implementation
+    Vallado 4e Algorithm 65 p. 691
+    """
+    a, e, i, raan, aop, ta = rv_to_coes(r0, v0, mu)
+
+    if not (0 <= e < 1):
+        raise ValueError("Requires an elliptical orbit")
+    
+    E = E_from_ta(ta, e)
+    M = E - e*np.sin(E)
+    
+    p = a*(1 - e*e)
+    n0 = np.sqrt(mu / a**3)
+    
+    # No perturbations included for now except J2
+    factor = n0 * j2 * (r_cb/p)**2
+    raan -= 3/2 * factor * np.cos(i) * dt
+    aop += 3/4 * factor * (4 - 5*np.sin(i)**2) * dt
+    M += n0*dt
+    
+    E = kepler_eq(M,e)
+    ta = ta_from_E(E, e)
+    
+    r,v = coes_to_rv(a,e,i,raan,aop,ta,mu)
+    
+    return r,v
+    
 
 
 ####################################################################################################

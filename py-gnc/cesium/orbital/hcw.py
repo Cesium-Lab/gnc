@@ -1,7 +1,8 @@
 from __future__ import annotations
 import numpy as np
-from ..math.transformations import PCI_to_RSW
+from .transformations import PCI_to_RSW
 
+# AA 279B
 def calc_Phi(t: float, n: float):
     """Phi for HCW circular orbit"""
     nt = n * t

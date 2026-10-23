@@ -1,6 +1,10 @@
 import numpy as np
 from ..math.stats import noise
 
+##################################################
+#               Particle Filter (AA 228)
+##################################################
+
 # TODO: test with 273 stuff and other examples
 def pf_predict(state_model, particles, u, dt, Q):
     """Predicts with noise"""
