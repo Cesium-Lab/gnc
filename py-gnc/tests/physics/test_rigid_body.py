@@ -444,12 +444,9 @@ class TestRigidBodyEnergy:
         w = w0 + dt * w_dot
         KE = 0.5 * w.T @ I @ w
 
-        assert pytest.approx(
-            calc_total_energy(
+        assert calc_total_energy(
                 mass, I, next_step[0:3], next_step[3:6], next_step[10:13], MU_EARTH
-            )
-            == KE
-        )
+            ) == pytest.approx(KE, rel=0.0001)
 
 
 def test_no_I():
