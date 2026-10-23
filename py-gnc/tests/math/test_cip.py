@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 
-import cesium.math.CIP.parse as P
+import cesium.orbital.CIP.parse as P
 from cesium.constants import RAD_TO_ARCSEC, RAD_TO_DEG
 
 
