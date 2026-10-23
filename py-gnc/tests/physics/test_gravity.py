@@ -1,11 +1,5 @@
-import sys
-
-
 import numpy as np
 
-# from cesium.physics.energy import calc_total_energy
-# from cesium.physics.rigid_body import rigid_body_derivative, RigidBodyParams
-# from cesium.math.integrators import rk4_func
 from cesium.world import R_EARTH
 
 from cesium.physics import grav_accel

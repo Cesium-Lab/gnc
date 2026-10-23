@@ -1,11 +1,9 @@
 import sys
 import numpy as np
 import pytest
-from numpy.linalg import norm
 
 
 import cesium.orbital.transformations as Trans
-from cesium.world import W_EARTH
 from cesium.constants import DEG_TO_RAD, ARCSEC_TO_RAD, RAD_TO_ARCSEC, RAD_TO_DEG, M_TO_KM, KM_TO_M
 from cesium.math.time import greg_to_jd
 
@@ -112,25 +110,6 @@ def test_vallado_itrf_R():
     )
 
 
-def test_vallado_itrf_R_vel():
-    jd_ut1 = greg_to_jd(2004, 4, 6, 7, 51, 27.946047 + 0.4399619)
-
-    R = Trans.R_matrix(jd_ut1)
-
-    r_tirs = np.array([-1033.4750312, 7901.3055856, 6380.3445327])
-    v_tirs = np.array([-3.22563652, -2.87245145, 5.531924446])
-
-    v_expected = np.array([-4.745380330, 0.790341453, 5.531931288])
-
-    # Checks to make sure vector is the same length
-    v_cirs = Trans.calc_v_tirs(R, v_tirs, np.array([0, 0, W_EARTH]), r_tirs)
-
-    assert norm(v_cirs) == pytest.approx(norm(v_expected))
-
-    # Transforms velocity vector correctly
-    assert np.allclose(v_cirs, v_expected, rtol=1e-3)
-
-
 ##################################################
 #                       PN
 ##################################################
@@ -197,4 +176,29 @@ def test_vallado_full_itrf():
     assert np.allclose(r_gcrs, expected, rtol=1e-4)
 
 
-# TODO: velocity and acceleration
+def test_vallado_full_itrf_rv():
+    """Vallado 4e Example 3-14 p. 220"""
+    # Book values are given in km
+    r_itrf = np.array([-1033.479383, 7901.2952754, 6380.3565958])
+    v_itrf = np.array([-3.225636520, -2.872451450, 5.531924446])
+    r_expected = np.array([5102.508959, 6123.011403, 6378.136925])
+    v_expected = np.array([-4.743220161, 0.790536495, 5.533755724])
+    jd = greg_to_jd(2004, 4, 6, 7, 51, 28.386009)
+
+    xp = -0.140682 * ARCSEC_TO_RAD
+    yp = 0.333309 * ARCSEC_TO_RAD
+    dAT = 32
+    dUT1 = -0.4399619
+    lod = 0.0015563
+    dX = -0.000205 * ARCSEC_TO_RAD
+    dY = -0.000136 * ARCSEC_TO_RAD
+
+    r_gcrs, v_gcrs = Trans.itrf_to_gcrs(
+        r_itrf, v_itrf, xp, yp, jd, dX, dY, dUT1, dAT, lod
+    )
+
+    assert np.allclose(r_gcrs, r_expected, rtol=1e-4)
+    assert np.allclose(v_gcrs, v_expected, rtol=1e-4)
+
+
+# TODO: acceleration

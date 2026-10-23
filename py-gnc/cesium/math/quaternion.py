@@ -31,7 +31,7 @@ def hamilton_product(q: np.ndarray, w: np.ndarray | list):
     q : np.ndarray (4,)
         Scalar-first attitude quaternion `[w, x, y, z]`.
     w : np.ndarray or list (3,)
-        Angular velocity of the body expressed in the body frame [rad/s].
+        Angular velocity of body expressed in body frame [rad/s].
 
     Returns
     -------

@@ -12,6 +12,25 @@ from ..world import R_EARTH, J2_EARTH
 ####################################################################################################
 
 def E_from_ta(ta: float, e: float):
+    """Convert true anomaly to eccentric anomaly for an elliptical orbit.
+
+    Parameters
+    ----------
+    ta : float
+        True anomaly [rad].
+    e : float
+        Eccentricity, `0 <= e < 1`.
+
+    Returns
+    -------
+    E : float
+        Eccentric anomaly, wrapped to `[0, 2*pi)` [rad].
+        
+    References
+    ----------
+    Vallado 4e, Equation 2-14, p. 48.
+    
+    """
     E = 2*np.arctan2(
         np.sqrt(1-e)*np.sin(ta/2),
         np.sqrt(1+e)*np.cos(ta/2)
@@ -19,6 +38,24 @@ def E_from_ta(ta: float, e: float):
     return E % (2*np.pi)
 
 def ta_from_E(E: float, e: float):
+    """Convert eccentric anomaly to true anomaly for an elliptical orbit.
+
+    Parameters
+    ----------
+    E : float
+        Eccentric anomaly [rad].
+    e : float
+        Eccentricity, `0 <= e < 1`.
+
+    Returns
+    -------
+    ta : float
+        True anomaly, wrapped to `[0, 2*pi)` [rad].
+        
+    References
+    ----------
+    Vallado 4e, Equation 2-13, p. 48.
+    """
     ta = 2*np.arctan2(
         np.sqrt(1+e)*np.sin(E/2),
         np.sqrt(1-e)*np.cos(E/2)
@@ -26,21 +63,34 @@ def ta_from_E(E: float, e: float):
     return ta % (2*np.pi)
 
 def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
-    """`(M,e) -> E` \\
-    Solve Kepler's equation (elliptic) `M = E - e*sin(E)` using iteration \\
-    Vallado 4e Algorithm 2 p. 65
+    """Solve Kepler's equation `M = E - e*sin(E)` for an elliptical orbit.
 
-    Args:
-        M (float): Mean anomaly [rad]
-        e (float): Eccentricity [0, 1)
-        tol (float, optional): Tolerance needed to break iterating. Defaults to 1e-9.
-        max_iter (int, optional): Maximum number of iterations. Defaults to 100.
+    Uses Newton-Raphson iteration.
 
-    Raises:
-        ValueError: If the number of iterations is exceeded
+    Parameters
+    ----------
+    M : float
+        Mean anomaly [rad].
+    e : float
+        Eccentricity, `0 <= e < 1`.
+    tol : float, optional
+        Convergence tolerance on successive `E` iterates [rad]. Default is 1e-9.
+    max_iter : int, optional
+        Maximum number of iterations. Default is 100.
 
-    Returns:
-        float: Eccentric anomaly solution [rad]
+    Returns
+    -------
+    E : float
+        Eccentric anomaly, wrapped to `[0, 2*pi)` [rad].
+
+    Raises
+    ------
+    ValueError
+        If `e` is outside `[0, 1)` or the iteration does not converge.
+
+    References
+    ----------
+    Vallado 4e, Algorithm 2, p. 65.
     """
     
     if not (0 <= e < 1):
@@ -60,8 +110,41 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
 
 # TODO: test
 def pkepler(r0: np.ndarray, v0: np.ndarray, dt: float, r_cb = R_EARTH, mu = MU_EARTH, j2 = J2_EARTH) -> tuple[np.ndarray, np.ndarray]:
-    """Approximate implementation
-    Vallado 4e Algorithm 65 p. 691
+    """Propagate an elliptical orbit analytically with secular J2 effects.
+
+    Approximate implementation that only includes the secular J2 drift of RAAN
+    and argument of periapsis.
+
+    Parameters
+    ----------
+    r0 : np.ndarray (3,)
+        Initial satellite position in the inertial frame (e.g. ECI) [m].
+    v0 : np.ndarray (3,)
+        Initial satellite velocity in the inertial frame (e.g. ECI) [m/s].
+    dt : float
+        Propagation time [s].
+    r_cb : float, optional
+        Equatorial radius of the central body [m]. Default is `R_EARTH`.
+    mu : float, optional
+        Gravitational parameter of the central body [m3/s2]. Default is `MU_EARTH`.
+    j2 : float, optional
+        J2 zonal harmonic coefficient of the central body. Default is `J2_EARTH`.
+
+    Returns
+    -------
+    r : np.ndarray (3,)
+        Satellite position in the inertial frame after `dt` [m].
+    v : np.ndarray (3,)
+        Satellite velocity in the inertial frame after `dt` [m/s].
+
+    Raises
+    ------
+    ValueError
+        If the initial orbit is not elliptical.
+
+    References
+    ----------
+    Vallado 4e, Algorithm 65, p. 691.
     """
     a, e, i, raan, aop, ta = rv_to_coes(r0, v0, mu)
 
@@ -95,23 +178,41 @@ def pkepler(r0: np.ndarray, v0: np.ndarray, dt: float, r_cb = R_EARTH, mu = MU_E
 
 
 def rv_to_coes(r_I: np.ndarray, v_I: np.ndarray, mu: float = MU_EARTH):
-    """Convert inertial position and velocity vectors to classical Keplerian orbital elements. \\
-    Can put r and v in meters, but `mu` must be in meters as well \\
-    Vallado 4e Algorithm 9 p. 113
+    """Convert inertial position and velocity to classical orbital elements.
 
-    Args:
-        r_I (np.ndarray): Inertial position of satellite [km] or [m]
-        v_I (np.ndarray): Inertial velocity of satellite [km/s] or [m/s]
-        mu (float, optional): Gravitational parameter of central body [km3/s2] or [m3/s2]. Defaults to MU_EARTH [m3/s2].
+    Units of `r_I`, `v_I`, and `mu` must be consistent (all meter-based or all
+    kilometer-based).
 
-    Returns:
-        tuple: (`a`, `e`, `i`, `Omega`, `omega`, `nu`): 
-    - `a`: semi-major axis [km] or [m]
-    - `e`: eccentricity
-    - `i`: inclination [rad]
-    - `Omega`: Right ascension of ascending node [rad]
-    - `omega`: Argument of perigee [rad]
-    - `nu`: True anomaly [rad]
+    Parameters
+    ----------
+    r_I : np.ndarray (3,)
+        Satellite position in the inertial frame (e.g. ECI) [m] or [km].
+    v_I : np.ndarray (3,)
+        Satellite velocity in the inertial frame (e.g. ECI) [m/s] or [km/s].
+    mu : float, optional
+        Gravitational parameter of the central body [m3/s2] or [km3/s2].
+        Default is `MU_EARTH` [m3/s2].
+
+    Returns
+    -------
+    a : float
+        Semi-major axis, same length units as `r_I`. `np.inf` for parabolic orbits.
+    e : float
+        Eccentricity.
+    i : float
+        Inclination [rad].
+    raan : float
+        Right ascension of the ascending node [rad]. 0 for equatorial orbits.
+    aop : float
+        Argument of periapsis [rad]. For elliptical equatorial orbits this is the
+        longitude of periapsis; 0 for circular orbits.
+    ta : float
+        True anomaly [rad]. For circular orbits this is the argument of latitude
+        (inclined) or the true longitude (equatorial).
+
+    References
+    ----------
+    Vallado 4e, Algorithm 9, p. 113.
     """
     # To make this easier
     r_norm = norm(r_I)
@@ -196,21 +297,39 @@ def coes_to_rv(
     ta: float,
     mu: float = MU_EARTH,
 ):
-    """
-    if `mu` in units of [m3/s2] then `a`, `r`, and `v` should/will be too. \\
-    Vallado 4e Algorithm 10 p. 118
+    """Convert classical orbital elements to inertial position and velocity.
 
-    Args:
-        a (float): Semi-major axis [km] or [m]
-        e (float): Eccentricity
-        i (float): Inclination [rad]
-        raan (float): Right ascension of ascending node (RAAN) [rad]
-        aop (float): Argument of periapsis [rad]
-        ta (float): True anomaly [rad]
-        mu (float, optional): Gravitational parameter of central body [km3/s2] or [m3/s2]. Defaults to MU_EARTH [m3/s2]
+    Units of `a` and `mu` must be consistent (both meter-based or both
+    kilometer-based); the outputs use the same units.
 
-    Returns:
-        tuple: (`r_I`, `v_I`) Inertial position and velocity vectors [m] and [m/s] OR [km] and [km/s]
+    Parameters
+    ----------
+    a : float
+        Semi-major axis [m] or [km].
+    e : float
+        Eccentricity.
+    i : float
+        Inclination [rad].
+    raan : float
+        Right ascension of the ascending node [rad].
+    aop : float
+        Argument of periapsis [rad].
+    ta : float
+        True anomaly [rad].
+    mu : float, optional
+        Gravitational parameter of the central body [m3/s2] or [km3/s2].
+        Default is `MU_EARTH` [m3/s2].
+
+    Returns
+    -------
+    r_I : np.ndarray (3,)
+        Satellite position in the inertial frame (e.g. ECI) [m] or [km].
+    v_I : np.ndarray (3,)
+        Satellite velocity in the inertial frame (e.g. ECI) [m/s] or [km/s].
+
+    References
+    ----------
+    Vallado 4e, Algorithm 10, p. 118.
     """
 
     # Compute position and velocity in perifocal frame

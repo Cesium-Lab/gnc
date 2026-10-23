@@ -11,7 +11,26 @@ from scipy.linalg import sqrtm
 
 # TODO: test
 
+# TODO: change to column not row?
 def get_ellipse_points(mu: np.ndarray, Sigma: np.ndarray, P=0.95, N=200):
+    """Points on confidence ellipse of a 2D Gaussian, for plotting.
+
+    Parameters
+    ----------
+    mu : np.ndarray (2,)
+        Mean
+    Sigma : np.ndarray (2, 2)
+        Covariance
+    P : float, optional
+        Probability mass enclosed by ellipse (confidence level). Default is 0.95.
+    N : int, optional
+        Number of points on ellipse. Default is 200.
+
+    Returns
+    -------
+    np.ndarray (2, N)
+        Ellipse points, one column per point.
+    """
     t = np.linspace(0, 2*np.pi, N)
     circle = np.vstack((np.cos(t), np.sin(t)))
     rhs = -2*np.log(1-P)
@@ -20,6 +39,21 @@ def get_ellipse_points(mu: np.ndarray, Sigma: np.ndarray, P=0.95, N=200):
     return scaled_ellipse + mu.reshape(2,1)
 
 def noise(cov: np.ndarray, seed=None):
+    """Sample zero-mean multivariate Gaussian noise.
+
+    Parameters
+    ----------
+    cov : np.ndarray (N, N)
+        Noise covariance matrix.
+    seed : int, optional
+        Seed for NumPy's global random generator. If None, generator is not
+        reseeded. Default is None.
+
+    Returns
+    -------
+    np.ndarray (N,)
+        Noise sample.
+    """
     if seed is not None:
         np.random.seed(seed)
 
@@ -29,11 +63,35 @@ def noise(cov: np.ndarray, seed=None):
     )
     
 def noise_vec(std_dev: float, n: int):
-    """(n,) length vector of noise"""
+    """Sample independent zero-mean Gaussian noise.
+
+    Parameters
+    ----------
+    std_dev : float
+        Standard deviation of each element.
+    n : int
+        Number of samples.
+
+    Returns
+    -------
+    np.ndarray (n,)
+        Noise vector.
+    """
     return np.random.normal(0.0, std_dev, size=n)
 
 def rms(y: np.ndarray):
-  """Calculates the Root Mean Square (RMS) of a numpy array."""
+  """Root mean square of all elements of an array.
+
+  Parameters
+  ----------
+  y : np.ndarray
+      Input array.
+
+  Returns
+  -------
+  float
+      RMS of `y`.
+  """
   return np.sqrt(np.mean(np.square(y)))
 
 # def epsilon_and_nu(P: float, Sigma: np.ndarray):

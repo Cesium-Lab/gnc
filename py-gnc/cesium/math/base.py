@@ -11,7 +11,7 @@ def unit(vec: np.ndarray):
     Returns
     -------
     np.ndarray (N,)
-        Unit vector, or zeros if the norm of is below 1e-6.
+        Unit vector, or zeros if norm of is below 1e-6.
     """
     v_norm = np.linalg.norm(vec)
     if abs(v_norm) < 0.000001:

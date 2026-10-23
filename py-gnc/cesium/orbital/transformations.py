@@ -1,8 +1,9 @@
 """Non-COES transformations"""
 
+from dataclasses import dataclass
 import numpy as np
 
-from ..world import R_EARTH, R_EARTH_POLAR, ECC_EARTH, W_EARTH, MU_EARTH
+from ..world import R_EARTH, R_EARTH_POLAR, ECC_EARTH, W_EARTH
 from ..constants import DEG_TO_RAD, SEC_TO_DAY, ARCSEC_TO_RAD
 from ..math.time import jd_to_julian_centuries
 from ..math.rotations import dcm_z
@@ -15,6 +16,22 @@ from ..math.quaternion import unit
 
 # TODO: test
 def PCI_to_RSW(rv_PCI: np.ndarray) -> np.ndarray:
+    """DCM from the planet-centered inertial (PCI) frame to the satellite RSW frame.
+
+    - `R` - radial outward
+    - `S` - along-track
+    - `W` - orbit normal (angular momentum)
+
+    Parameters
+    ----------
+    rv_PCI : np.ndarray (6,)
+        Satellite state in PCI, `[x, y, z, vx, vy, vz]` [m, m/s]. Any units.
+
+    Returns
+    -------
+    dcm_RSW_wrt_PCI : np.ndarray (3, 3)
+        Columns are the PCI unit vectors expressed in RSW, so `x_RSW = dcm @ x_PCI`.
+    """
     r, v = rv_PCI[0:3], rv_PCI[3:6]
     r_hat = unit(r)
     w_hat = unit(np.cross(r, v))
@@ -23,6 +40,24 @@ def PCI_to_RSW(rv_PCI: np.ndarray) -> np.ndarray:
     return np.vstack((r_hat, s_hat, w_hat))
 
 def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
+    """DCM from the planet-centered inertial (PCI) frame to the satellite NTW frame.
+
+    NTW axes are N (in-plane, normal to velocity), T (tangent, along velocity),
+    and W (orbit normal, along the angular momentum).
+    - `N` - in-plane normal to velocity
+    - `T` - tangent along velocity
+    - `W` - orbit normal (angular momentum)
+
+    Parameters
+    ----------
+    rv_PCI : np.ndarray (6,)
+        Satellite state in PCI, `[x, y, z, vx, vy, vz]` [m, m/s]. Any units.
+
+    Returns
+    -------
+    dcm_NTW_wrt_PCI : np.ndarray (3, 3)
+        Columns are the PCI unit vectors expressed in NTW, so `x_NTW = dcm @ x_PCI`.
+    """
     r, v = rv_PCI[0:3], rv_PCI[3:6]
     w_hat = unit(np.cross(r, v))
     t_hat = unit(v)
@@ -36,24 +71,27 @@ def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
 
 
 def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m = 0.0, deg = True):
-    """Convert WGS84 geodetic lat, lon, and alt to ECEF\\
-    Vallado 4e Example 3.1 p. 140
+    """Convert WGS84 geodetic lat, lon, and alt to ECEF.
 
     Parameters
     ----------
-    lat, lon : float
-        Lat,lon [deg if deg=True, else rad]
-    alt_km : float
-        Altitude above SPHERICAL surface [km]
-    r_body_km : float
-        Body radius [km]
-    deg : bool
-        Whether input angles are in degrees
+    lat : float
+        Geodetic latitude of the site [deg if `deg` is True, else rad].
+    lon : float
+        Longitude of the site, positive east [deg if `deg` is True, else rad].
+    alt_m : float, optional
+        Height above the WGS84 reference ellipsoid [m]. Default is 0.0.
+    deg : bool, optional
+        If True, `lat` and `lon` are in degrees; otherwise radians. Default is True.
 
     Returns
     -------
     r_ECEF : np.ndarray (3,)
-        Earth-fixed position [m]
+        Earth-centered, Earth-fixed position of the site [m].
+
+    References
+    ----------
+    Vallado 4e, Example 3-1, p. 140.
     """
     if deg:
         lat *= DEG_TO_RAD
@@ -78,21 +116,34 @@ def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m = 0.0, deg = True):
     return r_ECEF
 
 def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, float]:
-    """Vallado 4e Algorithm 13 p. 173 (Borkowski method).
+    """Convert ECEF position to WGS84 geodetic lat, lon, and alt.
+
+    Uses Borkowski closed-form method.
 
     Parameters
     ----------
     r_ECEF : np.ndarray (3,)
-        Earth-centered, Earth-fixed position [m].
-    deg : bool
-        Whether output angles are in degrees.
+        Earth-centered, Earth-fixed position of the point (e.g. satellite or site) [m].
+    deg : bool, optional
+        If True, return `lat` and `lon` in degrees; otherwise radians. Default is True.
 
     Returns
     -------
-    lat, lon : float
-        Geodetic latitude and longitude [deg if deg=True, else rad].
+    lat : float
+        Geodetic latitude [deg if `deg` is True, else rad].
+    lon : float
+        Longitude, positive east [deg if `deg` is True, else rad].
     alt_m : float
         Height above WGS84 reference ellipsoid [m].
+
+    Raises
+    ------
+    ValueError
+        If `r_ECEF` is at Earth's center (subject to 1e-9m norm)
+
+    References
+    ----------
+    Vallado 4e, Algorithm 13, p. 173.
     """
     x, y, z = r_ECEF
 
@@ -143,24 +194,27 @@ def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, fl
     return lat_gd, lon_gd, alt_m
 
 def geocentric_LLA_to_PCPF(lat: float, lon: float, alt_m = 0.0, r_body_m = R_EARTH, deg = True):
-    """Convert latitude, longitude, and altitude to planet-centered, planet-fixed.
-    Spherical body.
+    """Convert geocentric latitude, longitude, and altitude to PCPF position.
+
+    Assumes a spherical body.
 
     Parameters
     ----------
-    lat, lon : float
-        Lat,lon [deg if deg=True, else rad]
-    alt_m : float
-        Altitude above SPHERICAL surface [m]
-    r_body_m : float
-        Body radius [m]
-    deg : bool
-        Whether input angles are in degrees
+    lat : float
+        Geocentric latitude [deg if `deg` is True, else rad].
+    lon : float
+        Longitude, positive east [deg if `deg` is True, else rad].
+    alt_m : float, optional
+        Altitude above the spherical body surface [m]. Default is 0.0.
+    r_body_m : float, optional
+        Radius of the spherical body [m]. Default is `R_EARTH`.
+    deg : bool, optional
+        If True, `lat` and `lon` are in degrees; otherwise radians. Default is True.
 
     Returns
     -------
     r_PCPF : np.ndarray (3,)
-        Body-fixed position [m]
+        Planet-centered, planet-fixed position [m].
     """
     if deg:
         lat *= DEG_TO_RAD
@@ -177,6 +231,33 @@ def geocentric_LLA_to_PCPF(lat: float, lon: float, alt_m = 0.0, r_body_m = R_EAR
     return r_PCPF
 
 def PCPF_to_geocentric_LLA(r_PCPF: np.ndarray, r_body_m=R_EARTH, deg=True):
+    """Convert PCPF position to geocentric lat, lon, and alt.
+
+    Assumes a spherical body.
+
+    Parameters
+    ----------
+    r_PCPF : np.ndarray (3,)
+        Planet-centered, planet-fixed position of the point [m].
+    r_body_m : float, optional
+        Radius of the spherical body [m]. Default is `R_EARTH`.
+    deg : bool, optional
+        If True, return `lat` and `lon` in degrees; otherwise radians. Default is True.
+
+    Returns
+    -------
+    lat : float
+        Geocentric latitude [deg if `deg` is True, else rad].
+    lon : float
+        Longitude, positive east [deg if `deg` is True, else rad].
+    alt_m : float
+        Altitude above the spherical body surface [m].
+
+    Raises
+    ------
+    ValueError
+        If `r_PCPF` is at the body center (subject to 1e-9m norm)
+    """
     x, y, z = r_PCPF
 
     rho = np.linalg.norm(r_PCPF)
@@ -198,32 +279,40 @@ def PCPF_to_geocentric_LLA(r_PCPF: np.ndarray, r_body_m=R_EARTH, deg=True):
 ################################################################################
 
 # TODO: test
-def PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
-    """Convert rotating-frame position and velocity to inertial coordinates.
-    
-    Somewhat simplified version of itrf-gcrs in Vallado 4e Section 3.7 pp. 203
-    
-    Uses a constant body rotation rate, neglecting precession and nutation.
+def PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
+    """Convert planet-fixed (PCPF) position and velocity to planet-centered inertial (PCI).
+
+    Simplified version of the ITRF to GCRS reduction. Uses a constant body rotation
+    rate about the z-axis, neglecting precession, nutation, and polar motion.
 
     Parameters
     ----------
-    r_PCPF, v_PCPF : np.ndarray (3,)
-        Position [km] and rotating-frame velocity [km/s]
-    t_utc, t_ref : float
-        Current and reference UTC timestamps [s]
+    r_PCPF : np.ndarray (3,)
+        Position in PCPF [m] (or [km], matching `v_PCPF`).
+    v_PCPF : np.ndarray (3,)
+        Velocity in PCPF [m/s] (or [km/s]).
+    t : float
+        Current timestamp [s].
     theta_ref : float
-        Rotation angle at reference epoch [rad]
-    w_body : float
-        Body rotation rate [rad/s]
+        Rotation angle of PCPF with respect to PCI at `t_ref` (e.g. GMST) [rad].
+    t_ref : float
+        Timestamp of the reference epoch for `theta_ref` [s].
+    w_body : float, optional
+        Body rotation rate about the PCI z-axis [rad/s]. Default is `W_EARTH`.
 
     Returns
     -------
-    r_PCI, v_PCI : np.ndarray (3,)
-        Inertial position [km] and velocity [km/s]
+    r_PCI : np.ndarray (3,)
+        Inertial position, same units as `r_PCPF`.
+    v_PCI : np.ndarray (3,)
+        Inertial velocity, same units as `v_PCPF`.
+
+    References
+    ----------
+    Vallado 4e, Section 3.7, p. 203.
     """
     # Rotation angle
-    # theta_PCPF_wrt_PCI = calc_theta_g(t_utc, theta_ref, t_ref, w_body)
-    theta_PCPF_wrt_PCI = (theta_ref + w_body * (t_utc - t_ref)) % (2 * np.pi)
+    theta_PCPF_wrt_PCI = (theta_ref + w_body * (t - t_ref)) % (2 * np.pi)
     
     dcm_PCI_wrt_PCPF = dcm_z(theta_PCPF_wrt_PCI).T
     
@@ -250,6 +339,20 @@ Might be faster to do IAU-76/FK5 Reduction though
 
 
 def approx_5th_deg_spline(t_tt, coeffs):
+    """Evaluate the 5th-degree polynomial part of the IAU 2006 CIP series.
+
+    Parameters
+    ----------
+    t_tt : float
+        Julian centuries since J2000 in Terrestrial Time (TT).
+    coeffs : array_like (6,)
+        Polynomial coefficients, constant term first [microarcsec].
+
+    Returns
+    -------
+    float
+        Polynomial value [microarcsec].
+    """
     return (
         coeffs[0]
         + coeffs[1] * t_tt
@@ -298,17 +401,30 @@ Maia 2011 tab5.2a/b/d.txt
 
 def W_matrix(xp: float, yp: float, t_tt: float):
     """Polar-motion matrix for ITRF <--> GCRS transformation.
-    Computes intermediate TIO locator `s'` using `t_tt` and a very accurate approximation. \\
-    Vallado 4e p. 212 \\
-    Could also augment with ocean tides and libration, but TODO for another day
 
-    Args:
-        xp (float): Polar x coord. of polar motion of CIP in ITRS
-        yp (float): Polar y coord. of polar motion of CIP in ITRS
-        t_tt (float): Julian Century (Terrestrial time)
+    Computes TIO locator `s'` from `t_tt` with an accurate linear approximation.
 
-    Returns:
-        np.ndarray: Polar-motion matrix [W(t)]
+    Parameters
+    ----------
+    xp : float
+        x polar-motion coordinate of CIP in ITRS, from EOP data [rad].
+    yp : float
+        y polar-motion coordinate of CIP in ITRS, from EOP data [rad].
+    t_tt : float
+        Julian centuries since J2000 in Terrestrial Time (TT).
+
+    Returns
+    -------
+    W : np.ndarray (3, 3)
+        Polar-motion matrix [W(t)], taking ITRF vectors to TIRS.
+
+    Notes
+    -----
+    Could be augmented with ocean tides and libration (not yet implemented).
+
+    References
+    ----------
+    Vallado 4e, p. 212.
     """
     # Coefficient varies by less than 0.0004" over next century
     # Vallado 4e 3-61 p. 212
@@ -333,15 +449,23 @@ def W_matrix(xp: float, yp: float, t_tt: float):
 
 
 def R_matrix(jd_ut1: float):
-    """Sidereal rotation matrix for ITRF <--> GCRS.
-    Computes intermediate Earth   Angle using `jd_ut1` \\
-    Vallado 4e p. 213
+    """Sidereal rotation matrix for ITRF <--> GCRS transformation.
 
-    Args:
-        jd_ut1 (float): Julian date (UT1)
+    Computes Earth Rotation Angle (ERA) from `jd_ut1`.
 
-    Returns:
-        np.ndarray: Sidereal-rotation matrix [R(t)]
+    Parameters
+    ----------
+    jd_ut1 : float
+        Julian date in UT1.
+
+    Returns
+    -------
+    R : np.ndarray (3, 3)
+        Sidereal-rotation matrix [R(t)], taking TIRS vectors to CIRS.
+
+    References
+    ----------
+    Vallado 4e, Equation 3-62, p. 213.
     """
 
     # Vallado 4e 3-62 p. 213
@@ -354,6 +478,28 @@ def R_matrix(jd_ut1: float):
 
 # TODO: fix with dX and dY
 def _X_Y_s_a(t_tt: float):
+    """Compute CIP coordinates `X`, `Y`, CIO locator `s`, and the `a` term.
+
+    Parameters
+    ----------
+    t_tt : float
+        Julian centuries since J2000 in Terrestrial Time (TT).
+
+    Returns
+    -------
+    X : float
+        x-coordinate of the CIP unit vector in the GCRS [rad].
+    Y : float
+        y-coordinate of the CIP unit vector in the GCRS [rad].
+    s : float
+        CIO locator [rad].
+    a : float
+        Approximate `a` term used in the precession-nutation matrix.
+
+    References
+    ----------
+    Vallado 4e, p. 213-214.
+    """
     t = t_tt
     t2 = t * t
     t3 = t * t2
@@ -406,18 +552,29 @@ def _X_Y_s_a(t_tt: float):
     return X, Y, s, a
 
 
+# TODO: fix to use dX and dY
 def PN_matrix(t_tt: float, dX=0.0, dY=0.0):
-    """Precession and nutation matrix for ITRF <--> GCRS.
-    Computes intermediate `a` with an approximation. \\
-    Vallado 4e p. 213
+    """Precession-nutation matrix for the ITRF <--> GCRS transformation.
 
-    Args:
-        t_tt (float): Julian Century (Terrestrial time)
-        dX (float): X correction (from EOP) [arcsec]
-        dY (float): Y correction (from EOP) [arcsec]
+    Computes intermediate `a` term with an approximation.
 
-    Returns:
-        _type_: _description_
+    Parameters
+    ----------
+    t_tt : float
+        Julian centuries since J2000 in Terrestrial Time (TT).
+    dX : float, optional
+        CIP X correction from EOP data [arcsec]. Default is 0.0. Currently unused.
+    dY : float, optional
+        CIP Y correction from EOP data [arcsec]. Default is 0.0. Currently unused.
+
+    Returns
+    -------
+    PN : np.ndarray (3, 3)
+        Precession-nutation matrix [PN(t)], taking CIRS vectors to GCRS.
+
+    References
+    ----------
+    Vallado 4e, p. 213.
     """
     X, Y, s, a = _X_Y_s_a(t_tt)
     mat = np.array(
@@ -445,25 +602,42 @@ def itrf_to_gcrs_matrices(
     deltaUT1_s: float = 0,
     deltaAT_s: float = 32,
 ):
-    """Generates PN, R, and W matrices from ITRF <--> GCRS.
+    """Compute the PN, R, and W matrices for the ITRF <--> GCRS transformation.
 
-    - Obtain xp, yp, deltaUT1_s, dX, and dY from EOP data.
-    - For vel and accel, modify the W matrix with golden rule
+    Parameters
+    ----------
+    xp : float
+        x polar-motion coordinate of the CIP in the ITRS, from EOP data [rad].
+    yp : float
+        y polar-motion coordinate of the CIP in the ITRS, from EOP data [rad].
+    jd_utc : float
+        Julian date in UTC.
+    dX : float, optional
+        CIP X correction from EOP data [arcsec]. Default is 0.
+    dY : float, optional
+        CIP Y correction from EOP data [arcsec]. Default is 0.
+    deltaUT1_s : float, optional
+        UT1 - UTC offset from EOP data [s]. Default is 0.
+    deltaAT_s : float, optional
+        TAI - UTC offset (leap seconds) [s]. Default is 32.
 
+    Returns
+    -------
+    PN : np.ndarray (3, 3)
+        Precession-nutation matrix (CIRS to GCRS).
+    R : np.ndarray (3, 3)
+        Sidereal-rotation matrix (TIRS to CIRS).
+    W : np.ndarray (3, 3)
+        Polar-motion matrix (ITRF to TIRS).
 
-    Vallado 4e Algorithm 23 p. 221
+    Notes
+    -----
+    Position transforms as `r_GCRS = PN @ R @ W @ r_ITRF`. For velocity, use
+    `itrf_to_gcrs`, which adds the Earth-rotation term at the R step.
 
-    Args:
-        xp (float): Polar x coord. of polar motion of CIP in ITRS [rad]
-        yp (float): Polar y coord. of polar motion of CIP in ITRS [rad]
-        jd_utc (float): Julian date (UTC)
-        dX (float): X correction (from EOP) Defaults to 0.
-        dY (float): Y correction (from EOP) Defaults to 0.
-        deltaUT1_s (float): UTC to UT1 offset [s] Defaults to 0.
-        deltaAT_s (float): UTC to TAI offset [s] Defaults to 32.
-
-    Returns:
-        tuple: (PN, R, W) Rotation matrices such that r_GCRS = PNRW * r_ITRF
+    References
+    ----------
+    Vallado 4e, Algorithm 23, p. 221.
     """
 
     jd_ut1 = jd_utc + deltaUT1_s * SEC_TO_DAY
@@ -477,24 +651,93 @@ def itrf_to_gcrs_matrices(
 
     return PN, R, W
 
-
-def calc_v_tirs(
-    R: np.ndarray, v_tirs: np.ndarray, w_earth_tirs: np.ndarray, r_tirs: np.ndarray
-):
-    """Formula normally `R @ v_tirs + np.cross(w_cirs, r_tirs))`
-    but we need have `w_tirs` so we use R and distribute:  `R @ (v_tirs + np.cross(w_tirs, r_tirs)) )` \\
-    Vallado 4e p. 213
-
-    Args:
-        R (np.ndarray): Sidereal-rotation matrix (ITRS --> CIRS)
-        v_tirs (np.ndarray): Velocity in TIRS system [m/s] or [km/s]
-        w_earth_tirs (np.ndarray): Angular velocity of Earth in TIRS system
-        r_tirs (np.ndarray): Position in TIRS system [m] or [km] (must be same as `v_tirs`)
-
-    Returns:
-        np.ndarray: velocity (CIRS) [m/s] or [km/s] (same as r and v inputs)
+@dataclass
+class EOP:
+    """Earth orientation parameters for a single epoch (from IERS data).
+    Attributes
+    ----------
+    xp, yp : float
+        Polar-motion coordinates of the CIP in the ITRS [rad].
+    dX, dY : float
+        CIP offset corrections [rad].
+    deltaUT1_s : float
+        UT1 - UTC [s].
+    deltaAT_s : float
+        TAI - UTC (leap seconds) [s].
+    lod_s : float
+        Excess length of day [s].
     """
-    return R @ (v_tirs + np.cross(w_earth_tirs, r_tirs))
+    xp: float = 0.0
+    yp: float = 0.0
+    dX: float = 0.0
+    dY: float = 0.0
+    deltaUT1_s: float = 0.0
+    deltaAT_s: float = 37.0
+    lod_s: float = 0.0
+
+
+def itrf_to_gcrs(
+    r_itrf: np.ndarray,
+    v_itrf: np.ndarray,
+    xp: float,
+    yp: float,
+    jd_utc: float,
+    dX: float = 0,
+    dY: float = 0,
+    deltaUT1_s: float = 0,
+    deltaAT_s: float = 32,
+    lod_s: float = 0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Transform a satellite's position and velocity from ITRF (ECEF) to GCRS (ECI).
+
+    Velocity picks up the Earth-rotation term at the TIRS to CIRS step:
+    `v_GCRS = PN @ R @ (W @ v_ITRF + w_earth x (W @ r_ITRF))`.
+
+    Parameters
+    ----------
+    r_itrf : np.ndarray (3,)
+        Satellite position in ITRF [m] (or [km], matching `v_itrf`).
+    v_itrf : np.ndarray (3,)
+        Satellite velocity relative to ITRF [m/s] (or [km/s], matching `r_itrf`).
+    xp : float
+        x polar-motion coordinate of the CIP in the ITRS, from EOP data [rad].
+    yp : float
+        y polar-motion coordinate of the CIP in the ITRS, from EOP data [rad].
+    jd_utc : float
+        Julian date in UTC.
+    dX : float, optional
+        CIP X correction from EOP data [arcsec]. Default is 0.
+    dY : float, optional
+        CIP Y correction from EOP data [arcsec]. Default is 0.
+    deltaUT1_s : float, optional
+        UT1 - UTC offset from EOP data [s]. Default is 0.
+    deltaAT_s : float, optional
+        TAI - UTC offset (leap seconds) [s]. Default is 32.
+    lod_s : float, optional
+        Excess length of day from EOP data [s], which slightly reduces Earth's
+        rotation rate. Default is 0.
+
+    Returns
+    -------
+    r_gcrs : np.ndarray (3,)
+        Satellite position in GCRS, same units as `r_itrf`.
+    v_gcrs : np.ndarray (3,)
+        Satellite velocity in GCRS, same units as `v_itrf`.
+
+    References
+    ----------
+    Vallado 4e, Algorithm 23, p. 221.
+    """
+    PN, R, W = itrf_to_gcrs_matrices(xp, yp, jd_utc, dX, dY, deltaUT1_s, deltaAT_s)
+
+    r_tirs = W @ r_itrf
+    v_tirs = W @ v_itrf
+    w_earth_tirs = np.array([0, 0, W_EARTH * (1 - lod_s * SEC_TO_DAY)])
+
+    r_gcrs = PN @ R @ r_tirs
+    v_gcrs = PN @ R @ (v_tirs + np.cross(w_earth_tirs, r_tirs))
+
+    return r_gcrs, v_gcrs
 
 
 # TODO: ECI ECEF
