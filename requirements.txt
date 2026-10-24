@@ -4,3 +4,4 @@ pandas==3.1.0
 pytest==9.1.1
 ruff==0.15.20
 scipy==1.18.1
+tqdm

@@ -12,5 +12,6 @@ Same as the class basically where I just regurgitate a bunch of stuff but in my 
 3. Complementary
 4. Robot moving in a moon crater
    1. Lowkey SLAM was pretty cool
+5. consider covariance (/? from impulse interviews)
    
 more stuff from 273 maybe?
