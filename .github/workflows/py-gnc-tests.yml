@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  pytest:
+  test-everything:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,3 +28,9 @@ jobs:
       - name: Run all simulation tests
         run: |
           python -m pytest py-gnc -v -o addopts= -m ""
+
+      - name: Ruff lint
+        run: ruff check ./py-gnc
+
+      - name: Ruff format
+        run: ruff format --check ./py-gnc
