@@ -114,6 +114,7 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
 
     raise ValueError(f"Did not converge for {M=}, {e=}")
 
+# TODO: test
 def kepler_eq_p(dt: float, p: float, mu = MU_EARTH):
     """Vallado 4e, Algorithm 3, p. 69"""
     n_p = 2*np.sqrt(mu/(p**3))
@@ -122,6 +123,7 @@ def kepler_eq_p(dt: float, p: float, mu = MU_EARTH):
     B = 2.0 / np.tan(2*w)
     return B
 
+# TODO: test
 def kepler_eq_h(M: float, e: float, tol=1e-9, max_iter=100):
     """Vallado 4e, Algorithm 4, p. 71"""
 
