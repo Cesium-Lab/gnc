@@ -3,12 +3,12 @@ import pytest
 
 
 from cesium.orbital.transformations import PCI_to_RSW
-from cesium.orbital.coes import kepler_eq, rv_to_coes, coes_to_rv
+from cesium.orbital.coes import kepler_eq, rv_to_coes, coes_to_rv, E_from_ta
 from cesium.constants import DEG_TO_RAD, RAD_TO_DEG, KM_TO_M
 from cesium.world import MU_EARTH, MU_EARTH_KM
 
 
-def test_kelper():
+def test_kepler():
     """Vallado 4e Example 2-1 p. 66"""
     M = 235.4 * DEG_TO_RAD
     e = 0.4
@@ -16,6 +16,22 @@ def test_kelper():
 
     assert E * RAD_TO_DEG == pytest.approx(220.512074767522)
 
+def test_kepler_curtis():
+    """Curtis Example 3.1 p. 116"""
+    rp = 9600 * KM_TO_M
+    ra = 21000 * KM_TO_M
+    e = (ra-rp)/(ra+rp)
+    
+    a = rp/(1-e)
+    T = 2*np.pi*np.sqrt(a**3 / MU_EARTH)
+    
+    # want to get to 120 deg
+    ta = 120 * DEG_TO_RAD
+    E = E_from_ta(ta, e)
+    M = E - e*np.sin(E)
+    
+    t = M/2/np.pi * T
+    assert t == pytest.approx(4077, abs=.1)
 
 class TestRvToCoes:
     def test_vallado(self):

@@ -11,5 +11,3 @@
   - Design LQR/MPC controller for the identified mode
   - Validate on hardware
 - Sys ID
-- 
-- 
