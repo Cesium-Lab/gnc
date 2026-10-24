@@ -1,9 +1,8 @@
 import numpy as np
 import pytest
 
-
+from cesium.constants import DEG_TO_RAD, HOUR_TO_SEC, KM_TO_M
 from cesium.orbital.coes import kepler_eq, ta_from_E
-from cesium.constants import DEG_TO_RAD, KM_TO_M, HOUR_TO_SEC
 from cesium.world import MU_EARTH
 
 

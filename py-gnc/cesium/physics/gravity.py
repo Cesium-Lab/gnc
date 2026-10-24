@@ -7,6 +7,7 @@ TODO:
 
 import numpy as np
 from numpy.linalg import norm
+
 from ..world import MU_EARTH, R_EARTH
 
 

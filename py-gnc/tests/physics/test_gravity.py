@@ -1,8 +1,7 @@
 import numpy as np
 
-from cesium.world import R_EARTH
-
 from cesium.physics import grav_accel
+from cesium.world import R_EARTH
 
 
 def test_normal_grav_edge_cases():

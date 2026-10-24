@@ -1,7 +1,8 @@
 import numpy as np
-from ...world.constants import MU_EARTH
+
 from ...constants import DEG_TO_RAD
 from ...math.coes import E_from_ta
+from ...world.constants import MU_EARTH
 
 
 # TODO: Example 6-1 p. 326

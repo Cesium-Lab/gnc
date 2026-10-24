@@ -2,11 +2,10 @@ import numpy as np
 import pytest
 from tqdm import tqdm
 
-from cesium.orbital.hcw import rv_hcw_3d, hcw_dynamics
+from cesium.constants import HOUR_TO_SEC, KM_TO_M, MIN_TO_SEC
 from cesium.math.integrators import rk4_func
-
+from cesium.orbital.hcw import hcw_dynamics, rv_hcw_3d
 from cesium.world import MU_EARTH, R_EARTH, W_EARTH
-from cesium.constants import KM_TO_M, MIN_TO_SEC, HOUR_TO_SEC
 
 
 def test_vallado_hubble():

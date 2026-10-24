@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from cesium.math.base import unit, center_of_curvature
+from cesium.math.base import center_of_curvature, unit
 
 
 def test_unit():

@@ -1,5 +1,6 @@
 import numpy as np
-from ..constants import RAD_TO_DEG, DEG_TO_RAD
+
+from ..constants import DEG_TO_RAD, RAD_TO_DEG
 from .base import unit
 
 

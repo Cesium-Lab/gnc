@@ -1,6 +1,5 @@
 import numpy as np
 
-
 from cesium.math.integrators import rk4_func
 
 #################################################################

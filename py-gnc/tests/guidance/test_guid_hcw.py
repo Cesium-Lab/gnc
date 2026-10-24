@@ -2,11 +2,9 @@ import numpy as np
 import pytest
 from numpy.linalg import norm
 
-
+from cesium.constants import HOUR_TO_SEC, KM_TO_M
 from cesium.guidance.hcw import guid_hcw_two_impulse
-
 from cesium.world import MU_EARTH, R_EARTH
-from cesium.constants import KM_TO_M, HOUR_TO_SEC
 
 
 class Test_guid_hcw_two_impulse:

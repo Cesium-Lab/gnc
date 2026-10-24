@@ -1,9 +1,9 @@
+import numpy as np
 import pytest
 
-import numpy as np
-from cesium.physics.energy import calc_total_energy
-from cesium.physics.rigid_body import rigid_body_derivative, RigidBodyParams
 from cesium.math.integrators import rk4_func
+from cesium.physics.energy import calc_total_energy
+from cesium.physics.rigid_body import RigidBodyParams, rigid_body_derivative
 from cesium.world import MU_EARTH
 
 

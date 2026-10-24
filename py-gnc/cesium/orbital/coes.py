@@ -1,12 +1,12 @@
 """COES"""
 
 import numpy as np
-from ..world.constants import MU_EARTH
 from numpy.linalg import norm
-from ..math.rotations import dcm_x, dcm_z
-from ..math.quaternion import unit
-from ..world import R_EARTH, J2_EARTH
 
+from ..math.quaternion import unit
+from ..math.rotations import dcm_x, dcm_z
+from ..world import J2_EARTH, R_EARTH
+from ..world.constants import MU_EARTH
 
 ####################################################################################################
 #               Back of Napkin

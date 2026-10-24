@@ -1,14 +1,12 @@
 """TODO: organize"""
 
+import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
+from plotly.colors import qualitative
 from scipy.interpolate import CubicSpline
 
 from .constants import AU_TO_KM
-
-from plotly.colors import qualitative
-import matplotlib.pyplot as plt
-
 from .orbital.flyby import OrbitalFlyby
 
 

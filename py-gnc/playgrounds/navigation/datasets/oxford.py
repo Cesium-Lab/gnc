@@ -41,8 +41,9 @@ Sensors (imu*.csv)
 
 """
 
-import numpy as np
 from dataclasses import dataclass
+
+import numpy as np
 
 G_TO_M_S2 = 9.80665
 

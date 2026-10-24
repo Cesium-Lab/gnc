@@ -3,6 +3,7 @@ n-body
 """
 
 import numpy as np
+
 from ..world.constants import MU_EARTH, R_EARTH
 from .gravity import grav_accel
 

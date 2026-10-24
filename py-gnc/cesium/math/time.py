@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..constants import JD_CENTURY_TO_DAY, J2000_JD
+from ..constants import J2000_JD, JD_CENTURY_TO_DAY
 
 LMonth = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 """List of month lengths as discussed in Vallado 3.6.4"""

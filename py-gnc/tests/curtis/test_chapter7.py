@@ -1,14 +1,13 @@
 import numpy as np
-from numpy.linalg import norm
 import pytest
+from numpy.linalg import norm
 
-
-from cesium.orbital.transformations import PCI_to_RSW
-from cesium.orbital.hcw import calc_Phi, rv_hcw_3d, rv_hcw_2d
+from cesium.constants import DAY_TO_SEC, HOUR_TO_SEC, KM_TO_M, MIN_TO_SEC
 from cesium.guidance.hcw import guid_hcw_two_impulse
-from cesium.constants import KM_TO_M, HOUR_TO_SEC, MIN_TO_SEC, DAY_TO_SEC
-from cesium.world import MU_EARTH
+from cesium.orbital.hcw import calc_Phi, rv_hcw_2d, rv_hcw_3d
+from cesium.orbital.transformations import PCI_to_RSW
 from cesium.physics.gravity import grav_accel
+from cesium.world import MU_EARTH
 
 ####################################################################################################
 #               Curtis Book Problems
