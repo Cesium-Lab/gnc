@@ -4,11 +4,12 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..world import R_EARTH, R_EARTH_POLAR, ECC_EARTH, W_EARTH
-from ..constants import DEG_TO_RAD, SEC_TO_DAY, ARCSEC_TO_RAD
+from ..constants import DEG_TO_RAD, SEC_TO_DAY, ARCSEC_TO_RAD, RAD_TO_DEG
 from ..math.time import jd_to_julian_centuries
 from ..math.rotations import dcm_z
 from .CIP.parse import import_table, get_summation
 from ..math.quaternion import unit
+from ..math.rotations import wrap_to_2pi
 
 ################################################################################
 #               Intermediate
@@ -320,6 +321,24 @@ def PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t: float, theta_ref: f
     v_PCI = dcm_PCI_wrt_PCPF @ (v_PCPF + np.cross([0,0,w_body], r_PCPF))
     
     return r_PCI, v_PCI
+
+#########################################################################################################
+#               cart to RaDec
+#########################################################################################################
+
+def cartesian_to_RaDec(vec: np.ndarray, deg = True):
+    """Curtis Equation 4.5 p. 155"""
+    r_hat = unit(vec)
+    declination = np.arcsin(r_hat[2]) # -pi to pi
+    ascension = np.arctan2(r_hat[1], r_hat[0])
+    ascension = wrap_to_2pi(ascension)
+    
+    if deg:
+        declination *= RAD_TO_DEG
+        ascension *= RAD_TO_DEG
+        
+    return ascension, declination
+    
 
 ################################################################################
 #               ITRF <--> GCRS

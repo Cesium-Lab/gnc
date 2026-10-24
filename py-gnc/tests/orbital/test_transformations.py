@@ -2,7 +2,7 @@ import sys
 import numpy as np
 import pytest
 
-
+from cesium.math.base import unit
 import cesium.orbital.transformations as Trans
 from cesium.constants import DEG_TO_RAD, ARCSEC_TO_RAD, RAD_TO_ARCSEC, RAD_TO_DEG, M_TO_KM, KM_TO_M
 from cesium.math.time import greg_to_jd
@@ -79,8 +79,17 @@ def test_PCI_to_RSW_Curtis_example_7_2():
     assert r0_c_RSW == pytest.approx([20000, 20000, 20000], abs=20)
     assert v0_c_RSW == pytest.approx([-20, 20, -5], abs=1.1)
     
+#########################################################################################################
+#               cart to RaDec
+#########################################################################################################
 
-
+def test_cartesian_to_RaDec():
+    """Curtis Equation 4.5 p. 155"""
+    v = np.array([-5368, -1784, 3691])
+    
+    ra, dec = Trans.cartesian_to_RaDec(v, deg=True)
+    assert ra == pytest.approx(198.4, abs=0.1)
+    assert dec == pytest.approx(33.12, abs=0.01)
 
 #########################################################################################################
 #               ITRF
