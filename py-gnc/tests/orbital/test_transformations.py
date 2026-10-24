@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import pytest
+from numpy.linalg import norm
 
 from cesium.math.base import unit
 import cesium.orbital.transformations as Trans
@@ -83,13 +84,26 @@ def test_PCI_to_RSW_Curtis_example_7_2():
 #               cart to RaDec
 #########################################################################################################
 
-def test_cartesian_to_RaDec():
+def test_cartesian_to_radec():
     """Curtis Equation 4.5 p. 155"""
-    v = np.array([-5368, -1784, 3691])
+    r = np.array([-5368, -1784, 3691])
     
-    ra, dec = Trans.cartesian_to_RaDec(v, deg=True)
+    ra, dec, rho = Trans.cartesian_to_radec(r, deg=True)
     assert ra == pytest.approx(198.4, abs=0.1)
     assert dec == pytest.approx(33.12, abs=0.01)
+    assert rho == pytest.approx(norm(r))
+    
+def test_radec_roundtrip():
+    r0 = np.array([-536328, -17132484, 3234691])
+    
+    ra, dec, rho = Trans.cartesian_to_radec(r0, deg=True)
+    r = Trans.radec_to_cartesian(ra, dec, rho, deg=True)
+    assert r == pytest.approx(r0)
+    
+    ra, dec, rho = Trans.cartesian_to_radec(r0, deg=False)
+    r = Trans.radec_to_cartesian(ra, dec, rho, deg=False)
+    assert r == pytest.approx(r0)
+    
 
 #########################################################################################################
 #               ITRF
