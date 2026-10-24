@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 import numpy as np
+from numpy.linalg import norm
 
 from ..world import R_EARTH, R_EARTH_POLAR, ECC_EARTH, W_EARTH
 from ..constants import DEG_TO_RAD, SEC_TO_DAY, ARCSEC_TO_RAD, RAD_TO_DEG
@@ -323,10 +324,10 @@ def PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t: float, theta_ref: f
     return r_PCI, v_PCI
 
 #########################################################################################################
-#               cart to RaDec
+#               cart to radec
 #########################################################################################################
 
-def cartesian_to_RaDec(vec: np.ndarray, deg = True):
+def cartesian_to_radec(vec: np.ndarray, deg = True):
     """Curtis Equation 4.5 p. 155"""
     r_hat = unit(vec)
     declination = np.arcsin(r_hat[2]) # -pi to pi
@@ -337,8 +338,22 @@ def cartesian_to_RaDec(vec: np.ndarray, deg = True):
         declination *= RAD_TO_DEG
         ascension *= RAD_TO_DEG
         
-    return ascension, declination
+    return ascension, declination, norm(vec)
+
+# TODO: test
+def radec_to_cartesian(ascension: float, declination: float, rho: float, deg = True):
+    """Curtis Equation 4.5 p. 155 but reversed. same units as rho"""
     
+    if deg:
+        ascension *= DEG_TO_RAD
+        declination *= DEG_TO_RAD
+    
+    z = np.sin(declination) * rho
+    horizontal = np.cos(declination) * rho
+    x = np.cos(ascension) * horizontal
+    y = np.sin(ascension) * horizontal
+    
+    return np.array([x,y,z])
 
 ################################################################################
 #               ITRF <--> GCRS

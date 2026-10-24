@@ -1,5 +1,10 @@
+from ..constants import RAD_TO_DEG
+
 M_EARTH = 5.9733328e24
 """Earth mass [kg]"""
+
+R_SUN = 6.957e8 
+"""Sun radius [m] VERY CRUDE"""
 
 MU_SUN = 1.32712440018e20
 """Sun standard gravitational parameter [m3/s2] (Vallado 4e p. 1043 + more from internet)"""

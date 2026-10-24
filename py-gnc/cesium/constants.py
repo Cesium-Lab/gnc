@@ -7,6 +7,7 @@ import numpy as np
 DEG_TO_RAD = np.pi / 180.0
 RAD_TO_DEG = 1 / DEG_TO_RAD
 
+MIN_TO_SEC = 60
 HOUR_TO_SEC = 3600
 
 DEG_TO_ARCSEC = 3600
@@ -62,3 +63,4 @@ M_TO_KM = 1.0/1000
 KM_TO_M = 1000.0
 
 AU_TO_KM = 149597870.7  # km/AU
+AU_TO_M = AU_TO_KM * KM_TO_M  # m/AU
