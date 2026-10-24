@@ -1,7 +1,5 @@
-import sys
 import numpy as np
 import pytest
-
 
 import cesium.math.time as T
 

@@ -1,11 +1,9 @@
-import sys
-
+import numpy as np
 import pytest
 
-import numpy as np
-from cesium.physics.energy import calc_total_energy
-from cesium.physics.rigid_body import rigid_body_derivative, RigidBodyParams
 from cesium.math.integrators import rk4_func
+from cesium.physics.energy import calc_total_energy
+from cesium.physics.rigid_body import RigidBodyParams, rigid_body_derivative
 from cesium.world import MU_EARTH
 
 
@@ -445,8 +443,8 @@ class TestRigidBodyEnergy:
         KE = 0.5 * w.T @ I @ w
 
         assert calc_total_energy(
-                mass, I, next_step[0:3], next_step[3:6], next_step[10:13], MU_EARTH
-            ) == pytest.approx(KE, rel=0.0001)
+            mass, I, next_step[0:3], next_step[3:6], next_step[10:13], MU_EARTH
+        ) == pytest.approx(KE, rel=0.0001)
 
 
 def test_no_I():

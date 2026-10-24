@@ -7,12 +7,11 @@ TODO:
 
 import numpy as np
 from numpy.linalg import norm
-from ..world import MU_EARTH, R_EARTH, J2_EARTH
+
+from ..world import MU_EARTH, R_EARTH
 
 
-def grav_accel(
-    r: np.ndarray, mu: float = MU_EARTH, j2=None, r_cb: float = R_EARTH
-):
+def grav_accel(r: np.ndarray, mu: float = MU_EARTH, j2=None, r_cb: float = R_EARTH):
     """Gravitational acceleration from a point mass, optionally with J2.
 
     Parameters

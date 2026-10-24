@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # TODO: test like with attenuation or something and for dimensions
 class LPF:
     """First-order discrete low-pass filter (exponential moving average).
@@ -23,7 +24,7 @@ class LPF:
         assert isinstance(alpha, float)
         self.alpha = alpha
         self.y = 0.0
-    
+
     def run(self, x: float | np.ndarray):
         """Filter new sample.
 
@@ -37,6 +38,6 @@ class LPF:
         float or np.ndarray
             Updated filter output.
         """
-        self.y = self.alpha*x + (1-self.alpha)*self.y
+        self.y = self.alpha * x + (1 - self.alpha) * self.y
         # self.y = self.alpha*self.y + (1-self.alpha)*x
         return self.y

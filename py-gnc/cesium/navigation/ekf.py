@@ -1,6 +1,7 @@
-import numpy as np
-from dataclasses import dataclass
 from collections.abc import Callable
+from dataclasses import dataclass
+
+import numpy as np
 
 ##################################################
 #               EKF (AA 228)

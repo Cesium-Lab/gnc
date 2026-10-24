@@ -1,7 +1,5 @@
-import sys
 import numpy as np
 import pytest
-
 
 from cesium.physics.energy import (
     calc_kinetic_energy,

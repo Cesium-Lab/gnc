@@ -1,12 +1,12 @@
 """COES"""
 
 import numpy as np
-from ..world.constants import MU_EARTH
 from numpy.linalg import norm
-from ..math.rotations import dcm_x, dcm_z
-from ..math.quaternion import unit
-from ..world import R_EARTH, J2_EARTH
 
+from ..math.quaternion import unit
+from ..math.rotations import dcm_x, dcm_z
+from ..world import J2_EARTH, R_EARTH
+from ..world.constants import MU_EARTH
 
 ####################################################################################################
 #               Back of Napkin
@@ -19,6 +19,7 @@ a = h*h/mu / (1 - e*e)
 ####################################################################################################
 #               Kepler
 ####################################################################################################
+
 
 def E_from_ta(ta: float, e: float):
     """Convert true anomaly to eccentric anomaly for an elliptical orbit.
@@ -34,17 +35,15 @@ def E_from_ta(ta: float, e: float):
     -------
     E : float
         Eccentric anomaly, wrapped to `[0, 2*pi)` [rad].
-        
+
     References
     ----------
     Vallado 4e, Equation 2-14, p. 48.
-    
+
     """
-    E = 2*np.arctan2(
-        np.sqrt(1-e)*np.sin(ta/2),
-        np.sqrt(1+e)*np.cos(ta/2)
-    )
-    return E % (2*np.pi)
+    E = 2 * np.arctan2(np.sqrt(1 - e) * np.sin(ta / 2), np.sqrt(1 + e) * np.cos(ta / 2))
+    return E % (2 * np.pi)
+
 
 def ta_from_E(E: float, e: float):
     """Convert eccentric anomaly to true anomaly for an elliptical orbit.
@@ -60,16 +59,14 @@ def ta_from_E(E: float, e: float):
     -------
     ta : float
         True anomaly, wrapped to `[0, 2*pi)` [rad].
-        
+
     References
     ----------
     Vallado 4e, Equation 2-13, p. 48.
     """
-    ta = 2*np.arctan2(
-        np.sqrt(1+e)*np.sin(E/2),
-        np.sqrt(1-e)*np.cos(E/2)
-    )
-    return ta % (2*np.pi)
+    ta = 2 * np.arctan2(np.sqrt(1 + e) * np.sin(E / 2), np.sqrt(1 - e) * np.cos(E / 2))
+    return ta % (2 * np.pi)
+
 
 def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
     """Solve Kepler's equation `M = E - e*sin(E)` for an elliptical orbit.
@@ -101,24 +98,27 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
     ----------
     Vallado 4e, Algorithm 2, p. 65.
     """
-    
+
     if not (0 <= e < 1):
         raise ValueError("Kepler solver requires 0 <= e < 1")
 
-    M = M % (2*np.pi)
+    M = M % (2 * np.pi)
     E_n = M - e if M > np.pi else M + e
 
     for _ in range(max_iter):
         E_guess = E_n + (M - E_n + e * np.sin(E_n)) / (1 - e * np.cos(E_n))
 
         if np.abs(E_guess - E_n) < tol:
-            return E_guess % (2*np.pi)
+            return E_guess % (2 * np.pi)
         E_n = E_guess
 
     raise ValueError(f"Did not converge for {M=}, {e=}")
 
+
 # TODO: test
-def pkepler(r0: np.ndarray, v0: np.ndarray, dt: float, r_cb = R_EARTH, mu = MU_EARTH, j2 = J2_EARTH) -> tuple[np.ndarray, np.ndarray]:
+def pkepler(
+    r0: np.ndarray, v0: np.ndarray, dt: float, r_cb=R_EARTH, mu=MU_EARTH, j2=J2_EARTH
+) -> tuple[np.ndarray, np.ndarray]:
     """Propagate an elliptical orbit analytically with secular J2 effects.
 
     Approximate implementation that only includes the secular J2 drift of RAAN
@@ -159,26 +159,25 @@ def pkepler(r0: np.ndarray, v0: np.ndarray, dt: float, r_cb = R_EARTH, mu = MU_E
 
     if not (0 <= e < 1):
         raise ValueError("Requires an elliptical orbit")
-    
+
     E = E_from_ta(ta, e)
-    M = E - e*np.sin(E)
-    
-    p = a*(1 - e*e)
+    M = E - e * np.sin(E)
+
+    p = a * (1 - e * e)
     n0 = np.sqrt(mu / a**3)
-    
+
     # No perturbations included for now except J2
-    factor = n0 * j2 * (r_cb/p)**2
-    raan -= 3/2 * factor * np.cos(i) * dt
-    aop += 3/4 * factor * (4 - 5*np.sin(i)**2) * dt
-    M += n0*dt
-    
-    E = kepler_eq(M,e)
+    factor = n0 * j2 * (r_cb / p) ** 2
+    raan -= 3 / 2 * factor * np.cos(i) * dt
+    aop += 3 / 4 * factor * (4 - 5 * np.sin(i) ** 2) * dt
+    M += n0 * dt
+
+    E = kepler_eq(M, e)
     ta = ta_from_E(E, e)
-    
-    r,v = coes_to_rv(a,e,i,raan,aop,ta,mu)
-    
-    return r,v
-    
+
+    r, v = coes_to_rv(a, e, i, raan, aop, ta, mu)
+
+    return r, v
 
 
 ####################################################################################################
@@ -227,7 +226,7 @@ def rv_to_coes(r_I: np.ndarray, v_I: np.ndarray, mu: float = MU_EARTH):
     r_norm = norm(r_I)
     v2 = np.dot(v_I, v_I)
     r_dot_v = np.dot(r_I, v_I)
-    
+
     # Specific relative angular momentum
     h_vec = np.cross(r_I, v_I)
     h = norm(h_vec)
@@ -239,12 +238,12 @@ def rv_to_coes(r_I: np.ndarray, v_I: np.ndarray, mu: float = MU_EARTH):
     # Eccentricity
     e_vec = ((v2 - mu / r_norm) * r_I - r_dot_v * v_I) / mu
     e = norm(e_vec)
-    
+
     # Inclination
     i = np.arctan2(n, h_vec[2])
 
     circular_orbit = e < 1e-8
-    equatorial_orbit = n/h < 1e-8
+    equatorial_orbit = n / h < 1e-8
 
     # Specific Orbital Energy [km2/s2]
     E_sp = v2 / 2 - mu / r_norm
@@ -257,42 +256,33 @@ def rv_to_coes(r_I: np.ndarray, v_I: np.ndarray, mu: float = MU_EARTH):
     # Right ascension of the ascending node [rad]
     raan = 0.0
     if not equatorial_orbit:
-        raan = np.arctan2(n_vec[1], n_vec[0]) % (2*np.pi)
+        raan = np.arctan2(n_vec[1], n_vec[0]) % (2 * np.pi)
 
     # Argument of perigee [rad]
     aop = 0.0
     if not circular_orbit:
         if not equatorial_orbit:
             aop = np.arctan2(
-                np.dot(np.cross(n_vec, e_vec), unit(h_vec)),
-                np.dot(n_vec, e_vec)
-            ) % (2*np.pi)
+                np.dot(np.cross(n_vec, e_vec), unit(h_vec)), np.dot(n_vec, e_vec)
+            ) % (2 * np.pi)
         else:
             # Longitude of periapsis
-            aop = np.arctan2(
-                np.sign(h_vec[2]) * e_vec[1],
-                e_vec[0]
-            ) % (2*np.pi)
+            aop = np.arctan2(np.sign(h_vec[2]) * e_vec[1], e_vec[0]) % (2 * np.pi)
 
     # True anomaly [rad]
     ta = 0.0
     if not circular_orbit:
         ta = np.arctan2(
-            np.dot(np.cross(e_vec, r_I), unit(h_vec)),
-            np.dot(e_vec, r_I)
-        ) % (2*np.pi)
+            np.dot(np.cross(e_vec, r_I), unit(h_vec)), np.dot(e_vec, r_I)
+        ) % (2 * np.pi)
     elif not equatorial_orbit:
         # Argument of latitude
         ta = np.arctan2(
-            np.dot(np.cross(n_vec, r_I), unit(h_vec)),
-            np.dot(n_vec, r_I)
-        ) % (2*np.pi)
+            np.dot(np.cross(n_vec, r_I), unit(h_vec)), np.dot(n_vec, r_I)
+        ) % (2 * np.pi)
     else:
         # True longitude
-        ta = np.arctan2(
-            np.sign(h_vec[2]) * r_I[1],
-            r_I[0]
-        ) % (2*np.pi)
+        ta = np.arctan2(np.sign(h_vec[2]) * r_I[1], r_I[0]) % (2 * np.pi)
 
     return a, e, i, raan, aop, ta
 
@@ -359,6 +349,7 @@ def coes_to_rv(
     v_I = dcm_I_wrt_PQW @ v_PQW
 
     return r_I, v_I
+
 
 # TODO: parabolic and hyperbolic depending on which orbits I want to simulate
 

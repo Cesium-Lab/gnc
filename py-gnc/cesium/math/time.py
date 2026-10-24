@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..constants import JD_CENTURY_TO_DAY, J2000_JD
+from ..constants import J2000_JD, JD_CENTURY_TO_DAY
 
 LMonth = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 """List of month lengths as discussed in Vallado 3.6.4"""
@@ -69,6 +69,7 @@ def jd_to_julian_centuries(jd: float):
     """
     return (jd - J2000_JD) / JD_CENTURY_TO_DAY
 
+
 def julian_centuries_to_jd(julian_centuries: float):
     """Convert Julian centuries since J2000 to a Julian date.
 
@@ -89,9 +90,7 @@ def julian_centuries_to_jd(julian_centuries: float):
     return (julian_centuries * JD_CENTURY_TO_DAY) + J2000_JD
 
 
-def greg_to_jd(
-    yr: int, mo: int, d: int, h: int, min: int, s: float, meeus=True
-):
+def greg_to_jd(yr: int, mo: int, d: int, h: int, min: int, s: float, meeus=True):
     """Convert a Gregorian calendar date and time to a Julian date.
 
     Parameters
@@ -130,7 +129,14 @@ def greg_to_jd(
         A = yr // 100
         B = 2 - A + A // 4
         C = ((s / 60 + min) / 60 + h) / 24
-        jd = np.floor(365.25 * (yr + 4716)) + np.floor(30.6001 * (mo + 1)) + d + B - 1524.5 + C
+        jd = (
+            np.floor(365.25 * (yr + 4716))
+            + np.floor(30.6001 * (mo + 1))
+            + d
+            + B
+            - 1524.5
+            + C
+        )
     else:
         jd = (
             367 * yr

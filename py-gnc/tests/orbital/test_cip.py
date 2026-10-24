@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 
 import cesium.orbital.CIP.parse as P

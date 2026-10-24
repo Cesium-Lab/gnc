@@ -42,7 +42,7 @@ class Simulator:
 
     def simulate(self, t: float):
         """Simulates length of t. If t is None then simulates all"""
-        final_step = self.n_steps if t is None else t//self.dt
+        final_step = self.n_steps if t is None else t // self.dt
         for step in range(1, self.n_steps + 1):
             self.X[step] = self.step_fn(self.t_curr, self.X[step - 1])
             self.t_curr += self.dt

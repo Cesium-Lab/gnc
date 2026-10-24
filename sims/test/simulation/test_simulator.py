@@ -1,5 +1,4 @@
 import sys
-import numpy as np
 
 sys.path.append(".")
 
@@ -31,27 +30,27 @@ sys.path.append(".")
 #     sc = Spacecraft(m, None)
 #     sim = Simulator(state0, t0, dt, n_steps, rigid_body_step_fn(dt, sc))
 
-    # sim.simulate()
+# sim.simulate()
 
-    # # n = 100
-    # # plt.plot(sim.X[:n,0], sim.X[:n,1])
-    # # plt.axis('equal')
-    # # plt.xlim()
-    # # plt.show()
+# # n = 100
+# # plt.plot(sim.X[:n,0], sim.X[:n,1])
+# # plt.axis('equal')
+# # plt.xlim()
+# # plt.show()
 
-    # plot_orbit(sim.X)
+# plot_orbit(sim.X)
 
-    # plt.plot(sim.X[:,:3])
-    # plt.show()
+# plt.plot(sim.X[:,:3])
+# plt.show()
 
-    # plt.plot(sim.X[:,3:6])
-    # plt.show()
+# plt.plot(sim.X[:,3:6])
+# plt.show()
 
-    # plt.plot(sim.X[:,6:10])
-    # plt.show()
+# plt.plot(sim.X[:,6:10])
+# plt.show()
 
-    # plt.plot(sim.X[:,10:13])
-    # plt.show()
+# plt.plot(sim.X[:,10:13])
+# plt.show()
 
 
 # t0 = 0

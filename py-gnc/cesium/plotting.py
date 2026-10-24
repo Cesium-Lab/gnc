@@ -1,19 +1,14 @@
 """TODO: organize"""
 
-import numpy as np
-import plotly.graph_objects as go
-from scipy.interpolate import CubicSpline
-
-from .constants import AU_TO_KM
-from .world.constants import R_EARTH
-
+import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 from plotly.colors import qualitative
 from scipy.interpolate import CubicSpline
-import matplotlib.pyplot as plt
 
+from .constants import AU_TO_KM
 from .orbital.flyby import OrbitalFlyby
+
 
 def plot_3d(
     traces,
@@ -89,11 +84,12 @@ def plot_3d(
 
     # Labels
     if labels is None:
-        labels = [f"Trajectory {i+1}" for i in range(num_traces)]
+        labels = [f"Trajectory {i + 1}" for i in range(num_traces)]
     elif isinstance(labels, str):
         labels = (
-            [labels] if num_traces == 1
-            else [f"{labels} {i+1}" for i in range(num_traces)]
+            [labels]
+            if num_traces == 1
+            else [f"{labels} {i + 1}" for i in range(num_traces)]
         )
 
     if len(labels) != num_traces:
@@ -120,7 +116,7 @@ def plot_3d(
         if isinstance(bodies, dict):
             bodies = [bodies]
 
-        u = np.linspace(0, 2*np.pi, 60)
+        u = np.linspace(0, 2 * np.pi, 60)
         v = np.linspace(0, np.pi, 30)
 
         sphere_x = np.outer(np.cos(u), np.sin(v))
@@ -136,17 +132,19 @@ def plot_3d(
             if radius <= 0 or center.shape != (3,):
                 raise ValueError("Body requires radius > 0 and center (3,).")
 
-            fig.add_trace(go.Surface(
-                x=radius*sphere_x + center[0],
-                y=radius*sphere_y + center[1],
-                z=radius*sphere_z + center[2],
-                name=body.get("name", "Body"),
-                colorscale=[[0, color], [1, color]],
-                showscale=False,
-                opacity=opacity,
-                showlegend=False,
-                hoverinfo="skip"
-            ))
+            fig.add_trace(
+                go.Surface(
+                    x=radius * sphere_x + center[0],
+                    y=radius * sphere_y + center[1],
+                    z=radius * sphere_z + center[2],
+                    name=body.get("name", "Body"),
+                    colorscale=[[0, color], [1, color]],
+                    showscale=False,
+                    opacity=opacity,
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
 
     # --------------------------------------------------
     # 3. Plot trajectories
@@ -154,7 +152,6 @@ def plot_3d(
     colors = qualitative.Plotly
 
     for idx, (t, r, label) in enumerate(zip(times, traces, labels)):
-
         if r.ndim != 2 or r.shape[1] != 3:
             raise ValueError(f"{label}: expected (N,3), got {r.shape}")
 
@@ -190,45 +187,47 @@ def plot_3d(
         color = colors[idx % len(colors)]
 
         # Trajectory
-        fig.add_trace(go.Scatter3d(
-            x=r_plot[:, 0],
-            y=r_plot[:, 1],
-            z=r_plot[:, 2],
-            mode="lines",
-            name=label,
-            legendgroup=label,
-            line=dict(color=color, width=5)
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=r_plot[:, 0],
+                y=r_plot[:, 1],
+                z=r_plot[:, 2],
+                mode="lines",
+                name=label,
+                legendgroup=label,
+                line=dict(color=color, width=5),
+            )
+        )
 
         # Start marker
         if show_start:
-            fig.add_trace(go.Scatter3d(
-                x=[r_plot[0, 0]],
-                y=[r_plot[0, 1]],
-                z=[r_plot[0, 2]],
-                mode="markers",
-                name=f"{label} Start",
-                legendgroup=label,
-                showlegend=False,
-                marker=dict(
-                    size=6,
-                    color=color,
-                    symbol="diamond"
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[r_plot[0, 0]],
+                    y=[r_plot[0, 1]],
+                    z=[r_plot[0, 2]],
+                    mode="markers",
+                    name=f"{label} Start",
+                    legendgroup=label,
+                    showlegend=False,
+                    marker=dict(size=6, color=color, symbol="diamond"),
                 )
-            ))
+            )
 
         # End marker
         if show_end:
-            fig.add_trace(go.Scatter3d(
-                x=[r_plot[-1, 0]],
-                y=[r_plot[-1, 1]],
-                z=[r_plot[-1, 2]],
-                mode="markers",
-                name=f"{label} End",
-                legendgroup=label,
-                showlegend=False,
-                marker=dict(size=6, color=color)
-            ))
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[r_plot[-1, 0]],
+                    y=[r_plot[-1, 1]],
+                    z=[r_plot[-1, 2]],
+                    mode="markers",
+                    name=f"{label} End",
+                    legendgroup=label,
+                    showlegend=False,
+                    marker=dict(size=6, color=color),
+                )
+            )
 
     # --------------------------------------------------
     # 4. Layout
@@ -239,12 +238,12 @@ def plot_3d(
             xaxis_title=f"X [{units}]",
             yaxis_title=f"Y [{units}]",
             zaxis_title=f"Z [{units}]",
-            aspectmode="data"
+            aspectmode="data",
         ),
         template="plotly_white",
         legend=dict(x=0.02, y=0.98),
         height=height,
-        margin=dict(l=0, r=0, b=0, t=50)
+        margin=dict(l=0, r=0, b=0, t=50),
     )
 
     if show:
@@ -253,7 +252,15 @@ def plot_3d(
 
     return fig
 
-def plot_flybys(flybys: list[OrbitalFlyby], title: str, xlim = None, ylim = None, planet_num_to_colors: dict = None, scale = AU_TO_KM):
+
+def plot_flybys(
+    flybys: list[OrbitalFlyby],
+    title: str,
+    xlim=None,
+    ylim=None,
+    planet_num_to_colors: dict = None,
+    scale=AU_TO_KM,
+):
 
     fig, ax = plt.subplots(figsize=(9, 9))
 
@@ -262,13 +269,19 @@ def plot_flybys(flybys: list[OrbitalFlyby], title: str, xlim = None, ylim = None
 
     # Plot waypoints
     for flyby in flybys:
-        
         r = flyby.r_HCI * scale
         if planet_num_to_colors is not None:
-            ax.scatter(r[0], r[1], color=planet_num_to_colors[flyby.planet_num], s=40, zorder=3, label = flyby.name)
+            ax.scatter(
+                r[0],
+                r[1],
+                color=planet_num_to_colors[flyby.planet_num],
+                s=40,
+                zorder=3,
+                label=flyby.name,
+            )
         else:
-            ax.scatter(r[0], r[1], s=40, zorder=3, label = flyby.name)
-        
+            ax.scatter(r[0], r[1], s=40, zorder=3, label=flyby.name)
+
         # # Dumb dub dumb
         # name = flyby.name
         # if "Venus" in name:
@@ -283,7 +296,7 @@ def plot_flybys(flybys: list[OrbitalFlyby], title: str, xlim = None, ylim = None
     ax.set_title(title)
     ax.set_aspect("equal")
     ax.grid(True, alpha=0.3)
-    
+
     if xlim is not None:
         ax.set_xlim(xlim)
     if ylim is not None:
@@ -293,6 +306,7 @@ def plot_flybys(flybys: list[OrbitalFlyby], title: str, xlim = None, ylim = None
 
     plt.tight_layout()
 
+
 def plot_hyperbolic_characteristics(flyby: OrbitalFlyby, color: str):
     r = flyby.r_HCI[:2] / AU_TO_KM
 
@@ -301,11 +315,11 @@ def plot_hyperbolic_characteristics(flyby: OrbitalFlyby, color: str):
     v_in = flyby.v_arrival_HCI[:2] * scale
     v_out = flyby.v_departure_HCI[:2] * scale
 
-    plt.arrow(*(r - v_in), *v_in,
-              width=0.005, color=color)
+    plt.arrow(*(r - v_in), *v_in, width=0.005, color=color)
 
-    plt.arrow(*r, *v_out,
-              width=0.005, color=color)
+    plt.arrow(*r, *v_out, width=0.005, color=color)
+
+
 ###########################################################################
 #                   Examples
 ###########################################################################
@@ -318,7 +332,7 @@ def plot_hyperbolic_characteristics(flyby: OrbitalFlyby, color: str):
 #         bodies={"name": "Earth", "radius": R_EARTH},
 #         title="Earth Orbit"
 #     )
-    
+
 #     plot_3d(
 #         [r1, r2, r3],
 #         t_arrs=t_arr,
@@ -331,7 +345,7 @@ def plot_hyperbolic_characteristics(flyby: OrbitalFlyby, color: str):
 #         show_start=True,
 #         show_end=True
 #     )
-    
+
 #     plot_3d(
 #         r_arr,
 #         bodies=[
@@ -348,7 +362,7 @@ def plot_hyperbolic_characteristics(flyby: OrbitalFlyby, color: str):
 #             }
 #         ]
 #     )
-    
+
 #     fig = plot_3d(
 #         relative_positions,
 #         labels="Deputy",

@@ -1,6 +1,4 @@
-import sys
 import numpy as np
-
 
 import cesium.math.quaternion as Q
 from cesium.math.quaternion import DEG_TO_RAD

@@ -3,7 +3,7 @@
 """
 
 In each data fold, there is a raw data subfolder and a syn data subfolder,
-which represent the raw data collection without synchronisation but with high precise timestep, 
+which represent the raw data collection without synchronisation but with high precise timestep,
 and the synchronised data but without high precise timestep.
 
 Here is the header of the sensor file and ground truth file.
@@ -41,15 +41,16 @@ Sensors (imu*.csv)
 
 """
 
-import pandas as pd
-import numpy as np
 from dataclasses import dataclass
+
+import numpy as np
 
 G_TO_M_S2 = 9.80665
 
 # ------------------------------
 # Data Structures
 # ------------------------------
+
 
 @dataclass
 class IMUData:
@@ -72,11 +73,12 @@ class IMUData:
     """
 
     t: np.ndarray
-    attitude: np.ndarray      # (N, 3) roll, pitch, yaw
-    gyro: np.ndarray          # (N, 3) rad/s
-    accel: np.ndarray         # (N, 3) m/s^2 (user acceleration)
-    gravity: np.ndarray       # (N, 3) m/s^2
-    mag: np.ndarray           # (N, 3) microtesla
+    attitude: np.ndarray  # (N, 3) roll, pitch, yaw
+    gyro: np.ndarray  # (N, 3) rad/s
+    accel: np.ndarray  # (N, 3) m/s^2 (user acceleration)
+    gravity: np.ndarray  # (N, 3) m/s^2
+    mag: np.ndarray  # (N, 3) microtesla
+
 
 @dataclass
 class ViconData:
@@ -96,12 +98,14 @@ class ViconData:
 
     t: np.ndarray
     header: np.ndarray
-    position: np.ndarray      # (N, 3)
-    quaternion: np.ndarray    # (N, 4)
+    position: np.ndarray  # (N, 3)
+    quaternion: np.ndarray  # (N, 4)
+
 
 # ------------------------------
 # IMU Parser
 # ------------------------------
+
 
 def parse_imu_csv(path: str) -> IMUData:
     """Load an Oxford Inertial Odometry Dataset IMU file.
@@ -124,22 +128,19 @@ def parse_imu_csv(path: str) -> IMUData:
     gyro = data[:, 4:7]  # wx, wy, wz (good)
 
     gravity = data[:, 7:10] * G_TO_M_S2
-    accel   = data[:, 10:13] * G_TO_M_S2
+    accel = data[:, 10:13] * G_TO_M_S2
 
     mag = data[:, 13:16]
 
     return IMUData(
-        t=t,
-        attitude=attitude,
-        gyro=gyro,
-        accel=accel,
-        gravity=gravity,
-        mag=mag
+        t=t, attitude=attitude, gyro=gyro, accel=accel, gravity=gravity, mag=mag
     )
+
 
 # ------------------------------
 # Vicon Parser
 # ------------------------------
+
 
 def parse_vicon_csv(path: str) -> ViconData:
     """Load an Oxford Inertial Odometry Dataset Vicon ground-truth file.
@@ -157,18 +158,19 @@ def parse_vicon_csv(path: str) -> ViconData:
     data = np.loadtxt(path, delimiter=",")
 
     t = data[:, 0]
-    header = data[:,1]
+    header = data[:, 1]
 
     position = data[:, 2:5]
-    xyz = data[:, 5:8] # (N,3)
-    w = data[:, 8] # (N,)
+    xyz = data[:, 5:8]  # (N,3)
+    w = data[:, 8]  # (N,)
 
     return ViconData(
         t=t,
-        header = header,
+        header=header,
         position=position,
-        quaternion=np.vstack((w, xyz.T)).T # numpy vectors suck
+        quaternion=np.vstack((w, xyz.T)).T,  # numpy vectors suck
     )
+
 
 # ------------------------------
 # Example Usage
