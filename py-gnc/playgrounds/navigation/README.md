@@ -1,6 +1,11 @@
 # Navigation
-more stuff from 273 maybe?
-Same as the class basically where I just regurgitate a bunch of stuff but in my own practice
+- KF
+  - EKF
+  - MEKF
+  - UKF
+- Particle Filter
+- Complementary Filter
+- 
 
 ## Project Ideas
 1. Noise characterization of all of the sensors

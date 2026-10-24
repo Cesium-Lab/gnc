@@ -9,6 +9,9 @@
 <!-- 
 1. Estimation
    1. Filtering
+      1. U-D filter
+      2. Square root filter
+      3. MEKF vs. EKF
    2. IMU Datasets
       1. Oxford Inertial Odometry Dataset
 
