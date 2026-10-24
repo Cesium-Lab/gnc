@@ -1,11 +1,9 @@
-import sys
 import numpy as np
 import pytest
 from numpy.linalg import norm
 
-from cesium.math.base import unit
 import cesium.orbital.transformations as Trans
-from cesium.constants import DEG_TO_RAD, ARCSEC_TO_RAD, RAD_TO_ARCSEC, RAD_TO_DEG, M_TO_KM, KM_TO_M
+from cesium.constants import DEG_TO_RAD, ARCSEC_TO_RAD, RAD_TO_ARCSEC, RAD_TO_DEG, KM_TO_M
 from cesium.math.time import greg_to_jd
 
 #########################################################################################################

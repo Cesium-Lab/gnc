@@ -7,7 +7,7 @@ TODO:
 
 import numpy as np
 from numpy.linalg import norm
-from ..world import MU_EARTH, R_EARTH, J2_EARTH
+from ..world import MU_EARTH, R_EARTH
 
 
 def grav_accel(

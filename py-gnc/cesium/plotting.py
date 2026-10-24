@@ -5,12 +5,8 @@ import plotly.graph_objects as go
 from scipy.interpolate import CubicSpline
 
 from .constants import AU_TO_KM
-from .world.constants import R_EARTH
 
-import numpy as np
-import plotly.graph_objects as go
 from plotly.colors import qualitative
-from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
 
 from .orbital.flyby import OrbitalFlyby

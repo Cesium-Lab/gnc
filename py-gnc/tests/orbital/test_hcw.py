@@ -1,14 +1,12 @@
-import sys
 import numpy as np
 import pytest
 from tqdm import tqdm
 
 from cesium.orbital.hcw import rv_hcw_3d, hcw_dynamics
-from cesium.orbital.coes import rv_to_coes, coes_to_rv
 from cesium.math.integrators import rk4_func
 
 from cesium.world import MU_EARTH, R_EARTH, W_EARTH
-from cesium.constants import KM_TO_M, MIN_TO_SEC, DEG_TO_RAD, HOUR_TO_SEC
+from cesium.constants import KM_TO_M, MIN_TO_SEC, HOUR_TO_SEC
 
 def test_vallado_hubble():
     """Vallado 4e Example 6-14 p. 397"""

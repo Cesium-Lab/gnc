@@ -2,11 +2,10 @@
 from __future__ import annotations
 import numpy as np
 
-from ..math.time import greg_to_jd
 from ..math.rotations import wrap_to_2pi
 from ..orbital.coes import coes_to_rv, kepler_eq, ta_from_E
 from ..world.constants import MU_SUN
-from ..constants import JD_CENTURY_TO_DAY, J2000_JD, DEG_TO_RAD, AU_TO_KM, KM_TO_M, RAD_TO_DEG
+from ..constants import JD_CENTURY_TO_DAY, J2000_JD, DEG_TO_RAD, AU_TO_KM, KM_TO_M
 
 
 # Columns: a [AU], e, i [deg], raan [deg], w_bar [deg], L [deg]

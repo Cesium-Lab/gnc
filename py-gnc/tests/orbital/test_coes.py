@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 
 
-from cesium.orbital.transformations import PCI_to_RSW
 from cesium.orbital.coes import kepler_eq, rv_to_coes, coes_to_rv, E_from_ta
 from cesium.constants import DEG_TO_RAD, RAD_TO_DEG, KM_TO_M
 from cesium.world import MU_EARTH, MU_EARTH_KM

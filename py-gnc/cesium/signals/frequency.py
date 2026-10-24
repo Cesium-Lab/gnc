@@ -1,4 +1,3 @@
-from scipy.fft import fft, fftfreq
 import numpy as np
 
 # TODO: verify where also this could be wrong

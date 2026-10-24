@@ -1,4 +1,3 @@
-from ..constants import RAD_TO_DEG
 
 M_EARTH = 5.9733328e24
 """Earth mass [kg]"""

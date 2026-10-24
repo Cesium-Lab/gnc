@@ -2,9 +2,7 @@
 n-body
 """
 import numpy as np
-from numpy.linalg import norm
-from ..world.constants import MU_EARTH, R_EARTH, J2_EARTH
-from ..orbital.coes import rv_to_coes, coes_to_rv, kepler_eq, E_from_ta, ta_from_E
+from ..world.constants import MU_EARTH, R_EARTH
 from .gravity import grav_accel
 
 def two_body(state: np.ndarray, mu=MU_EARTH, j2=None, r_cb=R_EARTH) -> np.ndarray:

@@ -1,15 +1,12 @@
-import sys
 import numpy as np
 import pytest
 from numpy.linalg import norm
 
 
-from cesium.guidance.hcw import guid_hcw_two_impulse, calc_Phi
-from cesium.orbital.coes import rv_to_coes, coes_to_rv
-from cesium.orbital.hcw import rv_hcw_3d
+from cesium.guidance.hcw import guid_hcw_two_impulse
 
 from cesium.world import MU_EARTH, R_EARTH
-from cesium.constants import KM_TO_M, MIN_TO_SEC, DEG_TO_RAD, HOUR_TO_SEC
+from cesium.constants import KM_TO_M, HOUR_TO_SEC
     
 class Test_guid_hcw_two_impulse:
     def test_curtis_example_7_2(_):

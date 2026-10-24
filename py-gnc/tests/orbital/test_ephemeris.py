@@ -1,12 +1,10 @@
-import sys
 import numpy as np
 import pytest
 
 
 from cesium.orbital.ephemeris import planet_elements_and_rv
 from cesium.math.time import greg_to_jd
-from cesium.world import MU_EARTH, R_EARTH
-from cesium.constants import KM_TO_M, MIN_TO_SEC, DEG_TO_RAD, RAD_TO_DEG, ARCSEC_TO_DEG
+from cesium.constants import KM_TO_M, RAD_TO_DEG, ARCSEC_TO_DEG
 
 
 def test_curtis_example_8_7():

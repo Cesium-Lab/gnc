@@ -1,9 +1,4 @@
 import numpy as np
-from numpy.linalg import norm
-from ...world.constants import G0, MU_EARTH
-from ...constants import DEG_TO_RAD
-from ...math.transformations import PCI_to_NTW
-from ...math.coes import E_from_ta
 
 # TODO: Example 6-4 p. 344
 def guid_i_change(di: float, phi_fpa: float, v_i: float):

@@ -1,16 +1,10 @@
 import numpy as np
-from numpy.linalg import norm
 import pytest
 
 
-from cesium.orbital.transformations import PCI_to_RSW
-from cesium.orbital.coes import kepler_eq, rv_to_coes, coes_to_rv, ta_from_E
-from cesium.orbital.hcw import calc_Phi, rv_hcw_3d, rv_hcw_2d
-from cesium.guidance.hcw import guid_hcw_two_impulse
-from cesium.constants import DEG_TO_RAD, RAD_TO_DEG, KM_TO_M, HOUR_TO_SEC, MIN_TO_SEC, DAY_TO_SEC
-from cesium.world import MU_EARTH, MU_EARTH_KM
-from cesium.math.base import unit
-from cesium.physics.gravity import grav_accel
+from cesium.orbital.coes import kepler_eq, ta_from_E
+from cesium.constants import DEG_TO_RAD, KM_TO_M, HOUR_TO_SEC
+from cesium.world import MU_EARTH
 
 def test_curtis_example_3_2():
     """Curtis Example 3.2 p. 116"""
