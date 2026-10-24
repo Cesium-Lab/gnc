@@ -4,7 +4,7 @@ import numpy as np
 from numpy.linalg import norm
 
 from ..math.quaternion import unit
-from ..math.rotations import dcm_x, dcm_z, wrap_to_2pi
+from ..math.rotations import dcm_x, dcm_z
 from ..world import J2_EARTH, R_EARTH
 from ..world.constants import MU_EARTH
 
@@ -114,14 +114,16 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
 
     raise ValueError(f"Did not converge for {M=}, {e=}")
 
+
 # TODO: test
-def kepler_eq_p(dt: float, p: float, mu = MU_EARTH):
+def kepler_eq_p(dt: float, p: float, mu=MU_EARTH):
     """Vallado 4e, Algorithm 3, p. 69"""
-    n_p = 2*np.sqrt(mu/(p**3))
-    s = np.arctan(1/ (3/2*n_p*dt)) / 2.0
-    w = np.arctan( np.cbrt(np.tan(s)) )
-    B = 2.0 / np.tan(2*w)
+    n_p = 2 * np.sqrt(mu / (p**3))
+    s = np.arctan(1 / (3 / 2 * n_p * dt)) / 2.0
+    w = np.arctan(np.cbrt(np.tan(s)))
+    B = 2.0 / np.tan(2 * w)
     return B
+
 
 # TODO: test
 def kepler_eq_h(M: float, e: float, tol=1e-9, max_iter=100):
@@ -129,27 +131,28 @@ def kepler_eq_h(M: float, e: float, tol=1e-9, max_iter=100):
 
     if not (e > 1):
         raise ValueError("Kepler solver requires e > 1")
-    
+
     # Initial guesses
     if e < 1.6:
         if (M > -np.pi and M < 0) or (M > np.pi):
-            H_n = M-e
+            H_n = M - e
         else:
-            H_n = M+e
+            H_n = M + e
     elif e < 3.6 and abs(M) > np.pi:
         if (M > -np.pi and M < 0) or (M > np.pi):
-            H_n = M- np.sign(M)*e
+            H_n = M - np.sign(M) * e
         else:
-            H_n = M/(e+1)
-            
+            H_n = M / (e + 1)
+
     for _ in range(max_iter):
         H_guess = H_n + (M + H_n - e * np.sinh(H_n)) / (e * np.cosh(H_n) - 1)
 
         if np.abs(H_guess - H_n) < tol:
             return H_guess % (2 * np.pi)
         H_n = H_guess
-        
+
     raise ValueError(f"Did not converge for {M=}, {e=}")
+
 
 # TODO: test
 def pkepler(

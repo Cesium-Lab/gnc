@@ -39,13 +39,15 @@ def test_E_from_ta_curtis():
     t = M / 2 / np.pi * T
     assert t == pytest.approx(4077, abs=0.1)
 
+
 def test_kepler_eq_p_vallado():
     """Vallado Example 2-2, p. 69"""
     rp = 25512 * KM_TO_M
     dt = 53.7874 * MIN_TO_SEC
-    B = kepler_eq_p(dt,rp)
+    B = kepler_eq_p(dt, rp)
     assert B == pytest.approx(0.817751, abs=1e-6)
-    
+
+
 def test_kepler_eq_h_vallado():
     """Vallado Example 2-3, p. 71"""
     M = 235.4 * DEG_TO_RAD
@@ -53,6 +55,7 @@ def test_kepler_eq_h_vallado():
     H = kepler_eq_h(M, e)
 
     assert H == pytest.approx(1.601376144, abs=1e-9)
+
 
 class TestRvToCoes:
     def test_vallado(self):
