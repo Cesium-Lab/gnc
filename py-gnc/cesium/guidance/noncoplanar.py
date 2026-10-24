@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # TODO: Example 6-4 p. 344
 def guid_i_change(di: float, phi_fpa: float, v_i: float):
     """Delta-v for an inclination-only change.
@@ -22,8 +23,9 @@ def guid_i_change(di: float, phi_fpa: float, v_i: float):
     ----------
     Vallado 4e, Algorithm 39, p. 344.
     """
-    dv = 2*v_i * np.cos(phi_fpa) * np.sin(di/2.0)
+    dv = 2 * v_i * np.cos(phi_fpa) * np.sin(di / 2.0)
     return dv
+
 
 # TODO: Example 6-5 p. 347
 def guid_raan_change_circular(draan: float, i: float, v_i: float):
@@ -47,10 +49,6 @@ def guid_raan_change_circular(draan: float, i: float, v_i: float):
     ----------
     Vallado 4e, Algorithm 40, p. 347.
     """
-    ta = np.arccos(
-        np.cos(i)**2 + np.sin(i)**2 * np.cos(draan)
-    )
-    dv = 2*v_i*np.sin(ta/2)
+    ta = np.arccos(np.cos(i) ** 2 + np.sin(i) ** 2 * np.cos(draan))
+    dv = 2 * v_i * np.sin(ta / 2)
     return dv
-
-

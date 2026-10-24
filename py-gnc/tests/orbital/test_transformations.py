@@ -3,7 +3,13 @@ import pytest
 from numpy.linalg import norm
 
 import cesium.orbital.transformations as Trans
-from cesium.constants import DEG_TO_RAD, ARCSEC_TO_RAD, RAD_TO_ARCSEC, RAD_TO_DEG, KM_TO_M
+from cesium.constants import (
+    DEG_TO_RAD,
+    ARCSEC_TO_RAD,
+    RAD_TO_ARCSEC,
+    RAD_TO_DEG,
+    KM_TO_M,
+)
 from cesium.math.time import greg_to_jd
 
 #########################################################################################################
@@ -15,7 +21,7 @@ def test_lla_to_r_example_3_1():
     """Vallado 4e Example 3.1 (p. 141)"""
     lat_geodetic = 39.586667
     lon_geodetic = -105.640
-    h_MSL = 4347.667 # m
+    h_MSL = 4347.667  # m
     r = Trans.geodetic_LLA_to_ECEF(lat_geodetic, lon_geodetic, h_MSL)
 
     r_horizontal = np.sqrt(r[0] ** 2 + r[1] ** 2)
@@ -51,57 +57,62 @@ def test_r_to_lla_example_3_3():
     assert lat == pytest.approx(34.352496, rel=1e-5)
     assert lon == pytest.approx(46.4464, rel=1e-5)
     assert alt == pytest.approx(5085.22 * KM_TO_M)
-    
+
+
 #########################################################################################################
 #               RSW
 #########################################################################################################
 
+
 def test_PCI_to_RSW_Curtis_example_7_2():
     """Curtis Example 7.2 p. 331"""
-    
+
     # From book
     r_t = np.array([1622.39, 5305.10, 3717.44]) * KM_TO_M
     v_t = np.array([-7.29977, 0.492357, 2.48318]) * KM_TO_M
-    r_c = np.array([ 1612.75, 5310.19, 3750.33]) * KM_TO_M
+    r_c = np.array([1612.75, 5310.19, 3750.33]) * KM_TO_M
     v_c = np.array([-7.35321, 0.463856, 2.46920]) * KM_TO_M
-    
+
     dcm_RSW_wrt_ECI = Trans.PCI_to_RSW(np.concat((r_t, v_t)))
 
-    w_t_ECI = np.cross(r_t, v_t) / np.linalg.norm(r_t)**2
-    
+    w_t_ECI = np.cross(r_t, v_t) / np.linalg.norm(r_t) ** 2
+
     r0_c_ECI = r_c - r_t
     r0_c_RSW = dcm_RSW_wrt_ECI @ r0_c_ECI
     v0_c_ECI = (v_c - v_t) - np.cross(w_t_ECI, r0_c_ECI)
     v0_c_RSW = dcm_RSW_wrt_ECI @ v0_c_ECI
-    
+
     # sus bounds though
     assert r0_c_RSW == pytest.approx([20000, 20000, 20000], abs=20)
     assert v0_c_RSW == pytest.approx([-20, 20, -5], abs=1.1)
-    
+
+
 #########################################################################################################
 #               cart to RaDec
 #########################################################################################################
 
+
 def test_cartesian_to_radec():
     """Curtis Equation 4.5 p. 155"""
     r = np.array([-5368, -1784, 3691])
-    
+
     ra, dec, rho = Trans.cartesian_to_radec(r, deg=True)
     assert ra == pytest.approx(198.4, abs=0.1)
     assert dec == pytest.approx(33.12, abs=0.01)
     assert rho == pytest.approx(norm(r))
-    
+
+
 def test_radec_roundtrip():
     r0 = np.array([-536328, -17132484, 3234691])
-    
+
     ra, dec, rho = Trans.cartesian_to_radec(r0, deg=True)
     r = Trans.radec_to_cartesian(ra, dec, rho, deg=True)
     assert r == pytest.approx(r0)
-    
+
     ra, dec, rho = Trans.cartesian_to_radec(r0, deg=False)
     r = Trans.radec_to_cartesian(ra, dec, rho, deg=False)
     assert r == pytest.approx(r0)
-    
+
 
 #########################################################################################################
 #               ITRF

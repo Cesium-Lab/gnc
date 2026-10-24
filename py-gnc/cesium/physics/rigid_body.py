@@ -1,9 +1,11 @@
 """Similar to AA 242A"""
+
 from __future__ import annotations
 import numpy as np
 from dataclasses import dataclass
 
 from ..math.quaternion import hamilton_product
+
 
 @dataclass
 class RigidBodyParams:
@@ -51,7 +53,7 @@ def rigid_body_derivative(t: float, state: np.ndarray, params: RigidBodyParams):
     Schaub, Equations 2.15, 3.111, and 4.34-4.35.
     """
     del t
-    
+
     v = state[3:6]
     q = state[6:10]
     w = state[10:13]

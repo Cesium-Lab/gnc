@@ -16,6 +16,7 @@ from ..math.rotations import wrap_to_2pi
 #               Intermediate
 ################################################################################
 
+
 # TODO: test
 def PCI_to_RSW(rv_PCI: np.ndarray) -> np.ndarray:
     """DCM from the planet-centered inertial (PCI) frame to the satellite RSW frame.
@@ -40,6 +41,7 @@ def PCI_to_RSW(rv_PCI: np.ndarray) -> np.ndarray:
     s_hat = np.cross(w_hat, r_hat)
 
     return np.vstack((r_hat, s_hat, w_hat))
+
 
 def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
     """DCM from the planet-centered inertial (PCI) frame to the satellite NTW frame.
@@ -67,12 +69,13 @@ def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
 
     return np.vstack((n_hat, t_hat, w_hat))
 
+
 ################################################################################
 #               LLA <--> ECEF
 ################################################################################
 
 
-def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m = 0.0, deg = True):
+def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m=0.0, deg=True):
     """Convert WGS84 geodetic lat, lon, and alt to ECEF.
 
     Parameters
@@ -99,7 +102,6 @@ def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m = 0.0, deg = True):
         lat *= DEG_TO_RAD
         lon *= DEG_TO_RAD
 
-
     sin_lat = np.sin(lat)
     cos_lat = np.cos(lat)
 
@@ -116,6 +118,7 @@ def geodetic_LLA_to_ECEF(lat: float, lon: float, alt_m = 0.0, deg = True):
     )
 
     return r_ECEF
+
 
 def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, float]:
     """Convert ECEF position to WGS84 geodetic lat, lon, and alt.
@@ -164,29 +167,26 @@ def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, fl
     else:
         lon_gd = np.arctan2(y, x)
 
-        E = (b*abs(z) - (a**2 - b**2)) / (a*r_horizontal_sat)
-        F = (b*abs(z) + (a**2 - b**2)) / (a*r_horizontal_sat)
+        E = (b * abs(z) - (a**2 - b**2)) / (a * r_horizontal_sat)
+        F = (b * abs(z) + (a**2 - b**2)) / (a * r_horizontal_sat)
 
-        P = 4*(E*F + 1) / 3
-        Q = 2*(E**2 - F**2)
+        P = 4 * (E * F + 1) / 3
+        Q = 2 * (E**2 - F**2)
         D = P**3 + Q**2
 
         if D > 0:
             v = np.cbrt(np.sqrt(D) - Q) - np.cbrt(np.sqrt(D) + Q)
         else:
-            v = 2*np.sqrt(-P)*np.cos(
-                np.arccos(Q/(P*np.sqrt(-P))) / 3
-            )
+            v = 2 * np.sqrt(-P) * np.cos(np.arccos(Q / (P * np.sqrt(-P))) / 3)
 
         G = (np.sqrt(E**2 + v) + E) / 2
-        t = np.sqrt(G**2 + (F - v*G)/(2*G - E)) - G
+        t = np.sqrt(G**2 + (F - v * G) / (2 * G - E)) - G
 
-        lat_gd = np.arctan2(a*(1-t**2), 2*b*t)
+        lat_gd = np.arctan2(a * (1 - t**2), 2 * b * t)
         lat_gd = np.copysign(lat_gd, z)
 
-        alt_m = (
-            (r_horizontal_sat - a*t)*np.cos(lat_gd)
-            + (abs(z) - b)*abs(np.sin(lat_gd))
+        alt_m = (r_horizontal_sat - a * t) * np.cos(lat_gd) + (abs(z) - b) * abs(
+            np.sin(lat_gd)
         )
 
     if deg:
@@ -195,7 +195,10 @@ def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, fl
 
     return lat_gd, lon_gd, alt_m
 
-def geocentric_LLA_to_PCPF(lat: float, lon: float, alt_m = 0.0, r_body_m = R_EARTH, deg = True):
+
+def geocentric_LLA_to_PCPF(
+    lat: float, lon: float, alt_m=0.0, r_body_m=R_EARTH, deg=True
+):
     """Convert geocentric latitude, longitude, and altitude to PCPF position.
 
     Assumes a spherical body.
@@ -221,16 +224,19 @@ def geocentric_LLA_to_PCPF(lat: float, lon: float, alt_m = 0.0, r_body_m = R_EAR
     if deg:
         lat *= DEG_TO_RAD
         lon *= DEG_TO_RAD
-        
+
     rho = r_body_m + alt_m
-    
-    r_PCPF = np.array([
-        rho * np.cos(lat) * np.cos(lon),
-        rho * np.cos(lat) * np.sin(lon),
-        rho * np.sin(lat)
-    ])
-    
+
+    r_PCPF = np.array(
+        [
+            rho * np.cos(lat) * np.cos(lon),
+            rho * np.cos(lat) * np.sin(lon),
+            rho * np.sin(lat),
+        ]
+    )
+
     return r_PCPF
+
 
 def PCPF_to_geocentric_LLA(r_PCPF: np.ndarray, r_body_m=R_EARTH, deg=True):
     """Convert PCPF position to geocentric lat, lon, and alt.
@@ -276,12 +282,21 @@ def PCPF_to_geocentric_LLA(r_PCPF: np.ndarray, r_body_m=R_EARTH, deg=True):
 
     return lat, lon, alt_m
 
+
 ################################################################################
 #               PCI <--> PCPF
 ################################################################################
 
+
 # TODO: test
-def PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
+def PCI_from_PCPF(
+    r_PCPF: np.ndarray,
+    v_PCPF: np.ndarray,
+    t: float,
+    theta_ref: float,
+    t_ref: float,
+    w_body=W_EARTH,
+):
     """Convert planet-fixed (PCPF) position and velocity to planet-centered inertial (PCI).
 
     Simplified version of the ITRF to GCRS reduction. Uses a constant body rotation
@@ -315,45 +330,49 @@ def PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t: float, theta_ref: f
     """
     # Rotation angle
     theta_PCPF_wrt_PCI = (theta_ref + w_body * (t - t_ref)) % (2 * np.pi)
-    
+
     dcm_PCI_wrt_PCPF = dcm_z(theta_PCPF_wrt_PCI).T
-    
+
     r_PCI = dcm_PCI_wrt_PCPF @ r_PCPF
-    v_PCI = dcm_PCI_wrt_PCPF @ (v_PCPF + np.cross([0,0,w_body], r_PCPF))
-    
+    v_PCI = dcm_PCI_wrt_PCPF @ (v_PCPF + np.cross([0, 0, w_body], r_PCPF))
+
     return r_PCI, v_PCI
+
 
 #########################################################################################################
 #               cart to radec
 #########################################################################################################
 
-def cartesian_to_radec(vec: np.ndarray, deg = True):
+
+def cartesian_to_radec(vec: np.ndarray, deg=True):
     """Curtis Equation 4.5 p. 155"""
     r_hat = unit(vec)
-    declination = np.arcsin(r_hat[2]) # -pi to pi
+    declination = np.arcsin(r_hat[2])  # -pi to pi
     ascension = np.arctan2(r_hat[1], r_hat[0])
     ascension = wrap_to_2pi(ascension)
-    
+
     if deg:
         declination *= RAD_TO_DEG
         ascension *= RAD_TO_DEG
-        
+
     return ascension, declination, norm(vec)
 
+
 # TODO: test
-def radec_to_cartesian(ascension: float, declination: float, rho: float, deg = True):
+def radec_to_cartesian(ascension: float, declination: float, rho: float, deg=True):
     """Curtis Equation 4.5 p. 155 but reversed. same units as rho"""
-    
+
     if deg:
         ascension *= DEG_TO_RAD
         declination *= DEG_TO_RAD
-    
+
     z = np.sin(declination) * rho
     horizontal = np.cos(declination) * rho
     x = np.cos(ascension) * horizontal
     y = np.sin(ascension) * horizontal
-    
-    return np.array([x,y,z])
+
+    return np.array([x, y, z])
+
 
 ################################################################################
 #               ITRF <--> GCRS

@@ -2,6 +2,7 @@ import numpy as np
 from ..constants import RAD_TO_DEG, DEG_TO_RAD
 from .base import unit
 
+
 def conj(q: np.ndarray):
     """Conjugate of a scalar-first quaternion.
 

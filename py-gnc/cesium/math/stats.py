@@ -11,6 +11,7 @@ from scipy.linalg import sqrtm
 
 # TODO: test
 
+
 # TODO: change to column not row?
 def get_ellipse_points(mu: np.ndarray, Sigma: np.ndarray, P=0.95, N=200):
     """Points on confidence ellipse of a 2D Gaussian, for plotting.
@@ -31,12 +32,13 @@ def get_ellipse_points(mu: np.ndarray, Sigma: np.ndarray, P=0.95, N=200):
     np.ndarray (2, N)
         Ellipse points, one column per point.
     """
-    t = np.linspace(0, 2*np.pi, N)
+    t = np.linspace(0, 2 * np.pi, N)
     circle = np.vstack((np.cos(t), np.sin(t)))
-    rhs = -2*np.log(1-P)
+    rhs = -2 * np.log(1 - P)
     ellipse = np.sqrt(rhs) * circle
-    scaled_ellipse = sqrtm(Sigma) @ ellipse # circle -> ellipse
-    return scaled_ellipse + mu.reshape(2,1)
+    scaled_ellipse = sqrtm(Sigma) @ ellipse  # circle -> ellipse
+    return scaled_ellipse + mu.reshape(2, 1)
+
 
 def noise(cov: np.ndarray, seed=None):
     """Sample zero-mean multivariate Gaussian noise.
@@ -57,11 +59,9 @@ def noise(cov: np.ndarray, seed=None):
     if seed is not None:
         np.random.seed(seed)
 
-    return np.random.multivariate_normal(
-        mean=np.zeros_like(cov[0]),
-        cov=cov
-    )
-    
+    return np.random.multivariate_normal(mean=np.zeros_like(cov[0]), cov=cov)
+
+
 def noise_vec(std_dev: float, n: int):
     """Sample independent zero-mean Gaussian noise.
 
@@ -79,20 +79,22 @@ def noise_vec(std_dev: float, n: int):
     """
     return np.random.normal(0.0, std_dev, size=n)
 
+
 def rms(y: np.ndarray):
-  """Root mean square of all elements of an array.
+    """Root mean square of all elements of an array.
 
-  Parameters
-  ----------
-  y : np.ndarray
-      Input array.
+    Parameters
+    ----------
+    y : np.ndarray
+        Input array.
 
-  Returns
-  -------
-  float
-      RMS of `y`.
-  """
-  return np.sqrt(np.mean(np.square(y)))
+    Returns
+    -------
+    float
+        RMS of `y`.
+    """
+    return np.sqrt(np.mean(np.square(y)))
+
 
 # def epsilon_and_nu(P: float, Sigma: np.ndarray):
 #     nu = 1/ (2 * np.pi * np.sqrt(np.linalg.det(Sigma)))
@@ -105,7 +107,7 @@ def rms(y: np.ndarray):
 #     rhs = -2*np.log(epsilon / nu)   # = -2 log(1-P)
 #     lhs = (x - mu).T @ np.linalg.inv(Sigma) @ (x - mu)
 #     return lhs <= rhs
-    
+
 # def plot_gaussian(mu, Sigma, N):
 #     x_arr = randn(N,2) @ sqrtm(Sigma) + mu
 

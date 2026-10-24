@@ -1,8 +1,7 @@
-
 M_EARTH = 5.9733328e24
 """Earth mass [kg]"""
 
-R_SUN = 6.957e8 
+R_SUN = 6.957e8
 """Sun radius [m] VERY CRUDE"""
 
 MU_SUN = 1.32712440018e20
@@ -46,9 +45,8 @@ ECLIPTIC_ANGLE = 23.43928
 """Ecliptic angle [deg]"""
 
 
-
 # # km3/s2
-# 
+#
 # MU_EARTH = 398600.4418
 # MU_MOON = 4903.0
 # MU_VENUS = 324858.630
@@ -59,5 +57,4 @@ ECLIPTIC_ANGLE = 23.43928
 
 # # km
 # R_MOON = 1738.0
-# R_SUN = 695508.0 
-
+# R_SUN = 695508.0

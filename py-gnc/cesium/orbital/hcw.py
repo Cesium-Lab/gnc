@@ -2,6 +2,7 @@ from __future__ import annotations
 import numpy as np
 from .transformations import PCI_to_RSW
 
+
 # AA 279B
 def calc_Phi(t: float, n: float):
     """State transition matrix blocks for the HCW equations (circular target orbit).
@@ -27,28 +28,23 @@ def calc_Phi(t: float, n: float):
         Sensitivity of `v` to initial `v0`.
     """
     nt = n * t
-    c,s = np.cos(nt), np.sin(nt)
-    Phi_rr = np.array([
-        [4 - 3*c, 0, 0],
-        [6 * (s - nt), 1, 0],
-        [0, 0, c]])
-    Phi_rv = np.array([
-        [1/n * s, 2/n * (1 - c), 0],
-        [2/n * (c - 1), 4/n * s - 3/n * nt, 0],
-        [0, 0, s/n]
-        ])
-    Phi_vr = np.array([
-        [3*n*s, 0, 0],
-        [6*n*(c - 1), 0, 0],
-        [0, 0, -n*s]])
-    Phi_vv = np.array([
-        [c, 2*s, 0],
-        [-2*s, 4*c - 3, 0],
-        [0, 0, c]
-        ])
+    c, s = np.cos(nt), np.sin(nt)
+    Phi_rr = np.array([[4 - 3 * c, 0, 0], [6 * (s - nt), 1, 0], [0, 0, c]])
+    Phi_rv = np.array(
+        [
+            [1 / n * s, 2 / n * (1 - c), 0],
+            [2 / n * (c - 1), 4 / n * s - 3 / n * nt, 0],
+            [0, 0, s / n],
+        ]
+    )
+    Phi_vr = np.array([[3 * n * s, 0, 0], [6 * n * (c - 1), 0, 0], [0, 0, -n * s]])
+    Phi_vv = np.array([[c, 2 * s, 0], [-2 * s, 4 * c - 3, 0], [0, 0, c]])
     return Phi_rr, Phi_rv, Phi_vr, Phi_vv
 
-def rv_hcw_3d(t: float, n: float, r0: np.ndarray, v0: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+
+def rv_hcw_3d(
+    t: float, n: float, r0: np.ndarray, v0: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
     """Propagate a 3D relative state with the closed-form HCW solution.
 
     Assumes the target is in a circular orbit.
@@ -77,12 +73,14 @@ def rv_hcw_3d(t: float, n: float, r0: np.ndarray, v0: np.ndarray) -> tuple[np.nd
     ----------
     Vallado 4e, Algorithm 48, p. 396-397.
     """
-    
-    Phi_rr, Phi_rv, Phi_vr, Phi_vv = calc_Phi(t,n)
-    return (Phi_rr @ r0 + Phi_rv @ v0,
-            Phi_vr @ r0 + Phi_vv @ v0)
-    
-def rv_hcw_2d(t: float, n: float, r0: np.ndarray, v0: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+
+    Phi_rr, Phi_rv, Phi_vr, Phi_vv = calc_Phi(t, n)
+    return (Phi_rr @ r0 + Phi_rv @ v0, Phi_vr @ r0 + Phi_vv @ v0)
+
+
+def rv_hcw_2d(
+    t: float, n: float, r0: np.ndarray, v0: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
     """Propagate an in-plane relative state with the closed-form HCW solution.
 
     Wrapper around `rv_hcw_3d` with the cross-track components set to zero.
@@ -109,8 +107,9 @@ def rv_hcw_2d(t: float, n: float, r0: np.ndarray, v0: np.ndarray) -> tuple[np.nd
     ----------
     Vallado 4e, Algorithm 48, p. 396-397.
     """
-    r,v = rv_hcw_3d(t, n, np.pad(r0, (0,1)), np.pad(v0, (0,1)))
+    r, v = rv_hcw_3d(t, n, np.pad(r0, (0, 1)), np.pad(v0, (0, 1)))
     return r[:2], v[:2]
+
 
 # TODO: integrate with closed-form solution
 def hcw_dynamics(state: np.ndarray, a_rsw: np.ndarray, n: float):
@@ -134,15 +133,14 @@ def hcw_dynamics(state: np.ndarray, a_rsw: np.ndarray, n: float):
     ----------
     Vallado 4e, Equation 6-61, p. 393.
     """
-    r,v = state[0:3], state[3:6]
-    
-    a = a_rsw + np.array([
-        2*n*v[1] + 3*n*n*r[0],
-        -2*n*v[0],
-        -n*n*r[2]
-    ])
-    
-    return np.concatenate((v,a))
+    r, v = state[0:3], state[3:6]
+
+    a = a_rsw + np.array(
+        [2 * n * v[1] + 3 * n * n * r[0], -2 * n * v[0], -n * n * r[2]]
+    )
+
+    return np.concatenate((v, a))
+
 
 def hcw_RSW_to_PCI(rv_target_PCI: np.ndarray, rv_chaser_RSW: np.ndarray):
     """Convert a chaser's relative RSW state to its absolute PCI state.
@@ -167,13 +165,12 @@ def hcw_RSW_to_PCI(rv_target_PCI: np.ndarray, rv_chaser_RSW: np.ndarray):
     Simplified version of Vallado 4e, Algorithm 49, p. 414.
     """
     r_t_PCI, v_t_PCI = rv_target_PCI[0:3], rv_target_PCI[3:6]
-    
+
     dcm_RSW_wrt_PCI = PCI_to_RSW(rv_target_PCI)
     r_rel_RSW, v_rel_RSW = rv_chaser_RSW[:3], rv_chaser_RSW[3:]
-    
-    
+
     # Angular velocity of RSW frame, expressed in PCI
-    omega_RSW_PCI_PCI = np.cross(r_t_PCI, v_t_PCI) / np.linalg.norm(r_t_PCI)**2
+    omega_RSW_PCI_PCI = np.cross(r_t_PCI, v_t_PCI) / np.linalg.norm(r_t_PCI) ** 2
 
     # Relative position and velocity in PCI
     r_rel_PCI = dcm_RSW_wrt_PCI.T @ r_rel_RSW

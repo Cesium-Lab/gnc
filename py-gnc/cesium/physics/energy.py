@@ -31,9 +31,7 @@ def calc_potential_energy(r: np.ndarray, mass: float, mu: float):
     return -mu * mass / r_norm
 
 
-def calc_kinetic_energy(
-    v: np.ndarray, w: np.ndarray, mass: np.ndarray, I: np.ndarray
-):
+def calc_kinetic_energy(v: np.ndarray, w: np.ndarray, mass: np.ndarray, I: np.ndarray):
     """Compute translational plus rotational kinetic energy of a rigid body.
 
     Parameters

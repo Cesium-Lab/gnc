@@ -1,7 +1,7 @@
 # def observability(mu, u, ground_stations, dt):
 #     A = robot_jac_A(mu, u, dt)
 #     C = robot_jac_C(mu, ground_stations)
-    
+
 #     N = A.shape[0]
 
 #     O = C

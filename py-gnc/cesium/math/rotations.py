@@ -6,12 +6,14 @@ import numpy as np
 
 
 def wrap_to_pi(x):
-  """Wrap angle(s) [rad] to `[-pi, pi)`"""
-  return (x + np.pi) % (2 * np.pi) - np.pi
+    """Wrap angle(s) [rad] to `[-pi, pi)`"""
+    return (x + np.pi) % (2 * np.pi) - np.pi
+
 
 def wrap_to_2pi(x):
-  """Wrap angle(s) [rad] to `[0, 2*pi)`"""
-  return x % (2 * np.pi)
+    """Wrap angle(s) [rad] to `[0, 2*pi)`"""
+    return x % (2 * np.pi)
+
 
 def dcm_x(theta: float):
     """Passive DCM for a rotation of frame 1 about its x-axis to frame 2.
@@ -77,7 +79,8 @@ def dcm_z(theta: float):
             [0, 0, 1],
         ]
     )
-    
+
+
 ################################################################################
 #               Relative Motion
 ################################################################################
