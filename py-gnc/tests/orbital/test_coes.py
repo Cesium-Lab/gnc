@@ -1,8 +1,15 @@
 import numpy as np
 import pytest
 
-from cesium.constants import DEG_TO_RAD, KM_TO_M, RAD_TO_DEG
-from cesium.orbital.coes import E_from_ta, coes_to_rv, kepler_eq, rv_to_coes
+from cesium.constants import DEG_TO_RAD, KM_TO_M, MIN_TO_SEC, RAD_TO_DEG
+from cesium.orbital.coes import (
+    E_from_ta,
+    coes_to_rv,
+    kepler_eq,
+    kepler_eq_h,
+    kepler_eq_p,
+    rv_to_coes,
+)
 from cesium.world import MU_EARTH, MU_EARTH_KM
 
 
@@ -15,7 +22,7 @@ def test_kepler():
     assert E * RAD_TO_DEG == pytest.approx(220.512074767522)
 
 
-def test_kepler_curtis():
+def test_E_from_ta_curtis():
     """Curtis Example 3.1 p. 116"""
     rp = 9600 * KM_TO_M
     ra = 21000 * KM_TO_M
@@ -32,6 +39,20 @@ def test_kepler_curtis():
     t = M / 2 / np.pi * T
     assert t == pytest.approx(4077, abs=0.1)
 
+def test_kepler_eq_p_vallado():
+    """Vallado Example 2-2, p. 69"""
+    rp = 25512 * KM_TO_M
+    dt = 53.7874 * MIN_TO_SEC
+    B = kepler_eq_p(dt,rp)
+    assert B == pytest.approx(0.817751, abs=1e-6)
+    
+def test_kepler_eq_h_vallado():
+    """Vallado Example 2-3, p. 71"""
+    M = 235.4 * DEG_TO_RAD
+    e = 2.4
+    H = kepler_eq_h(M, e)
+
+    assert H == pytest.approx(1.601376144, abs=1e-9)
 
 class TestRvToCoes:
     def test_vallado(self):
