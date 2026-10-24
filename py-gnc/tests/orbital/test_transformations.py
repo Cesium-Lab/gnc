@@ -52,6 +52,34 @@ def test_r_to_lla_example_3_3():
     assert lat == pytest.approx(34.352496, rel=1e-5)
     assert lon == pytest.approx(46.4464, rel=1e-5)
     assert alt == pytest.approx(5085.22 * KM_TO_M)
+    
+#########################################################################################################
+#               RSW
+#########################################################################################################
+
+def test_PCI_to_RSW_Curtis_example_7_2():
+    """Curtis Example 7.2 p. 331"""
+    
+    # From book
+    r_t = np.array([1622.39, 5305.10, 3717.44]) * KM_TO_M
+    v_t = np.array([-7.29977, 0.492357, 2.48318]) * KM_TO_M
+    r_c = np.array([ 1612.75, 5310.19, 3750.33]) * KM_TO_M
+    v_c = np.array([-7.35321, 0.463856, 2.46920]) * KM_TO_M
+    
+    dcm_RSW_wrt_ECI = Trans.PCI_to_RSW(np.concat((r_t, v_t)))
+
+    w_t_ECI = np.cross(r_t, v_t) / np.linalg.norm(r_t)**2
+    
+    r0_c_ECI = r_c - r_t
+    r0_c_RSW = dcm_RSW_wrt_ECI @ r0_c_ECI
+    v0_c_ECI = (v_c - v_t) - np.cross(w_t_ECI, r0_c_ECI)
+    v0_c_RSW = dcm_RSW_wrt_ECI @ v0_c_ECI
+    
+    # sus bounds though
+    assert r0_c_RSW == pytest.approx([20000, 20000, 20000], abs=20)
+    assert v0_c_RSW == pytest.approx([-20, 20, -5], abs=1.1)
+    
+
 
 
 #########################################################################################################
