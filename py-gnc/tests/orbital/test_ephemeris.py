@@ -73,3 +73,27 @@ def test_curtis_example_8_7():
 #     # Earth -> Mars Lambert transfer
 #     ...
 #     assert dv_total / 1000 == pytest.approx(4.86, abs=0.1)
+
+def test_vallado_example_12_8():
+    """Vallado 4e, Example 12-8, p. 960"""
+    # Using a Curtis solver with Vallado oh god
+    
+    # September 8, 1977 09:08:17 UTC (Vallado has this wrong but oh well)
+    jd_earth = greg_to_jd(1977, 9, 8, 9, 8, 17)
+    _, earth_r_HCI, earth_v_HCI = planet_elements_and_rv(3, jd_earth)
+    assert earth_r_HCI[:-1] / KM_TO_M == pytest.approx( [146169549, -36666991], rel=1e-2) # Z axis is special because of being in the ecliptic
+    assert earth_v_HCI[:-1] / KM_TO_M == pytest.approx( [6.774093, 28.786741], rel=1e-2) # Z axis is special because of being in the ecliptic
+    
+    # March 5, 1979 12:05:26 UTC
+    jd_jupiter = greg_to_jd(1979, 3, 5, 12, 5, 26)
+    _, jupiter_r_HCI, jupiter_v_HCI = planet_elements_and_rv(5, jd_jupiter)
+    assert jupiter_r_HCI / KM_TO_M == pytest.approx( [-4.82178605e8, 6.27481695e8, 8.221250e6], rel=1e-2)
+    assert jupiter_v_HCI / KM_TO_M == pytest.approx( [-10.524225, -7.363294, .266050], rel=1e-2)
+
+    # November 12, 1980 23:46:30 UTC
+    jd_saturn = greg_to_jd(1980, 11, 12, 23, 46, 30)
+    _, saturn_r_HCI, saturn_v_HCI = planet_elements_and_rv(6, jd_saturn)
+    assert saturn_r_HCI / KM_TO_M == pytest.approx([-1.421327810e9, -5.4598217e7, 5.7422412e7], rel=1e-2)
+    assert saturn_v_HCI / KM_TO_M == pytest.approx([-.148850, -9.684595, .175045], rel=1e-1) # Uh.
+    
+    

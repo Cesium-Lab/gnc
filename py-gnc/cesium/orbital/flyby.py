@@ -12,10 +12,12 @@ class OrbitalFlyby:
         jd: float = None,
         planet_num: int = None,
         r_HCI: np.ndarray = None,
+        mu: float = None,
     ):
         self.name = name
         self.date = datetime_ymdhms_utc
         self.planet_num = planet_num
+        self.mu = mu
 
         if jd:
             self.jd = jd

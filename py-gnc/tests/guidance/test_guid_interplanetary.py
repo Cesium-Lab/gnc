@@ -9,7 +9,7 @@ def test_279b():
     r_p = 3997 * KM_TO_M
     mu_mars = 43050 * (KM_TO_M**3)  # for this
 
-    dv_p, ta_deg, r_aim, e = guid.interplanetary_arrival(v_inf_arr, r_p, mu_mars)
+    dv_p, ta_deg, r_aim, e = guid.interplanetary_circ_injection(v_inf_arr, r_p, mu_mars)
 
     assert dv_p == pytest.approx(2.04 * KM_TO_M, abs=10)
     assert ta_deg == pytest.approx(127.8, abs=0.1)
