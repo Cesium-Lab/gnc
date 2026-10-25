@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from numpy.linalg import norm
 
+import cesium.guidance as guid
 from cesium.constants import DAY_TO_SEC, HOUR_TO_SEC, KM_TO_M, MIN_TO_SEC
-from cesium.guidance.hcw import guid_hcw_two_impulse
 from cesium.orbital.hcw import calc_Phi, rv_hcw_2d, rv_hcw_3d
 from cesium.orbital.transformations import PCI_to_RSW
 from cesium.physics.gravity import grav_accel
@@ -117,7 +117,7 @@ def test_problem_7_8():
     n = np.sqrt(MU_EARTH / r_t**3)
     period = 2 * np.pi / n
 
-    dv1, dv2, _ = guid_hcw_two_impulse(r0, v0, period / 3, n)
+    dv1, dv2, _ = guid.hcw_two_impulse(r0, v0, period / 3, n)
     dv = norm(dv1) + norm(dv2)
 
     assert dv == pytest.approx(6.21, abs=0.01)
@@ -165,7 +165,7 @@ def test_problem_7_12():
     vf = Phi_vv @ v0
 
     # Getting back!!
-    dv1, dv2, _ = guid_hcw_two_impulse(rf, vf, 6 * HOUR_TO_SEC, n)
+    dv1, dv2, _ = guid.hcw_two_impulse(rf, vf, 6 * HOUR_TO_SEC, n)
     dv = norm(dv1) + norm(dv2)
 
     assert dv == pytest.approx(3.5, abs=0.1)

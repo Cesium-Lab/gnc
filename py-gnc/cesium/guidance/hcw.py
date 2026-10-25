@@ -3,7 +3,7 @@ import numpy as np
 from cesium.orbital.hcw import calc_Phi
 
 
-def guid_hcw_two_impulse(r0: np.ndarray, v0: np.ndarray, t_trans: float, n: float):
+def hcw_two_impulse(r0: np.ndarray, v0: np.ndarray, t_trans: float, n: float):
     Phi_rr, Phi_rv, Phi_vr, Phi_vv = calc_Phi(t_trans, n)
 
     v_i = np.linalg.solve(Phi_rv, -Phi_rr @ r0)
