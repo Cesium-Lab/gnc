@@ -1,7 +1,7 @@
 from collections.abc import Callable
-from numpy.linalg import norm
 
 import numpy as np
+from numpy.linalg import norm
 
 
 def unit(vec: np.ndarray):
@@ -44,43 +44,42 @@ def center_of_curvature(r: np.ndarray, v: np.ndarray, a: np.ndarray):
 
     return r_C
 
+
 def angle_between(u, v):
     """Returns the angle between two vectors in radians."""
     u_norm = norm(u)
     v_norm = norm(v)
-    
+
     # Avoid division by zero for zero vectors
     if u_norm < 1e-12 or v_norm < 1e-12:
         raise ValueError("Zero vectors do not have a defined angle.")
-        
+
     dot_product = np.dot(u, v)
     cosine_similarity = dot_product / (u_norm * v_norm)
-    
+
     # Avoid numerical overflow / floating point inaccuracies
     angle_in_radians = np.arccos(np.clip(cosine_similarity, -1.0, 1.0))
-    
+
     return angle_in_radians
 
 
+def jacobian(func: Callable, inputs: np.ndarray, out_dim: int, delta=0.001):
 
-def jacobian(func: Callable, inputs: np.ndarray, out_dim: int, delta = 0.001):
-    
     if not isinstance(inputs, (np.ndarray, list)):
         inputs = [inputs]
-        
+
     # Helper
     def disturb(i: int, delta: float):
         ret = inputs.copy()
         ret[i] += delta
         return ret
-    
-    J = np.zeros((out_dim,len(inputs)))
-        
-    for i in range(len(inputs)):
 
+    J = np.zeros((out_dim, len(inputs)))
+
+    for i in range(len(inputs)):
         upper = func(disturb(i, delta))
         lower = func(disturb(i, -delta))
-        
-        J[:,i] = (upper  - lower) / (2*delta)
+
+        J[:, i] = (upper - lower) / (2 * delta)
 
     return J
