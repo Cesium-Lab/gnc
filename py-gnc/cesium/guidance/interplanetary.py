@@ -66,7 +66,7 @@ def flyby_shoot(
     delta_des = delta_des / RAD_TO_DEG if deg else delta_des
 
     def delta_tot(r_p):
-        return np.arcsin(1 / (1 + r_p * v_arrival_PCI**2 / mu)) + np.arcsin(
+        return np.arcsin(1 / (1 + r_p * v_arrival_PCI**2 / mu)), np.arcsin(
             1 / (1 + r_p * v_departure_PCI**2 / mu)
         )
 
@@ -76,27 +76,17 @@ def flyby_shoot(
 
     iter = 20
     for i in range(iter):
-        delta_k = delta_tot(r_p)
+        delta1, delta2 = delta_tot(r_p)
 
-        d_delta = delta_des - delta_k
+        d_delta = delta_des - (delta1 + delta2)
 
         if verbose:
             print(f"d_delta: {d_delta:.5f}m")
 
         if norm(d_delta) < eps:
-            # print(f"\nConverged with:\n\tdr = {d_delta:.5f} km")
             break
-        # print(f"{mu=}")
-        # print(f"{d=}")
-        # print(f"{r_p=}")
-        J = (delta_tot(r_p + d) - delta_tot(r_p - d)) / (2 * d)
-        # print(f"{J=}")
-        # print(f"{)=}"
-        # print(f"{delta_des=}")
-        # print(f"{delta_k=}")
-        # print(f"{d_delta=}")
-        # print(f"{(d_delta / J)=}")
-        # r_p += d_delta / J # single value
+
+        J = (sum(delta_tot(r_p + d)) - sum(delta_tot(r_p - d))) / (2 * d)
 
         step = d_delta / J
 
@@ -119,7 +109,7 @@ def flyby_shoot(
     e1 = 1 + r_p * v_arrival_PCI**2 / mu
     e2 = 1 + r_p * v_departure_PCI**2 / mu
 
-    return dv, v_p1, v_p2, r_p, e1, e2
+    return dv, v_p1, v_p2, r_p, e1, e2, delta1, delta2
 
 
 # def flyby_dv(v_arrival_PCI: float, b_arrival: float,

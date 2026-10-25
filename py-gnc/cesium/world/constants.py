@@ -240,6 +240,9 @@ M_URANUS = 86.83e24
 R_URANUS = 25560e3
 """Uranus radius [m]. Source: Curtis, Table A.1."""
 
+MU_URANUS = G_CONST * M_URANUS
+"""Uranus standard gravitational parameter [m3/s2]. Source: Curtis, Table A.1."""
+
 A_URANUS = 2.872e12
 """Uranus orbital semimajor axis [m]. Source: Curtis, Table A.1."""
 
@@ -259,6 +262,9 @@ M_NEPTUNE = 102.4e24
 
 R_NEPTUNE = 24760e3
 """Neptune radius [m]. Source: Curtis, Table A.1."""
+
+MU_NEPTUNE = G_CONST * M_NEPTUNE
+"""Neptune standard gravitational parameter [m3/s2]. Source: Curtis, Table A.1."""
 
 A_NEPTUNE = 4.495e12
 """Neptune orbital semimajor axis [m]. Source: Curtis, Table A.1."""

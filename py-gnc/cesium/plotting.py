@@ -24,6 +24,7 @@ def plot_3d(
     units="km",
     height=800,
     show=True,
+    prev_fig=None,
 ):
     """Plot one or more 3D trajectories with optional spherical bodies.
 
@@ -54,6 +55,8 @@ def plot_3d(
         Figure height in pixels.
     show : bool
         Display the figure immediately.
+    prev_fig : go.Figure | None
+        Previous plotly figure to add to, or nothing
 
     Returns
     -------
@@ -61,7 +64,7 @@ def plot_3d(
         Plotly figure or nothing if `show=False`
     """
 
-    fig = go.Figure()
+    fig = prev_fig if prev_fig else go.Figure()
 
     # --------------------------------------------------
     # 1. Normalize trajectory inputs
