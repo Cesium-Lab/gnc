@@ -150,12 +150,6 @@ LBM_TO_KG = 1 / KG_TO_LBM
 #              Physical Constants
 # ==================================================
 
-G_CONST = 6.67430e-11
-"""Universal gravitational constant [m3/(kg·s2)]. Source: Original; undocumented."""
-
-G0 = 9.80665
-"""Standard gravitational acceleration [m/s2]. Source: Original; undocumented."""
-
 C_LIGHT = 2.99792458e8
 """Speed of light in vacuum [m/s]. Source: Vallado 4e, p. 132."""
 

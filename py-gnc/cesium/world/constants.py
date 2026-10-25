@@ -17,13 +17,10 @@ All values are in SI units unless otherwise indicated.
 # ==================================================
 
 G_CONST = 6.67430e-11
-"""Universal gravitational constant [m3/(kg·s2)]. Source: Undocumented."""
+"""Universal gravitational constant [m3/(kg·s2)]"""
 
 G0 = 9.80665
-"""Standard gravity [m/s2]. Source: Undocumented."""
-
-ECLIPTIC_ANGLE = 23.43928
-"""Obliquity of the ecliptic [deg]. Source: Undocumented."""
+"""Standard gravity [m/s2]"""
 
 
 # ==================================================
@@ -34,7 +31,7 @@ M_SUN = 1.989e30
 """Sun mass [kg]. Source: Curtis, Table A.1."""
 
 R_SUN = 6.957e8
-"""Sun radius [m]. Source: Original value; undocumented."""
+"""Sun radius [m]"""
 
 MU_SUN = 1.32712440018e20
 """Sun standard gravitational parameter [m3/s2]. Source: Vallado 4e, p. 1043."""
@@ -87,13 +84,13 @@ INC_VENUS = 3.39
 # Mass and gravitational parameter
 
 M_EARTH = 5.9733328e24
-"""Earth mass [kg]. Source: Original value; undocumented."""
+"""Earth mass [kg]"""
 
 MU_EARTH = 3.986004418e14
-"""Earth standard gravitational parameter [m3/s2]. Source: Undocumented."""
+"""Earth standard gravitational parameter [m3/s2]"""
 
 MU_EARTH_KM = 398600.4418
-"""Earth standard gravitational parameter [km3/s2]. Source: Undocumented."""
+"""Earth standard gravitational parameter [km3/s2]"""
 
 
 # Geometry
@@ -123,10 +120,10 @@ GRAV_EARTH_EQUA = 9.7803253359
 # Zonal harmonics
 
 J2_EARTH = 0.0010826267
-"""Earth second zonal harmonic coefficient. Source: Undocumented."""
+"""Earth second zonal harmonic coefficient"""
 
 J3_EARTH = -0.0000025327
-"""Earth third zonal harmonic coefficient. Source: Undocumented."""
+"""Earth third zonal harmonic coefficient"""
 
 
 # Heliocentric orbital elements
@@ -140,6 +137,9 @@ ECC_EARTH_ORBIT = 0.0167
 INC_EARTH = 0.0
 """Earth orbital inclination to ecliptic [deg]. Source: Curtis, Table A.1."""
 
+ECLIPTIC_ANGLE = 23.43928
+"""Obliquity of the ecliptic [deg]"""
+
 
 # ==================================================
 #                       Moon
@@ -150,6 +150,9 @@ M_MOON = 73.48e21
 
 R_MOON = 1737e3
 """Moon radius [m]. Source: Curtis, Table A.1."""
+
+MU_MOON = G_CONST * M_MOON
+"""Moon standard gravitational parameter [m3/s2]. Source: Curtis, Table A.1."""
 
 A_MOON = 384.4e6
 """Moon orbital semimajor axis about Earth [m]. Source: Curtis, Table A.1."""
@@ -192,7 +195,7 @@ R_JUPITER = 71490e3
 """Jupiter radius [m]. Source: Curtis, Table A.1."""
 
 MU_JUPITER = 126.687e15
-"""Jupiter standard gravitational parameter [m3/s2]. Source: Original value; undocumented."""
+"""Jupiter standard gravitational parameter [m3/s2]"""
 
 A_JUPITER = 778.6e9
 """Jupiter orbital semimajor axis [m]. Source: Curtis, Table A.1."""
@@ -215,7 +218,7 @@ R_SATURN = 60270e3
 """Saturn radius [m]. Source: Curtis, Table A.1."""
 
 MU_SATURN = 37.931e15
-"""Saturn standard gravitational parameter [m3/s2]. Source: Original value; undocumented."""
+"""Saturn standard gravitational parameter [m3/s2]"""
 
 A_SATURN = 1.433e12
 """Saturn orbital semimajor axis [m]. Source: Curtis, Table A.1."""
