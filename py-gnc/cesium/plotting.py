@@ -7,7 +7,7 @@ from plotly.colors import qualitative
 from scipy.interpolate import CubicSpline
 
 from .constants import AU_TO_KM
-from .orbital.flyby import OrbitalFlyby
+from .orbital.interplanetary import OrbitalFlyby
 
 
 def plot_3d(
