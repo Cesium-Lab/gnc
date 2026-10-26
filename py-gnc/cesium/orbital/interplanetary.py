@@ -36,10 +36,6 @@ class OrbitalFlyby:
         self.v_departure_HCI, self.v_arrival_HCI = np.zeros(3), np.zeros(3)
         self.v_departure_PCI, self.v_arrival_PCI = np.zeros(3), np.zeros(3)
 
-    def add_rv_HCI(self, r_HCI: np.ndarray, v_HCI: np.ndarray):
-        if self.planet_num is not None:
-            self.r_HCI, self.v_HCI = r_HCI, v_HCI
-
 
 def sph_of_infl(r_sat: float, mu_sat: float, mu_cb: float):
     return r_sat * (mu_sat / mu_cb) ** (2 / 5)
