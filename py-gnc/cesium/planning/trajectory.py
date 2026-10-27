@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.interpolate import splev, splrep
 
-from .environment import path_length
-
 
 class TrajectoryPlan:
     def __init__(
