@@ -7,8 +7,8 @@
 .vscode
 **Oxford Inertial**
 
-open-street-maps/cache/
-open-street-maps/data/
+extras/open-street-maps/cache/
+extras/open-street-maps/data/
 
 
 ##################################################################
