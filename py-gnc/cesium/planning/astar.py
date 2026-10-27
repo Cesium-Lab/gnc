@@ -18,7 +18,7 @@ class AStarHeuristic(Enum):
 
 
 class AStarGrid:
-    """Motion planning problem to be solved using A*"""
+    """Grid planning problem to be solved using A*"""
 
     def __init__(
         self,
