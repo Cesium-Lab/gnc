@@ -140,7 +140,7 @@ class RRT:
         return x1 + eps * unit(x2 - x1)
 
     def solve(
-        self, eps: float, max_iters=1000, goal_bias=0.05, shortcut=False, plot=True
+        self, eps: float, max_iters=1000, goal_bias=0.05, shortcut=False, plot=True,seed = None, **scatter_args
     ):
         """Use RRT to produce dynamically-feasible and obstacle-free trajectory
 
@@ -189,7 +189,7 @@ class RRT:
         # Start
         self.path = []
 
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(seed)
 
         for iter in range(max_iters):
             self.num_iters = iter
@@ -263,7 +263,7 @@ class RRT:
             plt.legend(
                 loc="upper center", bbox_to_anchor=(0.5, -0.03), fancybox=True, ncol=3
             )
-            plt.scatter(V[:n, 0], V[:n, 1])
+            plt.scatter(V[:n, 0], V[:n, 1], **scatter_args)
         else:
             print("Solution not found!")
 
