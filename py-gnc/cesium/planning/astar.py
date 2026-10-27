@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .environment import StaticOccupancyGrid2D
+from .plotting import plot_line_segments
 
 
 class AStarHeuristic(Enum):
@@ -18,7 +19,10 @@ class AStarHeuristic(Enum):
 
 
 class AStarGrid:
-    """Grid planning problem to be solved using A*"""
+    """Grid planning problem to be solved using A*
+
+    AA 274A
+    """
 
     def __init__(
         self,
@@ -49,8 +53,8 @@ class AStarGrid:
             Weight w >= 1 on the heuristic (w > 1 gives weighted A*), By default 1.0
         """
 
-        self.xlim = self.validate_state(xlim)
-        self.ylim = self.validate_state(ylim)
+        self.xlim = self.validate_tuple(xlim)
+        self.ylim = self.validate_tuple(ylim)
         if self.xlim[1] <= self.xlim[0]:
             raise ValueError(f"X min and max not initialized correctly: {self.xlim}")
         if self.ylim[1] <= self.ylim[0]:
@@ -58,9 +62,9 @@ class AStarGrid:
 
         self.resolution = resolution
 
-        self.center = self.validate_state(x_init)  # Center of where it is initialized
-        self.x_init = self.validate_state(self.snap_to_grid(x_init))
-        self.x_goal = self.validate_state(self.snap_to_grid(x_goal))
+        self.center = self.validate_tuple(x_init)  # Center of where it is initialized
+        self.x_init = self.validate_tuple(self.snap_to_grid(x_init))
+        self.x_goal = self.validate_tuple(self.snap_to_grid(x_goal))
 
         self.grid = occupancy_grid
 
@@ -83,9 +87,9 @@ class AStarGrid:
         self.path = []
 
     @staticmethod
-    def validate_state(x: tuple):
+    def validate_tuple(x: tuple):
         if not isinstance(x, tuple):
-            raise ValueError(f"Invalid state type of {x} ({type(x)})")
+            raise ValueError(f"Invalid state/bounds type of {x} ({type(x)})")
         if len(x) != 2:
             raise ValueError(f"Input point not 2D: {x}")
         return x
@@ -96,7 +100,7 @@ class AStarGrid:
 
     def snap_to_grid(self, x: tuple) -> tuple:
         """Returns the closest point on a discrete state grid as an `np.ndarray`"""
-        x = self.validate_state(x)
+        x = self.validate_tuple(x)
 
         # Can do another way probably
         return (
@@ -108,7 +112,7 @@ class AStarGrid:
 
     def is_free(self, x: tuple) -> bool:
         """Checks if state is inside the bounds and not inside any obstacle"""
-        x = self.validate_state(x)
+        x = self.validate_tuple(x)
         in_bounds = (
             x[0] >= self.xlim[0]
             and x[0] <= self.xlim[1]
@@ -121,8 +125,8 @@ class AStarGrid:
 
     def distance(self, x1: tuple, x2: tuple) -> float:
         """Euclidean distance"""
-        x1 = self.validate_state(x1)
-        x2 = self.validate_state(x2)
+        x1 = self.validate_tuple(x1)
+        x2 = self.validate_tuple(x2)
         return float(np.linalg.norm(np.array(x1) - np.array(x2)))
 
     def get_neighbors(self, x: tuple) -> list[tuple]:
@@ -139,7 +143,7 @@ class AStarGrid:
         heuristic_value: np.ndarray (N,2)
             Neighbors that are free
         """
-        x = self.validate_state(x)
+        x = self.validate_tuple(x)
 
         neighbors = []
         for i in [-1, 0, 1]:
@@ -176,7 +180,7 @@ class AStarGrid:
         ----------
         heuristic_value: float
         """
-        x = self.validate_state(x)
+        x = self.validate_tuple(x)
 
         if self.heuristic_type not in (
             AStarHeuristic.l1,
@@ -263,14 +267,6 @@ class AStarGrid:
     #           Plotting!
     ##################################################
 
-    @staticmethod
-    def plot_line_segments(segments, **kwargs):
-        plt.plot(
-            [x for tup in [(p1[0], p2[0], None) for (p1, p2) in segments] for x in tup],
-            [y for tup in [(p1[1], p2[1], None) for (p1, p2) in segments] for y in tup],
-            **kwargs,
-        )
-
     def plot_path(self, fig_num=0, show_init_label=True):
         """Plots the path found in self.path and the obstacles"""
         if self.path is None:
@@ -308,13 +304,13 @@ class AStarGrid:
         plt.axis([0, self.grid.width, 0, self.grid.height])
 
     def plot_tree(self, point_size=15):
-        self.plot_line_segments(
+        plot_line_segments(
             [(x, self.came_from[x]) for x in self.candidates if x != self.x_init],
             linewidth=1,
             color="blue",
             alpha=0.2,
         )
-        self.plot_line_segments(
+        plot_line_segments(
             [(x, self.came_from[x]) for x in self.visited if x != self.x_init],
             linewidth=1,
             color="blue",
