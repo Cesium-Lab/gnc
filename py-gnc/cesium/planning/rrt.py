@@ -61,8 +61,7 @@ class RRT:
                 f"Error when casting obstacles to array: {e}]n" | obstacles
             )
         if self.obstacle_segments.shape[1:] != (2, self.state_dim):
-            raise ValueError(
-                f"obstacle shape weird: {self.obstacle_segments.shape}")
+            raise ValueError(f"obstacle shape weird: {self.obstacle_segments.shape}")
 
         self.path = None
 
@@ -108,7 +107,7 @@ class RRT:
         """
         V = np.asarray(V)  # (N,2)
         x = self.validate_tuple(x)  # (2,)
-        distances = np.linalg.norm(V - x[ None, :], axis=1)
+        distances = np.linalg.norm(V - x[None, :], axis=1)
         result = np.argmin(distances)
 
         return result
@@ -140,7 +139,14 @@ class RRT:
         return x1 + eps * unit(x2 - x1)
 
     def solve(
-        self, eps: float, max_iters=1000, goal_bias=0.05, shortcut=False, plot=True,seed = None, **scatter_args
+        self,
+        eps: float,
+        max_iters=1000,
+        goal_bias=0.05,
+        shortcut=False,
+        plot=True,
+        seed=None,
+        **scatter_args,
     ):
         """Use RRT to produce dynamically-feasible and obstacle-free trajectory
 

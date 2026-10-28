@@ -3,10 +3,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def box(lo, hi):
+    """Returns the four walls of an axis-aligned rectangle with corners lo and hi."""
+    (x0, y0), (x1, y1) = lo, hi
+    return [
+        ((x0, y0), (x1, y0)),
+        ((x1, y0), (x1, y1)),
+        ((x1, y1), (x0, y1)),
+        ((x0, y1), (x0, y0)),
+    ]
+
+
 class StaticOccupancyGrid2D:
     """
-    A 2D state space grid with a set of rectangular obstacles. The grid is
-    fully deterministic
+    A 2D state space with a set of rectangular obstacles on a grid
 
     AA 274A Function
     """
@@ -25,9 +35,13 @@ class StaticOccupancyGrid2D:
         self.height = height
         self.obstacles = obstacles
 
+        self.lines = box((0, 0), (width, height))
+
         for o in self.obstacles:
             assert len(o[0]) == 2
             assert len(o[1]) == 2
+
+            self.lines = self.lines + box(o[0], o[1])
 
     def is_free(self, x: tuple):
         """Verifies that point is not inside any obstacles by some margin"""
@@ -55,6 +69,14 @@ class StaticOccupancyGrid2D:
                 )
             )
         ax.set(xlim=(0, self.width), ylim=(0, self.height))
+
+
+def is_free_motion(obstacles: np.ndarray, x1, x2):
+    motion = np.array([x1, x2])
+    for line in obstacles:
+        if line_line_intersection(line, motion):
+            return False
+    return True
 
 
 class SegmentGraph2D:
@@ -100,6 +122,8 @@ def line_line_intersection(l1: np.ndarray, l2: np.ndarray):
     Returns:
         `True` iff `l1` and `l2` intersect.
     """
+    l1 = np.asarray(l1)
+    l2 = np.asarray(l2)
     assert l1.shape == (2, 2)
     assert l2.shape == (2, 2)
 
