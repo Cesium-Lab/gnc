@@ -80,7 +80,7 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
     e : float
         Eccentricity, `0 <= e < 1`.
     tol : float, optional
-        Convergence tolerance on successive `E` iterates [rad]. Default is 1e-9.
+        Convergence tolerance on successive `E` iterations [rad]. Default is 1e-9.
     max_iter : int, optional
         Maximum number of iterations. Default is 100.
 

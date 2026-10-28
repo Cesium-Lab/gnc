@@ -66,7 +66,8 @@ def angle_between(u, v):
 def jacobian(func: Callable, inputs: np.ndarray, out_dim: int, delta=0.001):
 
     if not isinstance(inputs, (np.ndarray, list)):
-        inputs = [inputs]
+        inputs = np.array([inputs])
+    
 
     # Helper
     def disturb(i: int, delta: float):
@@ -81,5 +82,9 @@ def jacobian(func: Callable, inputs: np.ndarray, out_dim: int, delta=0.001):
         lower = func(disturb(i, -delta))
 
         J[:, i] = (upper - lower) / (2 * delta)
+        
+    # Back to 1 dimension
+    if len(inputs) == 1:
+        J = J[out_dim-1][0]
 
     return J

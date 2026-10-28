@@ -302,10 +302,11 @@ INC_PLUTO = 17.16
 
 # Original reference values; sources undocumented.
 # Gravitational parameters [km3/s2]:
-# MU_MOON = 4903.0
+# MU_MOON = 4903.0``
 # MU_VENUS = 324858.630
-# MU_PLUTO = 870.9
-# MU_CHARON = 101.0
+MU_PLUTO = 870.9
+MU_CHARON = 101.0
+R_PLUTO_CHARON = 19571.0
 
 # Alternative radii [km]:
 # R_MOON = 1738.0

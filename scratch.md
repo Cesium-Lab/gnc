@@ -1,0 +1,7 @@
+- [ ] hw1 stuff
+  - [ ] Lagrange points
+  - [ ] Equations of motion
+  - [ ] plotters
+  - [ ] orbital energies
+- [ ] 2pbvp class
+- [ ] Derive Lambert?

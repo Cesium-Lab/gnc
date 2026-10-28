@@ -3,8 +3,8 @@ import pytest
 from numpy.linalg import norm
 
 import cesium.guidance as guid
-from cesium.constants import HOUR_TO_SEC, KM_TO_M
-from cesium.world import MU_EARTH, R_EARTH
+from cesium.constants import HOUR_TO_SEC, KM_TO_M, MIN_TO_SEC
+from cesium.world import MU_EARTH, R_EARTH, W_EARTH
 
 
 class Test_hcw_two_impulse:
@@ -40,3 +40,12 @@ class Test_hcw_two_impulse:
         assert dv1 == pytest.approx([-9.4824e-3, -1.2225e-1, 0], rel=5e-3)
         assert dv2 == pytest.approx([-9.4824e-3, 1.2225e-1, 0], rel=5e-3)
         assert dv == pytest.approx(0.2452, abs=1e-4)
+
+    # TODO
+    def test_aa279b_lecture4_2point_bvp():
+        n = W_EARTH  # but at 300 km change this
+        x0 = 30  # km
+        y0 = 150  # km
+        vx0 = 0.01  # km/s
+        vy0 = -45*n  # km/s
+        tf = 20 * MIN_TO_SEC

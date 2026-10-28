@@ -1,1 +1,0 @@
-"""Not gonna write my own solver"""
