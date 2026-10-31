@@ -5,8 +5,9 @@ References
 ----------
 - Howard D. Curtis, Orbital Mechanics for Engineering Students,
     Table A.1: Astronomical Data for the Sun, Planets, and Moon.
+    Table A.2: Gravitational Parameters and Sphere of Influence Radii.
 - David A. Vallado, Fundamentals of Astrodynamics and Applications,
-    4th Edition
+    4th Edition.
 
 All values are in SI units unless otherwise indicated.
 """
@@ -36,6 +37,9 @@ R_SUN = 6.957e8
 MU_SUN = 1.32712440018e20
 """Sun standard gravitational parameter [m3/s2]. Source: Vallado 4e, p. 1043."""
 
+SOI_SUN = None
+"""Sun SOI radius is not specified. Source: Curtis, Table A.2."""
+
 
 # ==================================================
 #                     Mercury
@@ -46,6 +50,12 @@ M_MERCURY = 330.2e21
 
 R_MERCURY = 2440e3
 """Mercury radius [m]. Source: Curtis, Table A.1."""
+
+MU_MERCURY = 22030e9
+"""Mercury standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
+
+SOI_MERCURY = 112000e3
+"""Mercury sphere of influence radius [m]. Source: Curtis, Table A.2."""
 
 A_MERCURY = 57.91e9
 """Mercury orbital semimajor axis [m]. Source: Curtis, Table A.1."""
@@ -66,6 +76,12 @@ M_VENUS = 4.869e24
 
 R_VENUS = 6052e3
 """Venus radius [m]. Source: Curtis, Table A.1."""
+
+MU_VENUS = 324900e9
+"""Venus standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
+
+SOI_VENUS = 616000e3
+"""Venus sphere of influence radius [m]. Source: Curtis, Table A.2."""
 
 A_VENUS = 108.2e9
 """Venus orbital semimajor axis [m]. Source: Curtis, Table A.1."""
@@ -91,6 +107,9 @@ MU_EARTH = 3.986004418e14
 
 MU_EARTH_KM = 398600.4418
 """Earth standard gravitational parameter [km3/s2]"""
+
+SOI_EARTH = 925000e3
+"""Earth sphere of influence radius [m]. Source: Curtis, Table A.2."""
 
 
 # Geometry
@@ -151,8 +170,11 @@ M_MOON = 73.48e21
 R_MOON = 1737e3
 """Moon radius [m]. Source: Curtis, Table A.1."""
 
-MU_MOON = G_CONST * M_MOON
-"""Moon standard gravitational parameter [m3/s2]. Source: Curtis, Table A.1."""
+MU_MOON = 4903e9
+"""Moon standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
+
+SOI_MOON = 66200e3
+"""Moon sphere of influence radius [m]. Source: Curtis, Table A.2."""
 
 A_MOON = 384.4e6
 """Moon orbital semimajor axis about Earth [m]. Source: Curtis, Table A.1."""
@@ -174,6 +196,12 @@ M_MARS = 641.9e21
 R_MARS = 3396e3
 """Mars radius [m]. Source: Curtis, Table A.1."""
 
+MU_MARS = 42828e9
+"""Mars standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
+
+SOI_MARS = 577000e3
+"""Mars sphere of influence radius [m]. Source: Curtis, Table A.2."""
+
 A_MARS = 227.9e9
 """Mars orbital semimajor axis [m]. Source: Curtis, Table A.1."""
 
@@ -194,8 +222,11 @@ M_JUPITER = 1.899e27
 R_JUPITER = 71490e3
 """Jupiter radius [m]. Source: Curtis, Table A.1."""
 
-MU_JUPITER = 126.687e15
-"""Jupiter standard gravitational parameter [m3/s2]"""
+MU_JUPITER = 126686000e9
+"""Jupiter standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
+
+SOI_JUPITER = 48200000e3
+"""Jupiter sphere of influence radius [m]. Source: Curtis, Table A.2."""
 
 A_JUPITER = 778.6e9
 """Jupiter orbital semimajor axis [m]. Source: Curtis, Table A.1."""
@@ -217,8 +248,11 @@ M_SATURN = 568.5e24
 R_SATURN = 60270e3
 """Saturn radius [m]. Source: Curtis, Table A.1."""
 
-MU_SATURN = 37.931e15
-"""Saturn standard gravitational parameter [m3/s2]"""
+MU_SATURN = 37931000e9
+"""Saturn standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
+
+SOI_SATURN = 54800000e3
+"""Saturn sphere of influence radius [m]. Source: Curtis, Table A.2."""
 
 A_SATURN = 1.433e12
 """Saturn orbital semimajor axis [m]. Source: Curtis, Table A.1."""
@@ -240,8 +274,11 @@ M_URANUS = 86.83e24
 R_URANUS = 25560e3
 """Uranus radius [m]. Source: Curtis, Table A.1."""
 
-MU_URANUS = G_CONST * M_URANUS
-"""Uranus standard gravitational parameter [m3/s2]. Source: Curtis, Table A.1."""
+MU_URANUS = 5794000e9
+"""Uranus standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
+
+SOI_URANUS = 51800000e3
+"""Uranus sphere of influence radius [m]. Source: Curtis, Table A.2."""
 
 A_URANUS = 2.872e12
 """Uranus orbital semimajor axis [m]. Source: Curtis, Table A.1."""
@@ -263,8 +300,11 @@ M_NEPTUNE = 102.4e24
 R_NEPTUNE = 24760e3
 """Neptune radius [m]. Source: Curtis, Table A.1."""
 
-MU_NEPTUNE = G_CONST * M_NEPTUNE
-"""Neptune standard gravitational parameter [m3/s2]. Source: Curtis, Table A.1."""
+MU_NEPTUNE = 6835100e9
+"""Neptune standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
+
+SOI_NEPTUNE = 86600000e3
+"""Neptune sphere of influence radius [m]. Source: Curtis, Table A.2."""
 
 A_NEPTUNE = 4.495e12
 """Neptune orbital semimajor axis [m]. Source: Curtis, Table A.1."""
@@ -286,6 +326,12 @@ M_PLUTO = 12.5e21
 R_PLUTO = 1195e3
 """Pluto radius [m]. Source: Curtis, Table A.1."""
 
+MU_PLUTO = 830e9
+"""Pluto standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
+
+SOI_PLUTO = 3080000e3
+"""Pluto sphere of influence radius [m]. Source: Curtis, Table A.2."""
+
 A_PLUTO = 5.870e12
 """Pluto orbital semimajor axis [m]. Source: Curtis, Table A.1."""
 
@@ -301,12 +347,15 @@ INC_PLUTO = 17.16
 # ==================================================
 
 # Original reference values; sources undocumented.
-# Gravitational parameters [km3/s2]:
-# MU_MOON = 4903.0``
+# Alternative gravitational parameters [km3/s2]:
+# MU_MOON = 4903.0
 # MU_VENUS = 324858.630
-MU_PLUTO = 870.9
+# MU_PLUTO = 870.9  # differs from Curtis Table A.2 (830)
 MU_CHARON = 101.0
+"""Charon gravitational parameter [km3/s2]. Original reference; source undocumented."""
+
 R_PLUTO_CHARON = 19571.0
+"""Pluto–Charon separation [km]. Original reference; source undocumented."""
 
 # Alternative radii [km]:
 # R_MOON = 1738.0

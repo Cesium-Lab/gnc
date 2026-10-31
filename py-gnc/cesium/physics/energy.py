@@ -100,3 +100,28 @@ def calc_total_energy(
     PE = calc_potential_energy(r, mass_kg, mu)
     KE = calc_kinetic_energy(v, w, mass_kg, I)
     return PE + KE
+
+# def calc_potential_energy_synodic(
+#     r: np.ndarray, mass: float, mu1: float, mu2: float, r_sep: float
+# ):
+#     """Compute effective potential energy in a barycentric synodic frame.
+
+#     The larger primary is located at ``-x`` and the smaller primary at ``+x``.
+#     """
+#     assert mu1 > mu2
+
+#     x, y, z = r
+#     mu_sum = mu1 + mu2
+#     r1_bc = mu2 * r_sep / mu_sum
+#     r2_bc = mu1 * r_sep / mu_sum
+#     w_squared = mu_sum / r_sep**3
+
+#     distance1 = np.sqrt((x + r1_bc) ** 2 + y**2 + z**2)
+#     distance2 = np.sqrt((x - r2_bc) ** 2 + y**2 + z**2)
+
+#     if distance1 < 1e-6 or distance2 < 1e-6:
+#         return 0
+
+#     return -mass * (
+#         mu1 / distance1 + mu2 / distance2 + 0.5 * w_squared * (x**2 + y**2)
+#     )

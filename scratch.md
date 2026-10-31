@@ -1,7 +1,9 @@
 - [ ] hw1 stuff
-  - [ ] Lagrange points
-  - [ ] Equations of motion
+  - [ ] Equations of motion (synodic)
   - [ ] plotters
   - [ ] orbital energies
 - [ ] 2pbvp class
 - [ ] Derive Lambert?
+
+Cool
+- [ ] Sirius XM stuff woo
