@@ -12,7 +12,6 @@ def test_unit():
     v[0] = 1e-9
     assert unit(v) == pytest.approx(np.zeros(100))
 
-    #
     v = np.zeros(1000)
     v[0] = 1
     v[-1] = 1

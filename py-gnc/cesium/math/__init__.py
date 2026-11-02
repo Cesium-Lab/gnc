@@ -1,4 +1,3 @@
-# ruff: noqa: F403
 
 from .integrators import rk4_func
 from .quaternion import *

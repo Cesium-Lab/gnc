@@ -149,7 +149,7 @@ class TestRvToCoes:
         r = np.array([7000.0, 0.0, 0.0])  # km
         v = np.array([0.0, 15.0, 0.0])  # km/s
 
-        a, e, i, raan, aop, ta = rv_to_coes(r, v, MU_EARTH_KM)
+        a, e, _i, _raan, _aop, _ta = rv_to_coes(r, v, MU_EARTH_KM)
 
         assert e > 1  # hyperbolic orbit
         assert a < 0

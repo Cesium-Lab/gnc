@@ -26,12 +26,10 @@ def test_vallado_hubble():
 
 def test_curtis_example_7_2():
     """Targeting"""
-    pass
 
 
 def test_curtis_example_7_3():
     """Targeting"""
-    pass
 
 
 # problems 1,2,5
@@ -41,7 +39,7 @@ def test_curtis_problem_7_7():
 
     n = 2 * np.pi / (90 * MIN_TO_SEC)
 
-    r, v = rv_hcw_3d(15 * MIN_TO_SEC, n, r0, v0)
+    r, _v = rv_hcw_3d(15 * MIN_TO_SEC, n, r0, v0)
 
     assert np.linalg.norm(r) == pytest.approx(11.2 * KM_TO_M, abs=0.05 * KM_TO_M)
 
@@ -75,7 +73,7 @@ class TestHcwPropagation:
             return hcw_dynamics(x, np.zeros(3), n)
 
         print(tspan // dt)
-        for _ in tqdm(range(0, int(tspan / dt) + 1)):
+        for _ in tqdm(range(int(tspan / dt) + 1)):
             h = min(dt, tspan - t)
             rv = rk4_func(t, h, rv, hcw_f)
             t += h

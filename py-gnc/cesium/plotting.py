@@ -198,7 +198,7 @@ def plot_3d(
                 mode="lines",
                 name=label,
                 legendgroup=label,
-                line=dict(color=color, width=5),
+                line={"color": color, "width": 5},
             )
         )
 
@@ -213,7 +213,7 @@ def plot_3d(
                     name=f"{label} Start",
                     legendgroup=label,
                     showlegend=False,
-                    marker=dict(size=6, color=color, symbol="diamond"),
+                    marker={"size": 6, "color": color, "symbol": "diamond"},
                 )
             )
 
@@ -228,7 +228,7 @@ def plot_3d(
                     name=f"{label} End",
                     legendgroup=label,
                     showlegend=False,
-                    marker=dict(size=6, color=color),
+                    marker={"size": 6, "color": color},
                 )
             )
 
@@ -237,16 +237,16 @@ def plot_3d(
     # --------------------------------------------------
     fig.update_layout(
         title=title,
-        scene=dict(
-            xaxis_title=f"X [{units}]",
-            yaxis_title=f"Y [{units}]",
-            zaxis_title=f"Z [{units}]",
-            aspectmode="data",
-        ),
+        scene={
+            "xaxis_title": f"X [{units}]",
+            "yaxis_title": f"Y [{units}]",
+            "zaxis_title": f"Z [{units}]",
+            "aspectmode": "data",
+        },
         template="plotly_white",
-        legend=dict(x=0.02, y=0.98),
+        legend={"x": 0.02, "y": 0.98},
         height=height,
-        margin=dict(l=0, r=0, b=0, t=50),
+        margin={"l": 0, "r": 0, "b": 0, "t": 50},
     )
 
     if show:
@@ -265,7 +265,7 @@ def plot_flybys(
     scale=AU_TO_KM,
 ):
 
-    fig, ax = plt.subplots(figsize=(9, 9))
+    _fig, ax = plt.subplots(figsize=(9, 9))
 
     # Plot Sun
     ax.scatter(0, 0, color="gold", marker="o", s=100, label="Sun", zorder=5)
