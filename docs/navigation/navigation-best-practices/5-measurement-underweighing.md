@@ -36,30 +36,30 @@
 
 ### Additive Compensation
 - Factor $U$ is added to residual covariance
-- ![alt text](image-12.png)
+- ![alt text](images/image-12.png)
 - One choice is to make it equal to $B$ from the second order effects
 - Higher computational cost due to 2nd order partials and ASSUMPTION that estimation errors are Gaussian
 - $U$ needing to be tuned :(
 
 ### Scaling Measurement Covariance
 - $U$ is scaled from $R$
-- ![alt text](image-13.png)
+- ![alt text](images/image-13.png)
 - NOT recommended
   - Since underweighing helps with 2nd order terms, those are obtained via a priori
   - $U$ being constant w.r.t $R$ is less practical and does not obey that
 
 ### Lear's Method
 - $U$ is scaled from $H\ P\ H^T$
-- ![alt text](image-14.png)
+- ![alt text](images/image-14.png)
 - Have $\bar{P}^{^-}$is partition of P with position error states
   - Space shuttle underweighs when  
-  - ![alt text](image-15.png)
+  - ![alt text](images/image-15.png)
   - with $\alpha = 1000$m and $\beta = 0.2$ (if condition is satisfied, else 0)
   - Orion when
-  - ![alt text](image-16.png)
+  - ![alt text](images/image-16.png)
 
 
 ### Pre-Flight Tuning Aids
-- Lears: ![alt text](image-17.png)
-- When comparing the above to formula with B choose $\beta$ s.t. ![alt text](image-18.png)
+- Lears: ![alt text](images/image-17.png)
+- When comparing the above to formula with B choose $\beta$ s.t. ![alt text](images/image-18.png)
 - Tuned in sims

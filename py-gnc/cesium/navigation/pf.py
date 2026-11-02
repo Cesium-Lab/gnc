@@ -14,7 +14,7 @@ def pf_predict(state_model, particles, u, dt, Q):
 
 
 def pf_weights(meas_model, particles_predicted: np.ndarray, measurement: np.ndarray, R):
-    weights = np.zeros((measurement.shape[0]))
+    weights = np.zeros(measurement.shape[0])
 
     expected_measurements = np.array(
         [meas_model(particle) for particle in particles_predicted]

@@ -12,6 +12,7 @@ dependencies = ["numpy", "scipy", "pandas"]
 dev = [
     "pytest",
     "ruff",
+    "tqdm",
     "ipykernel",
     "plotly",
 ]
@@ -29,4 +30,4 @@ markers = [
 [tool.ruff.lint]
 # Single-letter physics variable names (r, v, w, ...) are idiomatic here.
 extend-select = ["I"]
-ignore = ["E741", "RUF013"]
+ignore = ["E741", "RUF013", "B008"]

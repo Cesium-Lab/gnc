@@ -13,13 +13,13 @@ def UT(mu, Sigma, l_param):
     x = np.zeros((2 * n + 1, n))
     x[0] = mu
 
-    factor = np.sqrt((l_param + n)) * np.linalg.cholesky(Sigma)
+    factor = np.sqrt(l_param + n) * np.linalg.cholesky(Sigma)
     for i in range(n):  # Gives 0 to n-1 though
         # Getting the column of the factor
         x[i + 1] = mu + factor[:, i]
         x[n + i + 1] = mu - factor[:, i]
 
-    w = np.ones((2 * n + 1)) * 1 / 2 / (l_param + n)  # Since every one is the same
+    w = np.ones(2 * n + 1) * 1 / 2 / (l_param + n)  # Since every one is the same
     w[0] = l_param / (l_param + n)
 
     return x, w
