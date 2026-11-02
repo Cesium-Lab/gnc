@@ -28,4 +28,4 @@ Need suitable approximation for state transition matrix
 
 TODO (12 pages)
 
-![alt text](image-11.png)
+![alt text](images/image-11.png)

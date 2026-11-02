@@ -204,11 +204,11 @@ Links
 - [Paper](https://sci-hub.ru/10.2514/8.8704)
 - [Derivation (easy because they don't do it in the paper)](https://ensatellite.com/hills-equations/)
 
-![alt text](image-3.png)
+![alt text](images/image-3.png)
 
-![alt text](image-17.png)
-![alt text](image-16.png)
-![alt text](image-18.png)
+![alt text](images/image-17.png)
+![alt text](images/image-16.png)
+![alt text](images/image-18.png)
 
 
 ### Orbital maneuvers & propulsion
