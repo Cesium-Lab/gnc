@@ -20,15 +20,15 @@ Derivation
 - Cannot assume $Y$ is Gaussian (since function $h$ may not be)
 
 ### Linear Kalman Filter
-![alt text](image.png)
+![alt text](images/image.png)
 - If observability Grammian full rank then covariance reaches steady state
-![alt text](image-1.png) 
+![alt text](images/image-1.png) 
 - Want to keep covariance $P$ positive definite
 
 ### Extended Kalman Filter
-![alt text](image-2.png)
+![alt text](images/image-2.png)
 - Joseph's form holds for NON optimal gains
-![alt text](image-3.png)
+![alt text](images/image-3.png)
 - In general, still want $P$ positive definite
   - Eigenvalue of 0 means no uncertainty (which is false)
 

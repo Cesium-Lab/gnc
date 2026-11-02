@@ -34,7 +34,7 @@
 - Circular AND equatorial
   - True longitude is used $l = \nu + \bar{\omega}$
 
-![alt text](image-12.png)
+![alt text](images/image-12.png)
 
 **Modified Equinoctial Elements** (Just know they exist)
 [Degenerate Conic article](https://degenerateconic.com/modified-equinoctial-elements.html)
@@ -55,11 +55,11 @@ There was a slideshow in AA 278 that I can't find. Bolded for important.
     - Orders of magnitude smaller than J2
   - Tesseral/sectoral
     - Why GEO needs stationkeeping too
-    - ![alt text](image-13.png)
+    - ![alt text](images/image-13.png)
 - **Third-body**
   - Sun, Moon, etc.
   - Relevant for cis-lunar 
-    - ![alt text](image-9.png)
+    - ![alt text](images/image-9.png)
   - Negligible in LEO due to Earth gravity
 - Tides
 - Relativistic
@@ -78,7 +78,7 @@ There was a slideshow in AA 278 that I can't find. Bolded for important.
 - L5, L4 stable
 - Webb orbits around L2
   - "Halo/libration-point orbits"
-![alt text](image-25.png)
+![alt text](images/image-25.png)
 
 ### Perturbations
 
@@ -89,32 +89,32 @@ There was a slideshow in AA 278 that I can't find. Bolded for important.
 
 
 Earth orbit
-![alt text](image-11.png)
+![alt text](images/image-11.png)
 
-![alt text](image-14.png)
+![alt text](images/image-14.png)
 
 High altitude
-![alt text](image-10.png)
+![alt text](images/image-10.png)
 
 
 With Moon Orbit
-![alt text](image-15.png)
+![alt text](images/image-15.png)
 
 
 
 ## TLE (two-line elements)
 **Line 0**
-![alt text](image-8.png)
+![alt text](images/image-8.png)
 - Satellite name
 
 **Line 1**
-![alt text](image-4.png)
-![alt text](image-5.png)
+![alt text](images/image-4.png)
+![alt text](images/image-5.png)
 - Time, designation
 
 **Line 2**
-![alt text](image-6.png)
-![alt text](image-7.png)
+![alt text](images/image-6.png)
+![alt text](images/image-7.png)
 - Orbital elements
 
 
@@ -129,7 +129,7 @@ With Moon Orbit
 - Interesting things
   - Out-of-plane $z$ motion is simple harmonic motion (which makes sense when you think about intersecting nodes and a fixed inclination)
   - $x$ and $y$ motion are coupled
-![alt text](image-20.png)
+![alt text](images/image-20.png)
 
 
 ### Derivation of equations
@@ -139,10 +139,10 @@ With Moon Orbit
     2. $
  1. $\dot{\omega} = 0$ cancels out Euler term in rotating acceleration
     1. $\omega \perp r$ so no $sin$ term appears in the Coriolis term. Kinda? idk
-![alt text](image-19.png)
-![alt text](image-21.png)
-![alt text](image-22.png)
-![alt text](image-23.png)
+![alt text](images/image-19.png)
+![alt text](images/image-21.png)
+![alt text](images/image-22.png)
+![alt text](images/image-23.png)
 
 - Goal: describe a chaser's motion *relative* to a target on a circular reference orbit, without propagating full two-body dynamics for both bodies separately
 - Result: in-plane (x, y) motion couples through the orbital rate n; out-of-plane (z) motion decouples into a simple harmonic oscillator
@@ -153,16 +153,16 @@ Links
 - [Paper](https://sci-hub.ru/10.2514/8.8704)
 - [Derivation (easy because they don't do it in the paper)](https://ensatellite.com/hills-equations/)
 
-![alt text](image-3.png)
+![alt text](images/image-3.png)
 
-![alt text](image-17.png)
-![alt text](image-16.png)
-![alt text](image-18.png)
+![alt text](images/image-17.png)
+![alt text](images/image-16.png)
+![alt text](images/image-18.png)
 
 
 ## Other rendezvous frames
 
-![alt text](image-24.png)
+![alt text](images/image-24.png)
 
 - Quadratic Volterra (QV)
 - Yamanaka-Ankersen (YA)

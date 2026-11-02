@@ -26,3 +26,5 @@
   - Free of singularities
 
 ## Relative State Representation
+
+TODO

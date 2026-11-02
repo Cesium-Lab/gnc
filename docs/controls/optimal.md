@@ -8,10 +8,10 @@ Already touched on in [guidance/optimization.md](../guidance/optimization.md). B
   - Assumes optimal drives input to 0 at $t = \infty$
   - Many solutions, only one PD solution ($P = P^T \ge 0$)
 
-![alt text](image-21.png) ![alt text](image-22.png)
+![alt text](images/image-21.png) ![alt text](images/image-22.png)
 
 - Scaling of Q and R (intuition)
   - Normalize based on "max" input and output (squared)
-  - ![alt text](image-23.png)
+  - ![alt text](images/image-23.png)
 
 

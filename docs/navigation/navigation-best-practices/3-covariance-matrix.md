@@ -9,15 +9,15 @@
   - BUT need to be well balanced
 - e.g. flight-path angle error
 - **Best Practice**: Use SMA s.d. as metric
-![alt text](image-7.png)
+![alt text](images/image-7.png)
 
 
 ## Propagation
 Discussing best practices for 
-![alt text](image-9.png)
+![alt text](images/image-9.png)
 Need suitable approximation for state transition matrix
 ### Riccati Equation!
-![alt text](image-8.png)
+![alt text](images/image-8.png)
 
 ### State Transition Matrix
 - Common in ground-based OD

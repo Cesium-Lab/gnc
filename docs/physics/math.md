@@ -7,12 +7,12 @@ TODO
 
 
 # Matrix Exponential
-![alt text](image-26.png)
-![alt text](image-27.png)
+![alt text](images/image-26.png)
+![alt text](images/image-27.png)
 
 ## Cayley Hamilton Polynomial reduction
 
-![alt text](image-29.png)
+![alt text](images/image-29.png)
 
 
 
@@ -25,12 +25,12 @@ TODO
   - $Ly = b$
   - $x = (L*)^{-1}b$
 
-![alt text](image.png)
+![alt text](images/image.png)
 
 [wiki](https://en.wikipedia.org/wiki/Cholesky_decomposition)
 
 ## QR factorization
-![alt text](image-1.png)
+![alt text](images/image-1.png)
 - $Q^{T}Q = I$
 - $L$ is upper triangular
 
@@ -45,7 +45,7 @@ TODO
 ### Weighted Modified 
 - By rows $w_i$ of $W$
 
-![alt text](image-2.png)
+![alt text](images/image-2.png)
 
 
 ## Principal Rotation Vector

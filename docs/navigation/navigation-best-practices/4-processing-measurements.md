@@ -14,7 +14,7 @@
 ## Measurement Order
 - Estimate dependent on order of measurements (IMU, barometer, etc.)
 - Could wait until all measurements are processed
-![alt text](image-10.png)
+![alt text](images/image-10.png)
 
 ## Vector Measurements
 - Can keep vectors correlated

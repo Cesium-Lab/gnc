@@ -3,14 +3,14 @@
 
 ## Batch and Batch-Sequential Filters
 - Can solve via
-  - ![alt text](image-4.png)
+  - ![alt text](images/image-4.png)
 - Assuming *a priori* information 
 - New "weighting" matrix $\Lambda$ (large eigenvalues are GOOD)
-- ![alt text](image-5.png)
+- ![alt text](images/image-5.png)
   - Can estimate if information matrix (thing on the left left) is invertible
 - In nonlinear form use Jacobians and stuff
 - Accumulated measurements can be referenced back to estimated params at start (outdated, talked about later)
-![alt text](image-6.png)
+![alt text](images/image-6.png)
 
 ## Onboard Nav using Batch-Sequential Filters
 - In case ground-based nav is not good

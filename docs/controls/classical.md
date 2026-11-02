@@ -5,23 +5,23 @@
 - Basics
   - System/plant
     - Has an input and makes an output
-    - ![alt text](images/classical/image.png)
+    - ![alt text](images/image.png)
   - Open and closed loop
     - Uses controller to shape input to plant to get desired output
-    - ![alt text](images/classical/image-10.png)
+    - ![alt text](images/image-10.png)
 ## Transfer Function
   - Linear
   - Transformed via LAPLACE TRANSFORM
     - [Table of transformations](#appendix)
   - How a system responds (gain, phase) to different frequencies
   - Multiplication is convolution in time domain
-  - ![alt text](images/classical/image-2.png)
+  - ![alt text](images/image-2.png)
 - **Poles**
   - Roots of denominator of TF
   - Drive response to infinity
   - Negative real part means decay
   - Pole locations
-    - ![alt text](images/classical/image-3.png)
+    - ![alt text](images/image-3.png)
   - Real poles
     - Exponential growth or decay
   - Imaginary poles
@@ -29,7 +29,7 @@
   - Complex poles
     - Some combination of the above two
     - Sinusoid enveloped by exponential decay or growth
-    - ![alt text](images/classical/image-1.png)
+    - ![alt text](images/image-1.png)
 - **Zeros**
   - Roots of numerator of TF
   - Output becomes 0
@@ -46,10 +46,10 @@
   - Real{p} > 0
 
 ### Steady State
--  ![alt text](images/classical/image-6.png)
+-  ![alt text](images/image-6.png)
 -  Exists If all poles are in left hand side
 -  **Final Value Theorem**
-   -  ![alt text](images/classical/image-6.png)
+   -  ![alt text](images/image-6.png)
    -  Steady state must exist for this to be true
 
 
@@ -62,7 +62,7 @@
 ## Controller Overview
 
 - Response of input, disturbance, and noise all add linearly
-![alt text](images/classical/image-11.png)
+![alt text](images/image-11.png)
 
 Good controller:
 1. Basic checks
@@ -73,16 +73,16 @@ Good controller:
 3. Transient Requirements
    - Rise time, overshoot, settling time, peak time
    - Analytic for 2nd order system
-   - ![alt text](images/classical/image-8.png)
+   - ![alt text](images/image-8.png)
 4. Objective/cost function (not as much in TF, mainly in state space) 
    - Obstacle avoidance, control effort 
 
 ### 2nd order system
 - Full formula
-  - ![alt text](images/classical/image-9.png)
+  - ![alt text](images/image-9.png)
 - Transfer function 
   - Damping coefficient $\eta$ in $H(s) = \frac{\omega_n^2}{s^2 + 2 \eta \omega_n s + \omega_n ^2}$ where $\omega_n > 0$
-  - ![alt text](images/classical/image-7.png)
+  - ![alt text](images/image-7.png)
   - Want damping so it is stable
 - Analytic transient specs
 
@@ -104,7 +104,7 @@ Key note: **hitting a gain of -1 ($\pm180\degree$) is bad and makes things flip 
 (magnitude = $1$ AND phase = $\pm180\degree$ at the same time)
 
 ### Root Locus
-![alt text](images/classical/image-12.png)
+![alt text](images/image-12.png)
 - Show poles for a specific gain of K
 - Can change stability and response type (damped, undamped, etc.)
 - **Helpful for transient specs**
@@ -118,7 +118,7 @@ Key note: **hitting a gain of -1 ($\pm180\degree$) is bad and makes things flip 
     - Design ratio of pole and zero
 
 ### Bode Plot
-![alt text](images/classical/image-13.png)
+![alt text](images/image-13.png)
 - **Helpful for steady state error**
 - Magnitude and phase plots
 - Can be experimental (system ID)
@@ -126,7 +126,7 @@ Key note: **hitting a gain of -1 ($\pm180\degree$) is bad and makes things flip 
 - Asymptotes
   - Just set $\omega$ to 0 or infinity and see where it leads
 - Types of responses
-  - ![alt text](images/classical/image-14.png)
+  - ![alt text](images/image-14.png)
 - **System ID**
   - Get TF of system based on slopes, intercepts, and asymptotes
     - Pole adds negative slope, negative phase
@@ -209,18 +209,18 @@ Key note: **hitting a gain of -1 ($\pm180\degree$) is bad and makes things flip 
 
 
 
-![alt text](images/classical/image-15.png)
-![alt text](images/classical/image-19.png)
+![alt text](images/image-15.png)
+![alt text](images/image-19.png)
 
 
 ### Solution
-![alt text](images/classical/image-18.png)
+![alt text](images/image-18.png)
 ### With TF
 
 - **Controller Canonical Form**
   - Can have different state space representations for same system
-  - ![alt text](images/classical/image-17.png)
-  - ![alt text](images/classical/image-16.png)
+  - ![alt text](images/image-17.png)
+  - ![alt text](images/image-16.png)
 
 ## Stability
 - Internally
@@ -239,42 +239,42 @@ Key note: **hitting a gain of -1 ($\pm180\degree$) is bad and makes things flip 
 TODO: better images
 
 - Must be full rank matrix
-  - ![alt text](images/classical/image-102.png)
+  - ![alt text](images/image-102.png)
 - Can drive poles to anywhere (with desired characteristic polynomial)
 - Advanced way of deriving
-  - ![alt text](images/classical/image-105.png)
-  - ![alt text](images/classical/image-202.png)
+  - ![alt text](images/image-105.png)
+  - ![alt text](images/image-202.png)
 
 ### Controller Pole Placement
 - Place $eig(A - BK_x)$ at $eig(A_{cl})$
 - Procedure for SISO
-  - ![alt text](images/classical/image-8.png)
-  - ![alt text](images/classical/image-7.png)
+  - ![alt text](images/image-8.png)
+  - ![alt text](images/image-7.png)
 
 
 ## Observability
 Now have estimate of state
 - Must be full rank
-  - ![alt text](images/classical/image-103.png)
+  - ![alt text](images/image-103.png)
 - Observation of state converges on real state (with desired characteristic polynomial)
 - Advanced way of deriving
-  - ![alt text](images/classical/image-104.png)
+  - ![alt text](images/image-104.png)
 
 ## Observer Pole Placemenet
-- ![alt text](images/classical/image-10.png)
+- ![alt text](images/image-10.png)
 - Want poles to be 2-5 to the left of fastest CL control pole so that it controls something it is actually accurate for
 - Procedure for SISO
-  - ![alt text](images/classical/image-11.png)
+  - ![alt text](images/image-11.png)
 
 
 ### Luenberger Observer
 - Observer has its own dynamics based on measurement error from incorrect estimate
-  - ![alt text](images/classical/image-3.png)
-  - ![alt text](images/classical/image-25.png)
-  - ![alt text](images/classical/image-27.png)
+  - ![alt text](images/image-3.png)
+  - ![alt text](images/image-25.png)
+  - ![alt text](images/image-27.png)
 - As long as stable, it converges (ocl = observer closed loop)
-  - ![alt text](images/classical/image-26.png)
-  - ![alt text](images/classical/image-9.png)
+  - ![alt text](images/image-26.png)
+  - ![alt text](images/image-9.png)
 
 ## **Separation principle**
 - Can separate controllability and observability design
@@ -284,8 +284,8 @@ Now have estimate of state
 
 ## Similarity
 - Same system can have different SS representations
-![alt text](images/classical/image-1.png)
-![alt text](images/classical/image-6.png)
+![alt text](images/image-1.png)
+![alt text](images/image-6.png)
 
 
 ## Duality
@@ -302,12 +302,12 @@ Now have estimate of state
 
 ## Linearity
 - How to linearize it
-![alt text](image.png)
+![alt text](images/image.png)
 
 
 # APPENDIX
 
-![alt text](images/classical/image-4.png)
+![alt text](images/image-4.png)
 
 
 
