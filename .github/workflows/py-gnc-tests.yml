@@ -29,6 +29,10 @@ jobs:
         run: |
           python -m pytest py-gnc -v -o addopts= -m ""
 
+  lint-everything:
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Ruff lint
         run: ruff check ./py-gnc
 
