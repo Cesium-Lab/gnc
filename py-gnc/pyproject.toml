@@ -31,3 +31,6 @@ markers = [
 # Single-letter physics variable names (r, v, w, ...) are idiomatic here.
 extend-select = ["I"]
 ignore = ["E741", "RUF013", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F403"] # Allow star imports in __init__.py

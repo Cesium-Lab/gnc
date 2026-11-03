@@ -1,0 +1,5 @@
+[tool.ruff]
+exclude = [
+    "projects",
+    "sims", # TODO: change this later
+]
