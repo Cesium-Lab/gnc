@@ -5,7 +5,10 @@
 - Guidance
   - How to move
 
-
+## Submodules (mainly projects)
+```zsh
+git submodule update --init --recursive
+```
 
 <!-- 1. Estimation
    1. Filtering
