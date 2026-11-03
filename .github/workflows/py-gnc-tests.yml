@@ -48,6 +48,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e "./py-gnc[dev]"
 
+      - name: Settings
+        # run: python -m ruff check py-gnc/cesium/planning/__init__.py --show-settings
+        run: python -m ruff --version
+
       - name: Ruff lint
         run: python -m ruff check ./py-gnc
 

@@ -9,10 +9,10 @@ from .rrt import RRT
 from .trajectory import TrajectoryPlan, path_length, smooth_path
 
 __all__ = [
-    "AStarHeuristic",
-    "AStarGrid",
     "PRM",
     "RRT",
+    "AStarGrid",
+    "AStarHeuristic",
     "StaticOccupancyGrid2D",
     "TrajectoryPlan",
     "generate_planning_problem",
