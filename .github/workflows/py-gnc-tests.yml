@@ -49,8 +49,7 @@ jobs:
           python -m pip install -e "./py-gnc[dev]"
 
       - name: Settings
-        run: python -m ruff check ./py-gnc --show-settings
-        run: python -m ruff --version
+        run: python -m ruff --version && python -m ruff check ./py-gnc --show-settings
 
       - name: Ruff lint
         run: python -m ruff check ./py-gnc
