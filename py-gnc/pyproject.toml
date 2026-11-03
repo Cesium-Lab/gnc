@@ -29,5 +29,5 @@ markers = [
 
 [tool.ruff.lint]
 # Single-letter physics variable names (r, v, w, ...) are idiomatic here.
-extend-select = ["I"]
+extend-select = ["I", "F403"]
 ignore = ["E741", "RUF013", "B008"]
