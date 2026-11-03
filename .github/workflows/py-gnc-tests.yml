@@ -1,5 +1,5 @@
 
-name: Simulation Tests
+name: py-gnc-tests
 
 on:
   push:
@@ -49,7 +49,7 @@ jobs:
           python -m pip install -e "./py-gnc[dev]"
 
       - name: Settings
-        # run: python -m ruff check py-gnc/cesium/planning/__init__.py --show-settings
+        run: python -m ruff check ./py-gnc --show-settings
         run: python -m ruff --version
 
       - name: Ruff lint

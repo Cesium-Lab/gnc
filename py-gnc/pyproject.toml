@@ -11,7 +11,7 @@ dependencies = ["numpy", "scipy", "pandas"]
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "ruff",
+    "ruff==0.17.3",
     "tqdm",
     "ipykernel",
     "plotly",

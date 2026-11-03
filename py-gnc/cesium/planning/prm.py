@@ -60,7 +60,7 @@ class PRM:
     @staticmethod
     def validate_tuple(x: tuple):
         if not isinstance(x, (tuple, np.ndarray)):
-            raise ValueError(f"Invalid state/bounds type of {x} ({type(x)})")
+            raise TypeError(f"Invalid state/bounds type of {x} ({type(x)})")
         if len(x) != 2:
             raise ValueError(f"Input point not 2D: {x}")
         return np.array(x)
@@ -94,10 +94,10 @@ class PRM:
         self.lines = np.asarray(lines)
 
         if len(self.points) == 0:
-            # raise RuntimeError("Did not add any points")
+            raise RuntimeError("Did not add any points")
             return False
         if len(self.lines) == 0:
-            # raise RuntimeError("Did not add any lines")
+            raise RuntimeError("Did not add any lines")
             return False
 
         return True

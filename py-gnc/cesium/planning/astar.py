@@ -89,7 +89,7 @@ class AStarGrid:
     @staticmethod
     def validate_tuple(x: tuple):
         if not isinstance(x, tuple):
-            raise ValueError(f"Invalid state/bounds type of {x} ({type(x)})")
+            raise TypeError(f"Invalid state/bounds type of {x} ({type(x)})")
         if len(x) != 2:
             raise ValueError(f"Input point not 2D: {x}")
         return x

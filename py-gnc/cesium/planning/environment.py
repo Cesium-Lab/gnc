@@ -1,6 +1,6 @@
-import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import patches
 
 
 def box(lo, hi):

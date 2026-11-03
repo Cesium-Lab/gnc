@@ -56,10 +56,8 @@ class RRT:
         # Making sure obstacles are defined correctly
         try:
             self.obstacle_segments = np.asarray(obstacles)
-        except Exception as e:
-            raise ValueError(
-                f"Error when casting obstacles to array: {e}]n" | obstacles
-            )
+        except TypeError as e:
+            raise TypeError(f"Error when casting obstacles to array: {e}]n" | obstacles)
         if self.obstacle_segments.shape[1:] != (2, self.state_dim):
             raise ValueError(f"obstacle shape weird: {self.obstacle_segments.shape}")
 
