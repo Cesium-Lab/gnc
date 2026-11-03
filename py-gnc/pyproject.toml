@@ -11,7 +11,7 @@ dependencies = ["numpy", "scipy", "pandas"]
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "ruff",
+    "ruff==0.17.3",
     "tqdm",
     "ipykernel",
     "plotly",
@@ -28,8 +28,7 @@ markers = [
 ]
 
 [tool.ruff.lint]
-# Single-letter physics variable names (r, v, w, ...) are idiomatic here.
-extend-select = ["I"]
+extend-select = ["I", "F403", "RUF022"]
 ignore = ["E741", "RUF013", "B008"]
 
 [tool.ruff.lint.per-file-ignores]

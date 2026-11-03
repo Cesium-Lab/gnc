@@ -6,8 +6,8 @@
   - How to move
 
 
-<!-- 
-1. Estimation
+
+<!-- 1. Estimation
    1. Filtering
       1. U-D filter
       2. Square root filter
@@ -32,7 +32,8 @@
    3. Cart pendulum system but showing natural frequency too
 
 ## Data flow-ish
-Measurements (from sim) --> Navigation --> Guidance --> Control --> Actuator (to sim)
+Measurements (from sim) -> Navigation -> Guidance -> Control -> Actuator (to sim) ->
 
 
  -->
+<!-- tree -I '__pycache__|*.pyc|.git|.venv' -->

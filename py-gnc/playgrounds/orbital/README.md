@@ -1,7 +1,11 @@
 # Orbital Playground
 
 
+
 # Interplanetary Mission Simulations
+
+Ideas:
+- Speed vs. time for patched Lambert vs. with simulated flyby
 
 ## 1. Multi-Planet Gravity-Assist Missions
 Best for Lambert solvers, patched conics, and flyby optimization.
