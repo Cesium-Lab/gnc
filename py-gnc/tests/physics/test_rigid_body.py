@@ -3,15 +3,27 @@ import pytest
 
 from cesium.math.integrators import rk4_func
 from cesium.physics.energy import calc_total_energy
-from cesium.physics.rigid_body import RigidBodyParams, rigid_body_derivative
+from cesium.physics.rigid_body import rigid_body_derivative
 from cesium.world import MU_EARTH
 
 
-def propagate(dt: float, tmax: float, state0: np.ndarray, params: RigidBodyParams):
+def propagate(dt: float, tmax: float, state0: np.ndarray, params: dict):
     state = state0
     t = 0
     while t < tmax:
-        state = rk4_func(t, dt, state, rigid_body_derivative, params)
+        state = rk4_func(
+            t,
+            dt,
+            state,
+            lambda time, stage_state: rigid_body_derivative(
+                time,
+                stage_state,
+                params["mass"],
+                params["force_I"],
+                params.get("I"),
+                params.get("torque_B"),
+            ),
+        )
         state[6:10] /= np.linalg.norm(state[6:10])
         t += dt
     return state
@@ -19,9 +31,12 @@ def propagate(dt: float, tmax: float, state0: np.ndarray, params: RigidBodyParam
 
 class TestRigidBodyDeriv:
     def test_force_no_torque(self):
-        params = RigidBodyParams(
-            mass_kg=2, I=np.diag([2, 2, 2]), force_N=[1, 0, 0], torque_Nm=[0, 0, 0]
-        )
+        params = {
+            "mass": 2,
+            "I": np.diag([2, 2, 2]),
+            "force_I": [1, 0, 0],
+            "torque_B": [0, 0, 0],
+        }
 
         state = [
             0,
@@ -55,17 +70,17 @@ class TestRigidBodyDeriv:
             0,
         ]
 
-        dot = rigid_body_derivative(0, state, params)
+        dot = rigid_body_derivative(0, state, **params)
 
         assert np.array_equal(dot, expected)
 
     def test_torque_no_force(self):
-        params = RigidBodyParams(
-            mass_kg=2,
-            I=np.diag([2, 2, 2]),
-            force_N=[0, 0, 0],
-            torque_Nm=[1.0, 2.0, 4.0],
-        )
+        params = {
+            "mass": 2,
+            "I": np.diag([2, 2, 2]),
+            "force_I": [0, 0, 0],
+            "torque_B": [1.0, 2.0, 4.0],
+        }
 
         state = [
             0,
@@ -99,16 +114,16 @@ class TestRigidBodyDeriv:
             2,
         ]
 
-        dot = rigid_body_derivative(0, state, params)
+        dot = rigid_body_derivative(0, state, **params)
         assert np.array_equal(dot, expected)
 
     def test_random_nonsense(self):
-        params = RigidBodyParams(
-            mass_kg=17,
-            I=np.array([[15, 0.5, 0.5], [0.1, 15, 0], [0, 3, 4]]),
-            force_N=[12.0, 200.0, 14.0],
-            torque_Nm=[0.4, 0.2, 0.7],
-        )
+        params = {
+            "mass": 17,
+            "I": np.array([[15, 0.5, 0.5], [0.1, 15, 0], [0, 3, 4]]),
+            "force_I": [12.0, 200.0, 14.0],
+            "torque_B": [0.4, 0.2, 0.7],
+        }
 
         state = np.array(
             [
@@ -128,7 +143,7 @@ class TestRigidBodyDeriv:
             ]
         )
 
-        dot = rigid_body_derivative(0, state, params)
+        dot = rigid_body_derivative(0, state, **params)
 
         # Generated using Julia as a simple calculator with the textbook functions
 
@@ -163,12 +178,12 @@ class TestRigidBodyRk4Integration:
         I = np.diag((1, 1, 1))
 
         # Initialized with random but nonzero params
-        params = RigidBodyParams(
-            17.0,  # kg
-            I,
-            [12.0, 200.0, 14.0],  # force
-            [0.4, 0.2, 0.7],  # torque
-        )
+        params = {
+            "mass": 17.0,  # kg
+            "I": I,
+            "force_I": [12.0, 200.0, 14.0],  # force
+            "torque_B": [0.4, 0.2, 0.7],  # torque
+        }
 
         state = np.array(
             [
@@ -188,7 +203,19 @@ class TestRigidBodyRk4Integration:
             ]
         )
 
-        next_step = rk4_func(t, dt, state, rigid_body_derivative, params)
+        next_step = rk4_func(
+            t,
+            dt,
+            state,
+            lambda time, stage_state: rigid_body_derivative(
+                time,
+                stage_state,
+                params["mass"],
+                params["force_I"],
+                params.get("I"),
+                params.get("torque_B"),
+            ),
+        )
 
         assert np.array_equal(next_step, state)
 
@@ -196,12 +223,12 @@ class TestRigidBodyRk4Integration:
         dt = 0.001
         t = 1
 
-        params = RigidBodyParams(
-            17.0,  # kg
-            np.diag((1, 1, 1)),
-            [1.0, 10.0, 100.0],  # force for acceleration
-            [0.0, 0.0, 0.0],  # torque
-        )
+        params = {
+            "mass": 17.0,  # kg
+            "I": np.diag((1, 1, 1)),
+            "force_I": [1.0, 10.0, 100.0],  # force for acceleration
+            "torque_B": [0.0, 0.0, 0.0],  # torque
+        }
 
         state = np.array(
             [
@@ -222,7 +249,6 @@ class TestRigidBodyRk4Integration:
         )
 
         next_step = propagate(dt, t, state, params)
-        # next_step = rk4_func(t, dt, state, rigid_body_derivative, params)
 
         assert np.allclose(
             next_step[0:3],
@@ -242,12 +268,12 @@ class TestRigidBodyRk4Integration:
         dt = 0.001
         t = 3.14159
 
-        params = RigidBodyParams(
-            17.0,  # kg
-            np.diag((1, 1, 1)),
-            [0, 0, 0],  # force for acceleration
-            [0, 0, 0],  # torque
-        )
+        params = {
+            "mass": 17.0,  # kg
+            "I": np.diag((1, 1, 1)),
+            "force_I": [0, 0, 0],  # force for acceleration
+            "torque_B": [0, 0, 0],  # torque
+        }
 
         state = np.array(
             [
@@ -268,7 +294,6 @@ class TestRigidBodyRk4Integration:
         )
 
         next_step = propagate(dt, t, state, params)
-        # next_step = rk4_func(t, dt, state, rigid_body_derivative, params)
 
         assert np.array_equal(next_step[0:3], [0, 0, 0])  # no positions
         assert np.array_equal(next_step[3:6], [0, 0, 0])  # no positions
@@ -289,12 +314,12 @@ class TestRigidBodyEnergy:
         mass = 1
         I = np.diag((2, 1, 4))
         # Initialized with random but nonzero params
-        params = RigidBodyParams(
-            mass,  # kg
-            I,
-            [0, 0, 0],  # force for acceleration
-            [0, 0, 0],  # torque
-        )
+        params = {
+            "mass": mass,  # kg
+            "I": I,
+            "force_I": [0, 0, 0],  # force for acceleration
+            "torque_B": [0, 0, 0],  # torque
+        }
 
         r = [6800e3, 0, 0]
         v = [0, 0, 0]
@@ -328,12 +353,12 @@ class TestRigidBodyEnergy:
         mass = 1
         I = np.diag((2, 1, 4)) * 100
 
-        params = RigidBodyParams(
-            mass,  # kg
-            I,
-            [0, 0, 0],  # force for acceleration
-            [0, 0, 0],  # torque
-        )
+        params = {
+            "mass": mass,  # kg
+            "I": I,
+            "force_I": [0, 0, 0],  # force for acceleration
+            "torque_B": [0, 0, 0],  # torque
+        }
 
         r = [0, 0, 0]
         v = [0, 0, 0]
@@ -368,12 +393,12 @@ class TestRigidBodyEnergy:
         mass = 0.001
         I = np.diag((2, 1, 4)) * 100
 
-        params = RigidBodyParams(
-            mass,  # kg
-            I,
-            [12, 15, 16],  # force for acceleration
-            [0, 0, 0],  # torque
-        )
+        params = {
+            "mass": mass,  # kg
+            "I": I,
+            "force_I": [12, 15, 16],  # force for acceleration
+            "torque_B": [0, 0, 0],  # torque
+        }
 
         r = [0, 0, 0]
         v = [0, 0, 0]
@@ -412,12 +437,12 @@ class TestRigidBodyEnergy:
         I = np.diag((2, 1, 4)) * 100
         torque = [12.0, 15.0, 16.0]
 
-        params = RigidBodyParams(
-            mass,  # kg
-            I,
-            [0, 0, 0],  # force for acceleration
-            torque,  # torque
-        )
+        params = {
+            "mass": mass,  # kg
+            "I": I,
+            "force_I": [0, 0, 0],  # force for acceleration
+            "torque_B": torque,  # torque
+        }
 
         r = [0, 0, 0]
         v = [0, 0, 0]
@@ -447,41 +472,10 @@ class TestRigidBodyEnergy:
         ) == pytest.approx(KE, rel=0.0001)
 
 
-def test_no_I():
-    params = RigidBodyParams(mass_kg=2, I=None, force_N=[1, 0, 0], torque_Nm=[0, 0, 0])
-
-    state = [
-        0,
-        0,
-        0,  # r = 0
-        1.1,
-        1.2,
-        1.3,  # v != 0
-        1,
-        0,
-        0,
-        0,  # Identity quaternion
-        0,
-        0,
-        0,  # w = 0
-    ]
-
-    expected = [
-        1.1,
-        1.2,
-        1.3,
-        0.5,
-        0,
-        0,  # Some acceleration
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ]
-
-    dot = rigid_body_derivative(0, state, params)
-
-    assert np.array_equal(dot, expected)
+def test_no_I_returns_3DOF():
+    state = np.array([0.0, 0.0, 0.0, 1.1, 1.2, 1.3, 1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0])
+    dot = rigid_body_derivative(
+        0.0, state, mass=2.0, force_I=[1.0, 0.0, 0.0], I=None, torque_B=[3.0, 4.0, 5.0]
+    )
+    assert dot.shape == (6,)
+    assert np.allclose(dot, [1.1, 1.2, 1.3, 0.5, 0.0, 0.0])
