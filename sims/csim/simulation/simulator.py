@@ -3,7 +3,7 @@ from typing import Callable
 
 from ..entities import Spacecraft
 from cesium.math import rk4_func, unit
-from cesium.physics.rigid_body import rigid_body_derivative, RigidBodyParams
+from cesium.physics.rigid_body import rigid_body_derivative
 from cesium.physics.gravity import grav_accel
 
 # TODO: Different integrators for better ECI-ECEF OR interpolate every second or something
@@ -65,11 +65,13 @@ def rigid_body_step_fn(
     rigid-body-under-gravity-only behavior this file used to hardcode directly."""
 
     def step_fn(t, state):
-        accel = grav_accel(state[:3])
-        params = RigidBodyParams(
-            spacecraft.mass, spacecraft.I, accel * spacecraft.mass, np.zeros(3)
-        )
-        next_state = rk4_func(t, dt, state, rigid_body_derivative, params)
+        def derivative(time, stage_state):
+            force_I = grav_accel(stage_state[:3]) * spacecraft.mass
+            return rigid_body_derivative(
+                time, stage_state, spacecraft.mass, force_I, spacecraft.I, np.zeros(3)
+            )
+
+        next_state = rk4_func(t, dt, state, derivative)
         next_state[6:10] = unit(next_state[6:10])
         return next_state
 

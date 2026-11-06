@@ -1,11 +1,11 @@
 import pytest
 
 from cesium.world.constants import G0
-from csim.entities import Thruster
+from csim.entities import Propulsion
 
 
 def test_thruster_force():
-    thruster = Thruster(I_sp=300, thrust_max=1000, thrust_min=100)
+    thruster = Propulsion(I_sp=300, thrust_max=1000, thrust_min=100)
 
     # Test force at different throttle levels
     assert thruster.force(-1) == 100
@@ -24,12 +24,12 @@ def test_thruster_force():
 
 def test_thruster_invalid_params():
     with pytest.raises(ValueError):
-        Thruster(I_sp=-1, thrust_max=1000)  # I_sp negative
+        Propulsion(I_sp=-1, thrust_max=1000)  # I_sp negative
     with pytest.raises(ValueError):
-        Thruster(I_sp=0, thrust_max=1000)  # I_sp 0
+        Propulsion(I_sp=0, thrust_max=1000)  # I_sp 0
     with pytest.raises(ValueError):
-        Thruster(I_sp=300, thrust_max=-1000)  # thrust negative
+        Propulsion(I_sp=300, thrust_max=-1000)  # thrust negative
     with pytest.raises(ValueError):
-        Thruster(
+        Propulsion(
             I_sp=300, thrust_max=1000, thrust_min=2000
         )  # thrust min greater than thrust max

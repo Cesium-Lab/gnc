@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from cesium.math.integrators import rk4_func
 
@@ -7,12 +8,12 @@ from cesium.math.integrators import rk4_func
 #################################################################
 
 
-def constant_deriv(t: float, x: np.ndarray | list, _):
+def constant_deriv(t: float, x: np.ndarray) -> np.ndarray:
     return np.zeros_like(x)
 
 
 def test_constant():
-    x0 = [1, -2, 3.5, 100.3, 12.3]
+    x0 = np.array([1, -2, 3.5, 100.3, 12.3])
     dt = 1
     t = 0
     x1 = rk4_func(t, dt, x0, constant_deriv)
@@ -25,12 +26,12 @@ def test_constant():
 #################################################################
 
 
-def slope_2(t: float, x: np.ndarray | list, _):
+def slope_2(t: float, x: np.ndarray) -> np.ndarray:
     return np.array([2, 4])
 
 
 def test_constant_slope():
-    x0 = [1, 2]
+    x0 = np.array([1.0, 2.0])
     dt = 2
     t = 0
     x1 = rk4_func(t, dt, x0, slope_2)
@@ -45,7 +46,7 @@ def test_constant_slope():
 #################################################################
 
 
-def e_decay_deriv(t: float, x: np.ndarray | list, _):
+def e_decay_deriv(t: float, x: np.ndarray) -> np.ndarray:
     return -x
 
 
@@ -81,8 +82,8 @@ def test_exponential_decay_multistep():
 #################################################################
 
 
-def sine_deriv(t: float, x: np.ndarray | list, _):
-    return np.cos(t)
+def sine_deriv(t: float, x: np.ndarray) -> np.ndarray:
+    return np.full(x.shape, np.cos(t))
 
 
 def test_sine():
@@ -119,7 +120,7 @@ def test_sine_multistep():
 #################################################################
 
 
-def logistic_deriv(t: float, x: np.ndarray | list, _):
+def logistic_deriv(t: float, x: np.ndarray) -> np.ndarray:
     rate = 1
     k = 10  # asymptote
     return rate * x * (1 - x / k)
@@ -138,3 +139,21 @@ def test_logistic():
 
     # Logistic function reaches asymptote
     assert np.allclose(y, [10, 10, 10], rtol=1e-2)
+
+def test_rejects_non_array_state():
+    with pytest.raises(TypeError, match="x_prev must be a NumPy array"):
+        rk4_func(0.0, 0.1, "state", constant_deriv)
+    with pytest.raises(TypeError, match="x_prev must be a NumPy array"):
+        rk4_func(0.0, 0.1, [1.0], constant_deriv)
+
+
+def test_rejects_non_array_derivative():
+    def derivative(t, state):
+        return [0.0, 0.0]
+    def derivative_str(t, state):
+        return "not an np.ndnarray"
+
+    with pytest.raises(TypeError, match="Result of x_dot must be a NumPy array"):
+        rk4_func(0.0, 0.1, np.array([1.0, 2.0]), derivative)
+    with pytest.raises(TypeError, match="Result of x_dot must be a NumPy array"):
+        rk4_func(0.0, 0.1, np.array([1.0, 2.0]), derivative_str)

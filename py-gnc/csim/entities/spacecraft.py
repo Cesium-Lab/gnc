@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -15,12 +16,10 @@ class Spacecraft:
     r: np.ndarray | list
     v: np.ndarray | list
     mass: float
-    dry_mass: float = None
-    #     area: float
-    #     cd: float = 2.2
     name: str = ""
+    dry_mass: float = None
     prop_system: Propulsion = None
-    thrust_command: object = None
+    input_fn: Callable[[float, np.ndarray], np.ndarray] = None
 
     def __post_init__(self):
         self.r = np.asarray(self.r, dtype=float)
@@ -31,18 +30,16 @@ class Spacecraft:
         cls,
         elements,
         mass,
-        area,
-        cd=2.2,
         name="",
         mu=MU_EARTH,
         *,
-        thruster=None,
         dry_mass=None,
-        thrust_command=None,
+        prop_system=None,
+        input_fn=None,
     ):
-        """Build from classical elements (a, e, inc, raan, arg_peri, M). Angles in rad."""
-        r, v = coes_to_rv(elements, MU_EARTH)
-        return cls(r, v, mass, area, cd, name, thruster, dry_mass, thrust_command)
+        """Build from classical elements (a, e, inc, raan, aop, ta). Angles in rad."""
+        r, v = coes_to_rv(elements, mu)
+        return cls(r, v, mass, name, dry_mass, prop_system, input_fn)
 
 
 # # TODO: may split between Spacecraft and SpacecraftInterface to mimic what spacecraft actually knows

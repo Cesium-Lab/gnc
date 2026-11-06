@@ -8,12 +8,12 @@ from ..world.constants import MU_EARTH, R_EARTH
 from .gravity import grav_accel
 
 
-def two_body(state: np.ndarray, mu=MU_EARTH, j2=None, r_cb=R_EARTH) -> np.ndarray:
+def two_body(rv_I: np.ndarray, mu=MU_EARTH, j2=None, r_cb=R_EARTH) -> np.ndarray:
     """Time derivative under two-body gravity, optionally with J2.
 
     Parameters
     ----------
-    state : np.ndarray (6,)
+    rv_I : np.ndarray (6,)
         Satellite position and velocity in the inertial frame (e.g. ECI),
         `[x, y, z, vx, vy, vz]` [m, m/s].
     mu : float, optional
@@ -26,18 +26,21 @@ def two_body(state: np.ndarray, mu=MU_EARTH, j2=None, r_cb=R_EARTH) -> np.ndarra
 
     Returns
     -------
-    state_dot : np.ndarray (6,)
+    rv_dot_I : np.ndarray (6,)
         State derivative, `[vx, vy, vz, ax, ay, az]` [m/s, m/s2].
     """
-    r, v = state[0:3], state[3:6]
+    r, v = rv_I[0:3], rv_I[3:6]
     a = grav_accel(r, mu, j2, r_cb)
-    state_dot = np.concatenate((v, a))
 
-    return state_dot
+    rv_dot_I = np.zeros_like(rv_I)
+    rv_dot_I[0:3] = v
+    rv_dot_I[3:6] = a
+
+    return rv_dot_I
 
 
 def synodic_dynamics(
-    state: np.ndarray, mu1: float, mu2: float, r1_bc: float, r2_bc: float, w_s: float
+    rv_S: np.ndarray, mu1: float, mu2: float, r1_bc: float, r2_bc: float, w_s: float
 ) -> np.ndarray:
     """Time derivative under circular restricted three-body problem.
 
@@ -47,7 +50,7 @@ def synodic_dynamics(
 
     Parameters
     ----------
-    state : np.ndarray (6,)
+    rv_S : np.ndarray (6,)
         Satellite position and velocity in the synodic frame,
         `[x, y, z, vx, vy, vz]` [m, m/s].
     mu1 : float
@@ -63,7 +66,7 @@ def synodic_dynamics(
 
     Returns
     -------
-    state_dot : np.ndarray (6,)
+    rv_dot_S : np.ndarray (6,)
         State derivative in the synodic frame, `[vx, vy, vz, ax, ay, az]`
         [m/s, m/s2].
     """
@@ -74,7 +77,7 @@ def synodic_dynamics(
     assert np.isclose(mu1 * r1_bc, mu2 * r2_bc)
     assert np.isclose(w_s**2, (mu1 + mu2) / (r1_bc + r2_bc) ** 3)
 
-    x, y, z, x_dot, y_dot, z_dot = state
+    x, y, z, x_dot, y_dot, z_dot = rv_S
 
     r_1_sat = np.sqrt((x + r1_bc) ** 2 + y**2 + z**2)
     r_2_sat = np.sqrt((x - r2_bc) ** 2 + y**2 + z**2)
@@ -92,6 +95,6 @@ def synodic_dynamics(
 
     z_ddot = -mu1 * z / (r_1_sat**3) - mu2 * z / (r_2_sat**3)
 
-    state_dot = np.array([x_dot, y_dot, z_dot, x_ddot, y_ddot, z_ddot])
+    rv_dot_S = np.array([x_dot, y_dot, z_dot, x_ddot, y_ddot, z_ddot])
 
-    return state_dot
+    return rv_dot_S

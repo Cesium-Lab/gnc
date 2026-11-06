@@ -69,7 +69,7 @@ class TestHcwPropagation:
         rv = rv0.copy()
         t = 0
 
-        def hcw_f(t, x, p):
+        def hcw_f(t, x):
             return hcw_dynamics(x, np.zeros(3), n)
 
         print(tspan // dt)
