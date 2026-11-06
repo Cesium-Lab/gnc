@@ -140,6 +140,7 @@ def test_logistic():
     # Logistic function reaches asymptote
     assert np.allclose(y, [10, 10, 10], rtol=1e-2)
 
+
 def test_rejects_non_array_state():
     with pytest.raises(TypeError, match="x_prev must be a NumPy array"):
         rk4_func(0.0, 0.1, "state", constant_deriv)
@@ -150,6 +151,7 @@ def test_rejects_non_array_state():
 def test_rejects_non_array_derivative():
     def derivative(t, state):
         return [0.0, 0.0]
+
     def derivative_str(t, state):
         return "not an np.ndnarray"
 

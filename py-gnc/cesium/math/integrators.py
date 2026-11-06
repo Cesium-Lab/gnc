@@ -42,7 +42,7 @@ def rk4_func(
     """
     if not isinstance(x_prev, np.ndarray):
         raise TypeError("x_prev must be a NumPy array")
-    
+
     k1 = x_dot(t, x_prev)
 
     if not isinstance(k1, np.ndarray):
