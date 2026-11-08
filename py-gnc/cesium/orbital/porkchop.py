@@ -10,8 +10,76 @@ Example
 >>> fig.show()  # doctest: +SKIP
 """
 
+from datetime import UTC, date, datetime
+
 import numpy as np
 import plotly.graph_objects as go
+from scipy.ndimage import distance_transform_edt
+
+
+def _coordinates(values, date_axes):
+    """Normalize numeric coordinates or calendar dates for Plotly."""
+    values = np.asarray(values)
+    is_date = values.dtype.kind in "MUS" or (
+        values.dtype.kind == "O"
+        and any(
+            isinstance(v, (date, datetime, np.datetime64, str)) for v in values.flat
+        )
+    )
+    if is_date:
+        # Normalize aware Python datetimes to UTC before removing their timezone.
+        if values.dtype.kind == "O":
+            values = np.asarray(
+                [
+                    v.astimezone(UTC).replace(tzinfo=None)
+                    if isinstance(v, datetime) and v.tzinfo is not None
+                    else v
+                    for v in values.flat
+                ]
+            ).reshape(values.shape)
+        dates = values.astype("datetime64[ms]")
+    elif date_axes:
+        jd = values.astype(float)
+        if not np.all(np.isfinite(jd)):
+            raise ValueError("Julian dates must be finite")
+        # JD 2440587.5 is 1970-01-01 00:00, rather than noon.
+        dates = np.datetime64("1970-01-01", "ms") + np.rint(
+            (jd - 2440587.5) * 86400000
+        ).astype("timedelta64[ms]")
+    else:
+        return values.astype(float), False
+    if np.any(np.isnat(dates)):
+        raise ValueError("Date coordinates cannot contain NaT")
+    return dates, True
+
+
+def _plot_coordinates(values, is_date):
+    return values.astype(str).tolist() if is_date else values.tolist()
+
+
+def _julian_dates(values):
+    coordinates, is_date = _coordinates(values, False)
+    if is_date:
+        return coordinates.astype("int64") / 86400000 + 2440587.5
+    return coordinates
+
+
+def _axis_coordinates(values, mode):
+    return _coordinates(_julian_dates(values), mode == "gregorian")
+
+
+def _time_of_flight(departure, arrival, values):
+    """Resample each departure column without interpolating across masked gaps."""
+    start = arrival[0] - departure[-1]
+    end = arrival[-1] - departure[0]
+    count = int(np.ceil((end - start) / np.min(np.diff(arrival)))) + 1
+    duration = np.linspace(start, end, count)
+    result = np.full((departure.size, count), np.nan)
+    for i, dep in enumerate(departure):
+        samples = arrival - dep
+        # Keeping NaNs in the interpolant prevents bridging masked intervals.
+        result[i] = np.interp(duration, samples, values[i], left=np.nan, right=np.nan)
+    return duration, result
 
 
 def plot_porkchop(
@@ -28,8 +96,8 @@ def plot_porkchop(
     xrange=None,
     yrange=None,
     title="Porkchop plot",
-    xlabel="Departure [JD]",
-    ylabel="Arrival [JD]",
+    xlabel=None,
+    ylabel=None,
     zlabel="",
     colorscale="Viridis",
     coloring="fill",
@@ -38,6 +106,10 @@ def plot_porkchop(
     width=1200,
     height=800,
     hovertemplate=None,
+    xaxis="jd",
+    yaxis="jd",
+    date_axes=None,
+    date_format="%Y-%m-%d",
     crop=True,
     trace_kwargs=None,
     layout_kwargs=None,
@@ -60,20 +132,48 @@ def plot_porkchop(
     ``xrange``/``yrange`` set visible axis bounds. By default the full input
     coordinate extent is retained even when ``crop=True`` removes empty outer
     rows/columns (with one cell of padding) to avoid Plotly's NaN interpolation
-    failure. Pass offset coordinates and matching labels to plot days from an
-    epoch. ``coloring`` accepts Plotly's fill, lines, none, or heatmap modes.
+    failure. ``coloring`` accepts Plotly's fill, lines, none, or heatmap modes.
+    Large grids with missing values use a single contour surface with nearest
+    values extended into gaps, then an opaque background-colored mask hides
+    those gaps. This avoids Plotly NaN failures and section seams. Mask edges
+    follow grid cells; hidden regions cover background grid lines as well.
+
+    Datetime/date arrays, NumPy datetime64 arrays, and ISO date strings are
+    accepted as inputs, alongside numeric Julian dates. ``xaxis`` accepts
+    "jd" or "gregorian"; ``yaxis`` also accepts "time-of-flight" (days).
+    Gregorian axes use millisecond precision. No time-scale conversion is
+    performed; timezone-aware Python datetimes are normalized to UTC.
+    Date axis ranges accept Julian dates or calendar dates. Time-of-flight
+    ranges use days. Time-of-flight mode linearly resamples each departure's
+    values onto a shared duration grid at approximately the arrival sampling
+    interval, without extrapolation or interpolation across masked gaps.
+    ``date_axes=True`` is a compatibility alias for two Gregorian axes.
+    ``date_format`` controls date ticks and default date hover formatting.
 
     ``trace_kwargs`` and ``layout_kwargs`` override other Plotly settings.
     An entirely masked grid returns an empty, labeled figure. The returned
     figure supports further customization and ``write_image``/``write_html``.
     """
-    x = np.asarray(departure, dtype=float)
-    y = np.asarray(arrival, dtype=float)
+    if date_axes:
+        xaxis = yaxis = "gregorian"
+    if xaxis not in {"jd", "gregorian"}:
+        raise ValueError('xaxis must be "jd" or "gregorian"')
+    if yaxis not in {"jd", "gregorian", "time-of-flight"}:
+        raise ValueError('yaxis must be "jd", "gregorian", or "time-of-flight"')
+    dep_jd = _julian_dates(departure)
+    arr_jd = _julian_dates(arrival)
+    x, xdate = _axis_coordinates(dep_jd, xaxis)
+    y, ydate = _axis_coordinates(arr_jd, yaxis)
     z = np.ma.asarray(values, dtype=float).filled(np.nan).copy()
     for name, coordinates in (("departure", x), ("arrival", y)):
         if coordinates.ndim != 1 or coordinates.size < 2:
             raise ValueError(f"{name} must be a one-dimensional array of length >= 2")
-        if not np.all(np.isfinite(coordinates)) or not np.all(np.diff(coordinates) > 0):
+        numeric = (
+            coordinates.astype("int64")
+            if coordinates.dtype.kind == "M"
+            else coordinates
+        )
+        if not np.all(np.isfinite(numeric)) or not np.all(np.diff(numeric) > 0):
             raise ValueError(
                 f"{name} coordinates must be finite and strictly increasing"
             )
@@ -87,6 +187,8 @@ def plot_porkchop(
             )
         z[~keep] = np.nan
     z[~np.isfinite(z)] = np.nan
+    if yaxis == "time-of-flight":
+        y, z = _time_of_flight(dep_jd, arr_jd, z)
     if zmin is not None and zmax is not None and zmin >= zmax:
         raise ValueError("zmin must be less than zmax")
     if contour_step is not None and (
@@ -98,12 +200,26 @@ def plot_porkchop(
     fig.update_layout(
         title=title,
         xaxis={
-            "title": xlabel,
-            "range": list(xrange) if xrange is not None else [x[0], x[-1]],
+            "title": xlabel
+            if xlabel is not None
+            else "Departure" + ("" if xdate else " [JD]"),
+            "range": _plot_coordinates(_axis_coordinates(xrange, xaxis)[0], xdate)
+            if xrange is not None
+            else _plot_coordinates(x[[0, -1]], xdate),
+            **({"type": "date", "tickformat": date_format} if xdate else {}),
         },
         yaxis={
-            "title": ylabel,
-            "range": list(yrange) if yrange is not None else [y[0], y[-1]],
+            "title": ylabel
+            if ylabel is not None
+            else (
+                "Time of flight [days]"
+                if yaxis == "time-of-flight"
+                else "Arrival" + ("" if ydate else " [JD]")
+            ),
+            "range": _plot_coordinates(_axis_coordinates(yrange, yaxis)[0], ydate)
+            if yrange is not None
+            else _plot_coordinates(y[[0, -1]], ydate),
+            **({"type": "date", "tickformat": date_format} if ydate else {}),
         },
         width=width,
         height=height,
@@ -125,8 +241,8 @@ def plot_porkchop(
             ars = slice(max(0, arr.min() - 1), min(y.size, arr.max() + 2))
             x, y, z = x[ds], y[ars], z[ds, ars]
         options = {
-            "x": x.tolist(),
-            "y": y.tolist(),
+            "x": _plot_coordinates(x, xdate),
+            "y": _plot_coordinates(y, ydate),
             "z": z.T.tolist(),
             "autocontour": False,
             "contours": {
@@ -144,10 +260,57 @@ def plot_porkchop(
             "hoverongaps": False,
             "colorbar": {"title": zlabel},
             "hovertemplate": hovertemplate
-            or ("Departure: %{x}<br>Arrival: %{y}<br>Value: %{z:.2f}<extra></extra>"),
+            or (
+                "Departure: %{x"
+                + ("|" + date_format if xdate else "")
+                + (
+                    "}<br>Time of flight [days]: %{y"
+                    if yaxis == "time-of-flight"
+                    else "}<br>Arrival: %{y"
+                )
+                + ("|" + date_format if ydate else "")
+                + "}<br>Value: %{z:.2f}<extra></extra>"
+            ),
         }
         options.update(trace_kwargs or {})
-        fig.add_trace(go.Contour(**options))
+        missing = ~np.isfinite(z)
+        if missing.any() and max(z.shape) > 256:
+            # Supply Plotly a finite surface so its internal NaN interpolation
+            # cannot underflow. The mask below hides all extended values.
+            nearest = distance_transform_edt(
+                missing, return_distances=False, return_indices=True
+            )
+            surface = z[tuple(nearest)]
+            options["z"] = surface.T.tolist()
+            # Missing cells cannot supply meaningful hover values.
+            options["customdata"] = z.T.tolist()
+            options["hovertemplate"] = options["hovertemplate"].replace(
+                "%{z", "%{customdata"
+            )
+            fig.add_trace(go.Contour(**options))
+            if layout_kwargs:
+                fig.update_layout(**layout_kwargs)
+            background = (
+                fig.layout.plot_bgcolor
+                or fig.layout.template.layout.plot_bgcolor
+                or "white"
+            )
+            fig.add_trace(
+                go.Heatmap(
+                    x=_plot_coordinates(x, xdate),
+                    y=_plot_coordinates(y, ydate),
+                    z=np.where(missing.T, 1.0, np.nan).tolist(),
+                    colorscale=[[0, background], [1, background]],
+                    zmin=0,
+                    zmax=1,
+                    showscale=False,
+                    hoverinfo="skip",
+                    connectgaps=False,
+                    zsmooth=False,
+                )
+            )
+        else:
+            fig.add_trace(go.Contour(**options))
     if layout_kwargs:
         fig.update_layout(**layout_kwargs)
     if show:
