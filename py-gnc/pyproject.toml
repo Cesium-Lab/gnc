@@ -15,7 +15,8 @@ dev = [
     "tqdm",
     "ipykernel",
     "plotly",
-    "kaleido>=1"
+    "kaleido>=1",
+    "juliandate"
 ]
 
 [tool.setuptools.packages.find]

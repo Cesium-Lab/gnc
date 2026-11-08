@@ -29,3 +29,12 @@
    2. Project from Lunar Lander
 
 ### Order of Implementation
+1. `interplanetary.ipynb`
+   1. Creates `.mission` file
+   2. TODO: modularize it
+2. `departure.ipynb`
+   1. Uses `.mission` file to create launch profile for departure
+3. `arrival.ipynb`
+   1. Uses `.mission` file to B-target and rendezvous in-orbit
+4. `descent.ipynb`
+   1. Descending to landing site
