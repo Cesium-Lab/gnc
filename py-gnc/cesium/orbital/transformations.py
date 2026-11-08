@@ -9,7 +9,7 @@ from ..constants import ARCSEC_TO_RAD, DEG_TO_RAD, RAD_TO_DEG, SEC_TO_DAY
 from ..math.quaternion import unit
 from ..math.rotations import dcm_z, wrap_to_2pi
 from ..math.time import jd_to_julian_centuries
-from ..world import ECC_EARTH, R_EARTH, R_EARTH_POLAR, W_EARTH, ECLIPTIC_ANGLE
+from ..world import ECC_EARTH, ECLIPTIC_ANGLE, R_EARTH, R_EARTH_POLAR, W_EARTH
 from .CIP.parse import get_summation, import_table
 
 ################################################################################
@@ -282,22 +282,35 @@ def PCPF_to_geocentric_LLA(r_PCPF: np.ndarray, r_body_m=R_EARTH, deg=True):
 
     return lat, lon, alt_m
 
+
 ###########################################################################
 #                   HCI <--> ECI
 ###########################################################################
 
+
 def ECI_from_HCI():
     """HCI to ICRF/J2000 ECI"""
-    return np.array([
-        [1, 0, 0],
-        [0, np.cos(ECLIPTIC_ANGLE*DEG_TO_RAD), -np.sin(ECLIPTIC_ANGLE*DEG_TO_RAD)],
-        [0, np.sin(ECLIPTIC_ANGLE*DEG_TO_RAD), np.cos(ECLIPTIC_ANGLE*DEG_TO_RAD)]
-    ])
+    return np.array(
+        [
+            [1, 0, 0],
+            [
+                0,
+                np.cos(ECLIPTIC_ANGLE * DEG_TO_RAD),
+                -np.sin(ECLIPTIC_ANGLE * DEG_TO_RAD),
+            ],
+            [
+                0,
+                np.sin(ECLIPTIC_ANGLE * DEG_TO_RAD),
+                np.cos(ECLIPTIC_ANGLE * DEG_TO_RAD),
+            ],
+        ]
+    )
 
 
 ################################################################################
 #               PCI <--> PCPF
 ################################################################################
+
 
 # TODO: test
 def PCI_from_PCPF(

@@ -11,7 +11,7 @@ from .orbital.interplanetary import OrbitalFlyby
 
 
 def plot_3d(
-    traces,
+    traces=None,
     t_arrs=None,
     labels=None,
     title="3D Trajectories",
@@ -25,8 +25,15 @@ def plot_3d(
     height=800,
     show=True,
     prev_fig=None,
-):
-    """Plot one or more 3D trajectories with optional spherical bodies.
+    vectors=None,
+    trace_colors=None,
+    elev=None,
+    azim=None,
+    projection="ortho",
+    camera_distance=None,
+    scale=1.0,
+) -> go.Figure:
+    """Plot 3D trajectories, spherical bodies, and vector arrows.
 
     Parameters
     ----------
@@ -51,25 +58,46 @@ def plot_3d(
         Number of points per interpolated trajectory.
     units : str
         Position units for axis labels.
+    scale : float
+        Positive divisor converting input coordinates into displayed units.
+        For meter inputs, use scale=AU_TO_M with units="AU", or scale=1000
+        with units="km". Applies to new trajectories, body centers/radii, and
+        vector origins/lengths; existing prev_fig traces and times are unchanged.
     height : int
         Figure height in pixels.
     show : bool
         Display the figure immediately.
     prev_fig : go.Figure | None
-        Previous plotly figure to add to, or nothing
+        Existing figure to add to, including its traces in the camera bounds.
+    vectors : dict or list of dict, optional
+        Arrows with nonzero direction (3,), optional origin (default zero),
+        length (default direction magnitude, before scaling), name, color, width.
+    trace_colors : str or list of str, optional
+        One color for all trajectories, or one per trajectory.
+    elev, azim : float, optional
+        Camera elevation and azimuth in degrees, measured from +x toward +y.
+    projection : {"ortho", "persp"}
+        Camera projection.
+    camera_distance : float, optional
+        Positive camera distance; larger values zoom out. Orthographic zoom
+        scales equal axis ranges rather than only moving the camera.
 
     Returns
     -------
-    fig : go.Figure | None
-        Plotly figure or nothing if `show=False`
+    fig : go.Figure
+        Figure, whether or not it is displayed.
     """
 
-    fig = prev_fig if prev_fig else go.Figure()
+    if not np.isfinite(scale) or scale <= 0:
+        raise ValueError("scale must be positive and finite")
+    fig = prev_fig if prev_fig is not None else go.Figure()
 
     # --------------------------------------------------
     # 1. Normalize trajectory inputs
     # --------------------------------------------------
-    if isinstance(traces, np.ndarray):
+    if traces is None:
+        traces = []
+    elif isinstance(traces, np.ndarray):
         if traces.ndim == 2:
             traces = [traces]
         elif traces.ndim == 3:
@@ -79,11 +107,13 @@ def plot_3d(
     else:
         traces = list(traces)
 
-    traces = [np.asarray(r, dtype=float) for r in traces]
+    traces = [np.asarray(r, dtype=float) / scale for r in traces]
     num_traces = len(traces)
 
-    if num_traces == 0:
-        raise ValueError("At least one trajectory is required.")
+    if isinstance(trace_colors, str):
+        trace_colors = [trace_colors] * num_traces
+    elif trace_colors is not None and len(trace_colors) != num_traces:
+        raise ValueError("Number of trace colors must match trajectories.")
 
     # Labels
     if labels is None:
@@ -127,8 +157,8 @@ def plot_3d(
         sphere_z = np.outer(np.ones_like(u), np.cos(v))
 
         for body in bodies:
-            radius = float(body["radius"])
-            center = np.asarray(body.get("center", [0, 0, 0]))
+            radius = float(body["radius"]) / scale
+            center = np.asarray(body.get("center", [0, 0, 0]), dtype=float) / scale
             color = body.get("color", "royalblue")
             opacity = body.get("opacity", 0.7)
 
@@ -166,6 +196,8 @@ def plot_3d(
         else:
             t = np.asarray(t, dtype=float)
 
+        if t.ndim != 1:
+            raise ValueError(f"{label}: times must be one-dimensional.")
         if len(t) != len(r):
             raise ValueError(f"{label}: time and position lengths differ.")
 
@@ -187,7 +219,9 @@ def plot_3d(
         else:
             r_plot = r
 
-        color = colors[idx % len(colors)]
+        color = (
+            trace_colors[idx] if trace_colors is not None else colors[idx % len(colors)]
+        )
 
         # Trajectory
         fig.add_trace(
@@ -232,28 +266,139 @@ def plot_3d(
                 )
             )
 
-    # --------------------------------------------------
-    # 4. Layout
-    # --------------------------------------------------
+    # Vector shafts and arrowheads share a legend entry.
+    if vectors is not None:
+        vectors = [vectors] if isinstance(vectors, dict) else vectors
+        for idx, vector in enumerate(vectors):
+            origin = np.asarray(vector.get("origin", [0, 0, 0]), dtype=float)
+            direction = np.asarray(vector["direction"], dtype=float)
+            if (
+                origin.shape != (3,)
+                or direction.shape != (3,)
+                or not np.all(np.isfinite(origin))
+                or not np.all(np.isfinite(direction))
+            ):
+                raise ValueError(
+                    "Vector origin and direction must be finite (3,) arrays."
+                )
+            magnitude = np.linalg.norm(direction)
+            length = float(vector.get("length", magnitude))
+            if (
+                not np.isfinite(magnitude)
+                or magnitude == 0
+                or not np.isfinite(length)
+                or length <= 0
+            ):
+                raise ValueError(
+                    "Vector direction must be nonzero and length positive and finite."
+                )
+            direction = direction / magnitude
+            origin = origin / scale
+            length = length / scale
+            endpoint = origin + length * direction
+            color = vector.get("color", colors[idx % len(colors)])
+            name = vector.get("name", f"Vector {idx + 1}")
+            group = f"vector-{len(fig.data)}"
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[origin[0], endpoint[0]],
+                    y=[origin[1], endpoint[1]],
+                    z=[origin[2], endpoint[2]],
+                    mode="lines",
+                    name=name,
+                    legendgroup=group,
+                    line={"color": color, "width": vector.get("width", 5)},
+                )
+            )
+            fig.add_trace(
+                go.Cone(
+                    x=[endpoint[0]],
+                    y=[endpoint[1]],
+                    z=[endpoint[2]],
+                    u=[direction[0]],
+                    v=[direction[1]],
+                    w=[direction[2]],
+                    anchor="tip",
+                    sizemode="absolute",
+                    sizeref=0.06 * length,
+                    colorscale=[[0, color], [1, color]],
+                    showscale=False,
+                    name=f"{name} arrowhead",
+                    legendgroup=group,
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
+
+    # Equal axis ranges keep planar trajectories and spherical bodies undistorted.
+    if projection not in {"ortho", "persp"}:
+        raise ValueError('projection must be "ortho" or "persp"')
+    plotted_points = []
+    for trace in fig.data:
+        if not all(getattr(trace, axis, None) is not None for axis in "xyz"):
+            continue
+        xyz = [np.asarray(getattr(trace, axis), dtype=float).ravel() for axis in "xyz"]
+        if len({len(a) for a in xyz}) != 1:
+            continue
+        points = np.column_stack(xyz)
+        plotted_points.append(points[np.all(np.isfinite(points), axis=1)])
+    auto_distance = max(3.0, 3.0 * (height - 50) / 800)
+    if camera_distance is None:
+        camera_distance = auto_distance
+    if not np.isfinite(camera_distance) or camera_distance <= 0:
+        raise ValueError("camera_distance must be positive and finite")
+    zoom_scale = camera_distance / auto_distance if projection == "ortho" else 1.0
+    axis_ranges = {}
+    if plotted_points and any(len(p) for p in plotted_points):
+        points = np.concatenate(plotted_points)
+        low, high = points.min(axis=0), points.max(axis=0)
+        center = (low + high) / 2
+        half_span = max(float(np.max(high - low)) / 2, 1e-9) * 1.10 * zoom_scale
+        axis_ranges = {
+            f"{axis}axis": {"range": [c - half_span, c + half_span]}
+            for axis, c in zip("xyz", center)
+        }
     fig.update_layout(
         title=title,
         scene={
             "xaxis_title": f"X [{units}]",
             "yaxis_title": f"Y [{units}]",
             "zaxis_title": f"Z [{units}]",
-            "aspectmode": "data",
+            "aspectmode": "cube",
+            **axis_ranges,
+            "camera": _plotly_camera(
+                np.rad2deg(np.arctan(1 / np.sqrt(2))) if elev is None else elev,
+                45 if azim is None else azim,
+                projection,
+                auto_distance if projection == "ortho" else camera_distance,
+            ),
         },
         template="plotly_white",
-        legend={"x": 0.02, "y": 0.98},
+        legend={"x": 0.02, "y": 0.98, "bgcolor": "rgba(0,0,0,0)", "borderwidth": 0},
         height=height,
         margin={"l": 0, "r": 0, "b": 0, "t": 50},
     )
-
     if show:
         fig.show()
-        return None
-
     return fig
+
+
+def _plotly_camera(elev, azim, projection, distance):
+    """Convert elevation and azimuth in degrees to a Plotly camera."""
+    if not np.all(np.isfinite([elev, azim])):
+        raise ValueError("Camera elevation and azimuth must be finite")
+    elevation, azimuth = np.deg2rad([elev, azim])
+    return {
+        "eye": {
+            "x": distance * np.cos(elevation) * np.cos(azimuth),
+            "y": distance * np.cos(elevation) * np.sin(azimuth),
+            "z": distance * np.sin(elevation),
+        },
+        "up": {"x": 0, "y": 0, "z": 1},
+        "projection": {
+            "type": "orthographic" if projection == "ortho" else "perspective"
+        },
+    }
 
 
 def plot_flybys(
