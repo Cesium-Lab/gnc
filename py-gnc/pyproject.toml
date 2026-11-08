@@ -15,10 +15,12 @@ dev = [
     "tqdm",
     "ipykernel",
     "plotly",
+    "kaleido>=1"
 ]
 
 [tool.setuptools.packages.find]
-include = ["cesium*"]
+where = ["."]
+include = ["cesium", "cesium.*", "csim", "csim.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -2,38 +2,20 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
 
 from ..math.quaternion import hamilton_product
 
 
-@dataclass
-class RigidBodyParams:
-    """Mass properties and applied loads for `rigid_body_derivative`.
-
-    Attributes
-    ----------
-    mass_kg : float
-        Mass of the body [kg].
-    I : np.ndarray (3, 3) or None
-        Moment of inertia tensor about the center of mass, in the body frame
-        [kg*m2]. If None, attitude rates are held constant.
-    force_N : np.ndarray (3,)
-        Total external force on the body, in the inertial frame [N].
-    torque_Nm : np.ndarray (3,)
-        Total external torque about the center of mass, in the body frame [N*m].
-    """
-
-    mass_kg: float
-    I: np.ndarray
-    force_N: np.ndarray
-    torque_Nm: np.ndarray
-
-
-def rigid_body_derivative(t: float, state: np.ndarray, params: RigidBodyParams):
-    """Time derivative of a 6-DOF rigid-body state.
+def rigid_body_derivative(
+    t: float,
+    state: np.ndarray,
+    mass: float,
+    force_I: np.ndarray,
+    I: np.ndarray = None,
+    torque_B: np.ndarray = None,
+):
+    """Time derivative of a 3-DOF or 6-DOF rigid-body state.
 
     Parameters
     ----------
@@ -42,13 +24,20 @@ def rigid_body_derivative(t: float, state: np.ndarray, params: RigidBodyParams):
     state : np.ndarray (13,)
         `[r, v, q, w]`: inertial position [m], inertial velocity [m/s], scalar-first
         attitude quaternion `[w, x, y, z]`, and body-frame angular velocity [rad/s].
-    params : RigidBodyParams
-        Mass properties and applied force and torque.
+    mass : float
+        Mass [kg].
+    force_I : np.ndarray (3,)
+        Total inertial-frame force [N].
+    I : np.ndarray (3, 3) or None
+        If using 6-DOF, body-frame inertia about the center of mass [kg*m2]. None disables attitude dynamics:
+        both quaternion and angular velocity derivatives are zero.
+    torque_B : np.ndarray (3,) or None
+        If using 6-DOF, total body-frame torque about the center of mass [Nm].
 
     Returns
     -------
     np.ndarray (13,)
-        State derivative `[v, a, q_dot, w_dot]` [m/s, m/s2, 1/s, rad/s2].
+        State derivative `[v, a, q_dot, w_dot]` [m/s, m/s2, 1/s, rad/s2] if 6DOF or `[v, a]` [m/s, m/s2] if 3DOF
 
     References
     ----------
@@ -57,30 +46,20 @@ def rigid_body_derivative(t: float, state: np.ndarray, params: RigidBodyParams):
     del t
 
     v = state[3:6]
-    q = state[6:10]
-    w = state[10:13]
 
     # Position derivative is velocity
     drdt = v
 
     # Velocity derivative is acceleration (Schaub 2.15)
-    dvdt = np.asarray(params.force_N) / params.mass_kg
+    dvdt = np.asarray(force_I) / mass
 
-    # Quaternion derivative is based on hamilton product (Schaub 3.111)
-    # print(q)
-    # print(w)
-    dqdt = 0.5 * hamilton_product(q, w)
-    # print(dqdt)
-    # Angular derivative based on (Schaub 4.34-35)
+    # Only evaluate attitude if desired
+    if I is not None and torque_B is not None and len(state) > 6:
+        q = state[6:10]
+        w = state[10:13]
+        # Quaternion kinematics (Schaub 3.111) and Euler dynamics (4.34-35).
+        dqdt = 0.5 * hamilton_product(q, w)
+        dwdt = np.linalg.solve(I, np.asarray(torque_B) - np.cross(w, I @ w))
+        return np.hstack((drdt, dvdt, dqdt, dwdt))
 
-    I = params.I
-    if I is not None:
-        I_inv = np.linalg.inv(I)  # TODO: maybe precalc this
-        torque = np.asarray(params.torque_Nm)
-
-        # τ = parameters.torque_body
-        dwdt = I_inv @ (torque - np.cross(w, I @ w))
-    else:
-        dwdt = np.zeros(3)
-
-    return np.hstack((drdt, dvdt, dqdt, dwdt))
+    return np.hstack((drdt, dvdt))

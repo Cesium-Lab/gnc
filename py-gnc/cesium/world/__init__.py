@@ -1,5 +1,6 @@
 from .constants import (
     ECC_EARTH,
+    ECLIPTIC_ANGLE,
     G_CONST,
     GRAV_EARTH_EQUA,
     GRAV_EARTH_POLE,
@@ -13,6 +14,7 @@ from .constants import (
 
 __all__ = [
     "ECC_EARTH",
+    "ECLIPTIC_ANGLE",
     "GRAV_EARTH_EQUA",
     "GRAV_EARTH_POLE",
     "G_CONST",
