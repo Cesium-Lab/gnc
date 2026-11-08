@@ -69,16 +69,22 @@ def _axis_coordinates(values, mode):
 
 
 def _time_of_flight(departure, arrival, values):
-    """Resample each departure column without interpolating across masked gaps."""
-    start = arrival[0] - departure[-1]
-    end = arrival[-1] - departure[0]
-    count = int(np.ceil((end - start) / np.min(np.diff(arrival)))) + 1
-    duration = np.linspace(start, end, count)
-    result = np.full((departure.size, count), np.nan)
+    """Convert arrival columns to a shared duration axis without bridging gaps."""
+    dep_idx, arr_idx = np.where(np.isfinite(values))
+    if dep_idx.size:
+        durations = arrival[arr_idx] - departure[dep_idx]
+        lo, hi = durations.min(), durations.max()
+    else:
+        lo, hi = arrival[0] - departure[-1], arrival[-1] - departure[0]
+    step = np.min(np.diff(arrival))
+    count = max(2, int(np.ceil((hi - lo) / step)) + 1)
+    duration = np.linspace(lo, hi if hi > lo else lo + step, count)
+    result = np.full((departure.size, duration.size), np.nan)
     for i, dep in enumerate(departure):
-        samples = arrival - dep
-        # Keeping NaNs in the interpolant prevents bridging masked intervals.
-        result[i] = np.interp(duration, samples, values[i], left=np.nan, right=np.nan)
+        # NaN samples remain in place to prevent interpolation across gaps.
+        result[i] = np.interp(
+            duration, arrival - dep, values[i], left=np.nan, right=np.nan
+        )
     return duration, result
 
 
@@ -140,13 +146,13 @@ def plot_porkchop(
 
     Datetime/date arrays, NumPy datetime64 arrays, and ISO date strings are
     accepted as inputs, alongside numeric Julian dates. ``xaxis`` accepts
-    "jd" or "gregorian"; ``yaxis`` also accepts "time-of-flight" (days).
+    "jd" or "gregorian"; ``yaxis`` also accepts "time-of-flight".
     Gregorian axes use millisecond precision. No time-scale conversion is
     performed; timezone-aware Python datetimes are normalized to UTC.
     Date axis ranges accept Julian dates or calendar dates. Time-of-flight
-    ranges use days. Time-of-flight mode linearly resamples each departure's
-    values onto a shared duration grid at approximately the arrival sampling
-    interval, without extrapolation or interpolation across masked gaps.
+    ranges use days. Time-of-flight mode resamples each departure row against
+    ``arrival - departure[i]`` onto a shared duration axis in days. NaN gaps
+    remain masked, with no extrapolation; limits default to finite data.
     ``date_axes=True`` is a compatibility alias for two Gregorian axes.
     ``date_format`` controls date ticks and default date hover formatting.
 
@@ -297,6 +303,7 @@ def plot_porkchop(
             )
             fig.add_trace(
                 go.Heatmap(
+                    zorder=1,
                     x=_plot_coordinates(x, xdate),
                     y=_plot_coordinates(y, ydate),
                     z=np.where(missing.T, 1.0, np.nan).tolist(),
