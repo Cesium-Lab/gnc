@@ -120,7 +120,7 @@ def plot_porkchop(
     trace_kwargs=None,
     layout_kwargs=None,
     show=False,
-):
+) -> go.Figure:
     """Return a configurable Plotly contour figure without changing the inputs.
 
     ``values`` has shape ``(len(departure), len(arrival))``: pass the
