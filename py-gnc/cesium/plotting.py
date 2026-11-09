@@ -32,6 +32,7 @@ def plot_3d(
     projection="ortho",
     camera_distance=None,
     scale=1.0,
+    frames=None,
 ) -> go.Figure:
     """Plot 3D trajectories, spherical bodies, and vector arrows.
 
@@ -72,6 +73,12 @@ def plot_3d(
     vectors : dict or list of dict, optional
         Arrows with nonzero direction (3,), optional origin (default zero),
         length (default direction magnitude, before scaling), name, color, width.
+    frames : dict or list of dict, optional
+        Coordinate triads with location (default zero), dcm_body_wrt_hci
+        (default identity), length (default 1 in input units), and name.
+        The DCM maps HCI components to body components; its rows give the
+        body's X/Y/Z axes in the plotted HCI frame. Optional colors defaults
+        to red/green/blue; width defaults to 4. Locations and lengths use scale.
     trace_colors : str or list of str, optional
         One color for all trajectories, or one per trajectory.
     elev, azim : float, optional
@@ -266,10 +273,43 @@ def plot_3d(
                 )
             )
 
+    # Coordinate triads reuse the same arrow geometry as other vectors.
+    vector_specs = (
+        []
+        if vectors is None
+        else ([vectors] if isinstance(vectors, dict) else list(vectors))
+    )
+    if frames is not None:
+        for frame in [frames] if isinstance(frames, dict) else frames:
+            dcm = np.asarray(frame.get("dcm_body_wrt_hci", np.eye(3)), dtype=float)
+            if (
+                dcm.shape != (3, 3)
+                or not np.isfinite(dcm).all()
+                or not np.allclose(dcm @ dcm.T, np.eye(3), atol=1e-6, rtol=0)
+                or not np.isclose(np.linalg.det(dcm), 1, atol=1e-6, rtol=0)
+            ):
+                raise ValueError(
+                    "dcm_body_wrt_hci must be a proper 3x3 rotation matrix"
+                )
+            frame_colors = frame.get("colors", ["red", "green", "blue"])
+            if len(frame_colors) != 3:
+                raise ValueError("Frame colors must contain one color per axis")
+            for axis, direction, color in zip("XYZ", dcm, frame_colors):
+                vector_specs.append(
+                    {
+                        "origin": frame.get("location", [0, 0, 0]),
+                        "direction": direction,
+                        "length": frame.get("length", 1.0),
+                        "name": f"{frame.get('name', 'Frame')} {axis}",
+                        "color": color,
+                        "width": frame.get("width", 4),
+                        "label": True,
+                    }
+                )
+
     # Vector shafts and arrowheads share a legend entry.
-    if vectors is not None:
-        vectors = [vectors] if isinstance(vectors, dict) else vectors
-        for idx, vector in enumerate(vectors):
+    if vector_specs:
+        for idx, vector in enumerate(vector_specs):
             origin = np.asarray(vector.get("origin", [0, 0, 0]), dtype=float)
             direction = np.asarray(vector["direction"], dtype=float)
             if (
@@ -304,7 +344,9 @@ def plot_3d(
                     x=[origin[0], endpoint[0]],
                     y=[origin[1], endpoint[1]],
                     z=[origin[2], endpoint[2]],
-                    mode="lines",
+                    mode="lines+text" if vector.get("label", False) else "lines",
+                    text=["", name] if vector.get("label", False) else None,
+                    textposition="top center",
                     name=name,
                     legendgroup=group,
                     line={"color": color, "width": vector.get("width", 5)},

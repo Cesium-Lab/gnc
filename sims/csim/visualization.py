@@ -45,7 +45,7 @@ def plot_orbit(r: np.ndarray):
         y=r[:, 1],
         z=r[:, 2],
         mode="markers",
-        marker=dict(size=1, color="blue"),
+        marker={"size": 1, "color": "blue"},
         name="Trajectory",
     )
 
@@ -55,7 +55,7 @@ def plot_orbit(r: np.ndarray):
         y=[r[-1, 1]],
         z=[r[-1, 2]],
         mode="markers",
-        marker=dict(size=10, color="green"),
+        marker={"size": 10, "color": "green"},
         name="Final Position",
     )
 
@@ -65,10 +65,10 @@ def plot_orbit(r: np.ndarray):
         y=[r[0, 1]],
         z=[r[0, 2]],
         mode="markers",
-        marker=dict(
-            size=10,
-            color="red",
-        ),
+        marker={
+            "size": 10,
+            "color": "red",
+        },
         name="Initial Position",
     )
 
@@ -87,7 +87,7 @@ def plot_orbit(r: np.ndarray):
     fig.update_layout(
         width=1000,
         height=800,
-        title_font=dict(size=24, family="Garamond"),
+        title_font={"size": 24, "family": "Garamond"},
         title_text="Satellite Trajectory",
         title_x=0.5,
         title_y=0.9,
@@ -112,7 +112,7 @@ def plot_rocket(r: np.ndarray):
         y=r[:, 1],
         z=r[:, 2],
         mode="markers",
-        marker=dict(size=1, color="blue"),
+        marker={"size": 1, "color": "blue"},
         name="Trajectory",
     )
 
@@ -122,7 +122,7 @@ def plot_rocket(r: np.ndarray):
         y=[r[-1, 1]],
         z=[r[-1, 2]],
         mode="markers",
-        marker=dict(size=10, color="green"),
+        marker={"size": 10, "color": "green"},
         name="Final Position",
     )
 
@@ -132,10 +132,10 @@ def plot_rocket(r: np.ndarray):
         y=[r[0, 1]],
         z=[r[0, 2]],
         mode="markers",
-        marker=dict(
-            size=10,
-            color="red",
-        ),
+        marker={
+            "size": 10,
+            "color": "red",
+        },
         name="Initial Position",
     )
 
@@ -154,7 +154,7 @@ def plot_rocket(r: np.ndarray):
     fig.update_layout(
         width=1000,
         height=800,
-        title_font=dict(size=24, family="Garamond"),
+        title_font={"size": 24, "family": "Garamond"},
         title_text="Rocket Trajectory",
         title_x=0.5,
         title_y=0.9,
