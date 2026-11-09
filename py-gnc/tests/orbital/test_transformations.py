@@ -80,8 +80,8 @@ def test_ecef_to_sez():
 
 def test_ecef_to_sez_cardinal_directions():
     """Mainly tests azimuth. Edge cases"""
-    r_site = Trans.geodetic_LLA_to_ECEF(0, 0) # equator
-    
+    r_site = Trans.geodetic_LLA_to_ECEF(0, 0)  # equator
+
     az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 1000, 0], 0, 0)
     assert np.allclose([az, el, rho], [90, 0, 1000])
 
@@ -104,7 +104,7 @@ def test_ecef_to_sez_geodetic_axes():
     az, el, rho = Trans.geodetic_ECEF_to_SEZ(
         r_site + 1000 * up, lat, lon, 100, deg=False
     )
-    
+
     assert az == pytest.approx(0)
     assert el == pytest.approx(np.pi / 2)
     assert rho == pytest.approx(1000)

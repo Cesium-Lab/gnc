@@ -120,24 +120,26 @@ def geodetic_ECEF_to_SEZ(
     zenith = np.array(
         [np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)]
     )
-    dcm_sez_wrt_ecef = np.stack((south, east, zenith)) # columns makes sez->ecef so rows makes ecef->sez
+    dcm_sez_wrt_ecef = np.stack(
+        (south, east, zenith)
+    )  # columns makes sez->ecef so rows makes ecef->sez
     r_sat_sez = dcm_sez_wrt_ecef @ (r_sat_ecef_m - r_site_ecef_m)
 
     rho = norm(r_sat_sez)
     if rho == 0:
         raise ValueError("Satellite and site coincide; viewing angles are undefined")
-    
+
     horizontal = np.hypot(r_sat_sez[0], r_sat_sez[1])
     azimuth = (
-        0 if horizontal <= 1e-9 * rho
+        0
+        if horizontal <= 1e-9 * rho
         else wrap_to_2pi(np.arctan2(r_sat_sez[1], -r_sat_sez[0]))
     )
     elevation = (
-        np.pi/2 if horizontal <= 1e-9 * rho
+        np.pi / 2
+        if horizontal <= 1e-9 * rho
         else wrap_to_pi(np.arctan2(r_sat_sez[2], horizontal))
     )
-    
-
 
     if deg:
         azimuth *= RAD_TO_DEG
