@@ -54,10 +54,12 @@ def _coordinates(values, date_axes):
 
 
 def _plot_coordinates(values, is_date):
+    """Serialize numeric or datetime coordinates as Plotly-compatible lists."""
     return values.astype(str).tolist() if is_date else values.tolist()
 
 
 def _julian_dates(values):
+    """Convert calendar inputs to Julian days, leaving numeric inputs in Julian days."""
     coordinates, is_date = _coordinates(values, False)
     if is_date:
         return coordinates.astype("int64") / 86400000 + 2440587.5
@@ -65,6 +67,7 @@ def _julian_dates(values):
 
 
 def _axis_coordinates(values, mode):
+    """Return Julian or Gregorian coordinates and whether Plotly needs a date axis."""
     return _coordinates(_julian_dates(values), mode == "gregorian")
 
 

@@ -70,7 +70,49 @@ def sph_of_infl(r_sat: float, mu_sat: float, mu_cb: float):
 
 
 class InterplanetaryTransferGrid:
-    """Everything in KM and KM/S. TODO: class methods for different initialization"""
+    """Search heliocentric Lambert transfers on a departure/arrival date grid.
+
+    Parameters
+    ----------
+    name : str
+        Name used in progress messages.
+    departure_start_jd, departure_end_jd : float
+        Departure interval in Julian days; the end is excluded.
+    tof_bounds : tuple[float, float]
+        Inclusive minimum and maximum flight duration, in days.
+    planet_nums : tuple[int, int]
+        Departure and arrival planet identifiers for ``planet_elements_and_rv``.
+    resolution_days : float, optional
+        Spacing of both date axes in days.
+    verbose : bool, optional
+        Print initialization and computation summaries.
+
+    Attributes
+    ----------
+    t_dep_jd, t_arr_jd : ndarray
+        One-dimensional date axes. Arrival dates cover the departure interval
+        shifted by the flight-duration bounds; not every date pair is valid.
+    tof_grid_days : ndarray, shape (n_dep, n_arr)
+        Arrival minus departure in days
+    rv_dep_body_hci, rv_arr_body_hci : ndarray
+        Planet states on their respective date axes, shaped (n_dep, 6) and
+        (n_arr, 6). Positions are meters and velocities are m/s.
+    C3_grid_km2 : ndarray, shape (n_dep, n_arr)
+        Departure planet-relative excess speed squared, in km²/s². Created
+        by ``compute_grid`` along with the velocity arrays.
+    v_dep_pci_km, v_arr_pci_km : ndarray, shape (n_dep, n_arr, 3)
+        Planet-relative excess velocities in km/s, expressed in HCI axes.
+    v1_dep_hci_km, v2_arr_hci_km : ndarray, shape (n_dep, n_arr, 3)
+        Heliocentric Lambert departure and arrival velocities in km/s.
+    failed_transfers : list[tuple]
+        Departure JD, arrival JD, and error text for caught solver failures.
+
+    Notes
+    -----
+    Result grids use [departure, arrival] indexing. Excluded and failed pairs
+    remain NaN. These epochs describe the heliocentric transfer; they do not
+    specify liftoff, injection-burn, or planetary SOI-crossing times.
+    """
 
     def __init__(
         self,
@@ -82,7 +124,7 @@ class InterplanetaryTransferGrid:
         resolution_days: float = 1.0,
         verbose=True,
     ):
-
+        """Build the date axes, duration grid, and SI planet states without solving transfers."""
         self.name = name
         self.verbose = verbose
         # Time
@@ -106,7 +148,7 @@ class InterplanetaryTransferGrid:
         dep_grid_jd, arr_grid_jd = np.meshgrid(
             self.t_dep_jd, self.t_arr_jd, indexing="ij"
         )
-        self.tof_grid_jd = arr_grid_jd - dep_grid_jd
+        self.tof_grid_days = arr_grid_jd - dep_grid_jd
 
         # Planets (indexed on arrival and departure date lengths)
         self.rv_dep_body_hci = np.array(
@@ -129,8 +171,20 @@ class InterplanetaryTransferGrid:
             )
 
     def compute_grid(self):
-
         # Solutions
+        """Populate C3 and velocity grids with zero-revolution Lambert solutions.
+
+        Only pairs within ``self.tof_bounds`` are solved. Each call replaces the
+        previous result arrays and failure list. Caught ``ValueError`` failures
+        are recorded in ``failed_transfers``; unsolved entries retain NaN.
+        Planet states and Lambert inputs use SI units; stored transfer velocities
+        are converted to km/s and C3 to km²/s².
+
+        Returns
+        -------
+        None
+            Results are stored on this object.
+        """
         self.C3_grid_km2 = np.full((self.n_dep, self.n_arr), np.nan)
 
         self.v_dep_pci_km = np.full(
@@ -157,7 +211,7 @@ class InterplanetaryTransferGrid:
 
             for arr_i in range(self.n_arr):
                 rv_arr = self.rv_arr_body_hci[arr_i]
-                tof = self.tof_grid_jd[dep_i, arr_i]
+                tof = self.tof_grid_days[dep_i, arr_i]
 
                 if not self.tof_bounds[0] <= tof <= self.tof_bounds[1]:
                     continue
@@ -196,10 +250,38 @@ class InterplanetaryTransferGrid:
 
 def calc_transfer(r1_intrl: np.ndarray, r2_intrl: np.ndarray, tof_s: float, mu=MU_SUN):
     # Time and speed of light check
+    """Solve a prograde, zero-revolution heliocentric Lambert transfer in SI units.
+
+    Parameters
+    ----------
+    r1_intrl, r2_intrl : ndarray, shape (3,)
+        Departure and arrival positions in the same inertial frame, in meters.
+    tof_s : float
+        Flight duration in seconds.
+    mu : float, optional
+        Central-body gravitational parameter in m³/s²; defaults to the Sun.
+
+    Returns
+    -------
+    v1_intrl, v2_intrl : ndarray, shape (3,)
+        Real inertial departure and arrival velocities in m/s. Returns two
+        scalar NaNs instead if duration is nonpositive or chord speed exceeds
+        the speed of light.
+
+    Raises
+    ------
+    ValueError
+        If Lambert fails, returns non-finite velocities, or has an imaginary
+        velocity component larger than 1e-9 m/s.
+
+    Notes
+    -----
+    Uses ``izzo2015`` prograde with M=0 and its default direction/branch settings.
+    """
     if tof_s <= 0 or (norm(r1_intrl - r2_intrl) / tof_s) > C_LIGHT:
         return np.nan, np.nan
 
-    result = izzo2015(mu, r1_intrl, r2_intrl, float(tof_s), M=0)
+    result = izzo2015(mu, r1_intrl, r2_intrl, float(tof_s), prograde=True, M=0)
     v1_intrl, v2_intrl = (
         np.array(result[0]).reshape((3,)),
         np.array(result[1]).reshape((3,)),
@@ -221,7 +303,42 @@ def calc_transfer(r1_intrl: np.ndarray, r2_intrl: np.ndarray, tof_s: float, mu=M
 
 
 class InterplanetaryTrajectory:
-    """Everything in M and M/S. TODO: class methods for different initialization"""
+    """Propagate one heliocentric transfer and sample both planets with it.
+
+    Parameters
+    ----------
+    name : str
+        Name used in printed summaries.
+    departure_jd, arrival_jd : float
+        Heliocentric Lambert reference epochs in Julian days. Arrival must
+        follow departure; these are not surface-launch or SOI-crossing epochs.
+    planet_nums : tuple[int, int]
+        Departure and arrival planet identifiers for the existing ephemeris.
+    resolution_days : float, optional
+        Positive sampling interval in days. The exact arrival epoch is
+        appended, so the final interval can be shorter.
+    verbose : bool, optional
+        Print dates and resolution during initialization.
+
+    Attributes
+    ----------
+    t_eval_jd : ndarray, shape (N,)
+        Shared sample dates, including exact departure and arrival.
+    tof_s : float
+        Requested arrival minus departure in seconds.
+    rv_dep_body_hci, rv_arr_body_hci : ndarray, shape (N, 6)
+        Planet position/velocity states in HCI, in meters and m/s.
+    r_sat_hci, v_sat_hci : ndarray, shape (N, 3)
+        Propagated spacecraft positions in meters and velocities in m/s;
+        populated by ``launch_that_babyy`` when integration reaches every sample.
+    C3 : float
+        Currently stores squared planet-relative departure speed in m²/s².
+
+    Notes
+    -----
+    Initialization samples ephemerides; propagation is a separate operation.
+    The spacecraft coast model includes solar two-body gravity only.
+    """
 
     def __init__(
         self,
@@ -232,7 +349,7 @@ class InterplanetaryTrajectory:
         resolution_days: float = 0.1,
         verbose=True,
     ):
-
+        """Sample both planets on a shared date grid that includes the exact arrival epoch."""
         self.name = name
         self.verbose = verbose
 
@@ -277,8 +394,18 @@ class InterplanetaryTrajectory:
             print(f"\tResolution: {resolution_days} days")
 
     def launch_that_babyy(self):
+        """Solve the endpoint transfer and propagate the spacecraft under solar gravity.
 
-        # Spacecraft
+        Uses ``calc_transfer`` to obtain the initial heliocentric velocity, then
+        integrates ``two_body`` with ``MU_SUN`` at ``t_eval_jd``. Stores position
+        and velocity arrays in meters and m/s and prints the arrival position
+        residual in meters. The current ``C3`` attribute Earth-relative excess speed squared.
+
+        Returns
+        -------
+        None
+            The propagated arrays and ``C3`` are assigned to this object.
+        """
         try:
             v1, v2 = calc_transfer(
                 self.rv_dep_body_hci[0, 0:3],
@@ -306,7 +433,7 @@ class InterplanetaryTrajectory:
         self.r_sat_hci = sat_coast.y.T[:, 0:3]
         self.v_sat_hci = sat_coast.y.T[:, 3:6]
 
-        self.C3 = norm(self.v_sat_hci[0]) ** 2
+        self.C3 = norm(self.v_sat_hci[0] - self.rv_dep_body_hci[0, 0:3]) ** 2
 
         print(
             f"Position difference (m): {norm(self.r_sat_hci[-1, 0:3] - self.rv_arr_body_hci[-1, 0:3])}"
@@ -319,7 +446,25 @@ class InterplanetaryTrajectory:
 
 
 def departure_characteristics(v_dep_eci: np.ndarray):
-    """C3, rla, dla"""
+    """Calculate characteristic energy and asymptote angles from excess velocity.
+
+    Parameters
+    ----------
+    v_dep_eci : ndarray, shape (3,)
+        Nonzero, planet-relative hyperbolic excess velocity expressed in
+        Earth's equatorial inertial axes. Subtract Earth's velocity BEFORE
+        rotating from HCI; do not supply heliocentric spacecraft velocity.
+
+    Returns
+    -------
+    C3 : float
+        Squared excess speed. Units follow the input: m²/s² for m/s, or
+        km²/s² for km/s.
+    rla : float
+        Right ascension of the outgoing asymptote in radians, in [0, 2*pi).
+    dla : float
+        Declination of the outgoing asymptote in radians, in [-pi/2, pi/2].
+    """
     C3 = norm(v_dep_eci) ** 2
     rla = wrap_to_2pi(np.arctan2(v_dep_eci[1], v_dep_eci[0]))
     dla = wrap_to_pi(np.arcsin(v_dep_eci[2] / norm(v_dep_eci)))
@@ -328,11 +473,33 @@ def departure_characteristics(v_dep_eci: np.ndarray):
 
 @dataclass
 class EarthLaunchWindow:
-    """Filter a computed transfer grid; C3 in km²/s², RA/dec in degrees, dates in JD."""
+    """Maintain a feasible subset of an Earth-departure transfer grid.
+
+    Parameters
+    ----------
+    grid : InterplanetaryTransferGrid or EarthDepartureGrid
+        A computed transfer grid, or its already calculated Earth-departure
+        characteristics. An EarthDepartureGrid is constructed when needed.
+
+    Attributes
+    ----------
+    transfer : InterplanetaryTransferGrid
+        Underlying date axes, planet states, and Lambert results.
+    departure : EarthDepartureGrid
+        C3, equatorial excess velocity, RLA, and DLA used for filtering.
+    mask : ndarray of bool, shape (n_dep, n_arr)
+        Starts with finite transfer solutions and narrows with each filter.
+
+    Notes
+    -----
+    Indices returned by this object refer to ``transfer``, not to compacted
+    arrays. Filtering leaves the underlying transfer results unchanged.
+    """
 
     grid: InterplanetaryTransferGrid | EarthDepartureGrid
 
     def __post_init__(self):
+        """Attach Earth departure characteristics and copy their valid-solution mask."""
         self.departure = (
             self.grid
             if isinstance(self.grid, EarthDepartureGrid)
@@ -347,16 +514,45 @@ class EarthLaunchWindow:
         c3=None,
         rla=None,
         dla=None,
-        launch_bounds_jd=None,
+        departure_bounds_jd=None,
         arrival_bounds_jd=None,
-    ):
-        """Keep inclusive (min, max) bounds; None means unbounded. Calls accumulate."""
+    ) -> EarthLaunchWindow:
+        """Narrow the current selection using inclusive lower/upper bounds.
+
+        Parameters
+        ----------
+        c3 : tuple[float | None, float | None], optional
+            Characteristic-energy bounds in km²/s².
+        rla, dla : tuple[float | None, float | None], optional
+            Right ascension and declination bounds in degrees. RLA bounds with
+            lower > upper cross zero, e.g. (350, 10). Reversed bounds for other
+            quantities are invalid.
+        departure_bounds_jd, arrival_bounds_jd : tuple[float | None, float | None], optional
+            Bounds on the heliocentric departure and arrival reference dates in
+            Julian days
+
+        Returns
+        -------
+        EarthLaunchWindow
+            This object, allowing chained filter calls.
+
+        Raises
+        ------
+        ValueError
+            If a bound is NaN or a non-RLA lower bound exceeds its upper bound.
+
+        Notes
+        -----
+        Omitted filters do nothing, and None endpoints are unbounded. Calls
+        accumulate rather than reset the mask. Stored bound attributes reflect
+        arguments to the latest call, not the intersection of all prior calls.
+        """
         mask = self.mask.copy()
         for values, bounds, wraps in (
             (self.departure.C3_grid_km2, c3, False),
             (self.departure.rla_grid, rla, True),
             (self.departure.dla_grid, dla, False),
-            (self.transfer.t_dep_jd[:, None], launch_bounds_jd, False),
+            (self.transfer.t_dep_jd[:, None], departure_bounds_jd, False),
             (self.transfer.t_arr_jd[None, :], arrival_bounds_jd, False),
         ):
             if bounds is None:
@@ -381,12 +577,34 @@ class EarthLaunchWindow:
         self.rla_bounds = rla
         self.dla_bounds = dla
         self.dla_bounds = dla
-        self.launch_bounds_jd = launch_bounds_jd
+        self.departure_bounds_jd = departure_bounds_jd
         self.arrival_bounds_jd = arrival_bounds_jd
         return self
 
     def select(self, departure_jd, arrival_jd):
-        """Return nearest (departure, arrival) indices within the filtered window."""
+        """Find the nearest sampled pair and require it to pass the current mask.
+
+        Parameters
+        ----------
+        departure_jd, arrival_jd : float
+            Requested Julian dates; they need not lie exactly on sample points.
+
+        Returns
+        -------
+        dep_i, arr_i : int
+            Indices into ``transfer`` date axes and [departure, arrival] arrays.
+
+        Raises
+        ------
+        ValueError
+            If a date is non-finite, is outside its sampled axis (allowing 1e-6
+            day endpoint tolerance), or the nearest pair is excluded.
+
+        Notes
+        -----
+        Returns the nearest pair, not the nearest feasible alternative. Use the
+        returned indices to inspect the actual sampled dates before propagation.
+        """
         for requested, dates in (
             (departure_jd, self.transfer.t_dep_jd),
             (arrival_jd, self.transfer.t_arr_jd),
@@ -405,6 +623,25 @@ class EarthLaunchWindow:
         return dep_i, arr_i
 
     def arrival_bounds_for_departure(self, departure_jd):
+        """Return range of feasible arrival JDs for the nearest departure.
+
+        Parameters
+        ----------
+        departure_jd : float
+            Requested departure Julian date, snapped to the nearest sample.
+
+        Returns
+        -------
+        arrival_start_jd, arrival_end_jd : float
+            Minimum and maximum arrival dates retained by that departure row's
+            mask. THESE ENDPOINTS MAY ENCLOSE GAPS OF INFEASIBLE ARRIVALS.
+
+        Raises
+        ------
+        ValueError
+            If departure is non-finite or outside the sampled grid, or no
+            arrivals remain feasible for the selected departure.
+        """
         if (
             not np.isfinite(departure_jd)
             or not self.transfer.t_dep_jd[0] - 1e-6
@@ -420,21 +657,50 @@ class EarthLaunchWindow:
 
     @property
     def C3_grid_km2(self):
+        """Return a new [departure, arrival] C3 grid in km²/s², with excluded entries NaN."""
         return np.where(self.mask, self.departure.C3_grid_km2, np.nan)
 
     @property
     def indices(self):
+        """Return paired departure/arrival index arrays for the currently retained transfers."""
         return np.where(self.mask)
 
 
 @dataclass
 class EarthDepartureGrid:
-    """Earth departure arrays indexed [departure, arrival]; km/s and degrees."""
+    """Derive ECI equatorial departure characteristics from a transfer grid.
+
+    Parameters
+    ----------
+    grid : InterplanetaryTransferGrid
+        A computed grid whose departure planet is Earth. Its planet-relative
+        excess velocities must be in km/s and expressed in HCI axes.
+
+    Attributes
+    ----------
+    v_dep_eci_km : ndarray, shape (n_dep, n_arr, 3)
+        Outgoing Earth-relative excess velocities in ECI axes, in km/s.
+    v_inf_dep_norm_km_s : ndarray, shape (n_dep, n_arr)
+        Excess-speed magnitudes in km/s.
+    C3_grid_km2 : ndarray, shape (n_dep, n_arr)
+        Reference to the underlying grid's C3 array in km²/s².
+    rla_grid, dla_grid : ndarray, shape (n_dep, n_arr)
+        Asymptote right ascension and declination in degrees. Invalid or
+        zero-speed directions retain NaN.
+    valid_mask : ndarray of bool, shape (n_dep, n_arr)
+        True where C3 and the excess-velocity vector are finite.
+
+    Notes
+    -----
+    Characteristics are calculated on initialization. Recreate this object
+    if the underlying grid is recomputed; the arrays are not live properties.
+    """
 
     grid: InterplanetaryTransferGrid
 
     def __post_init__(self):
         # The transfer grid already subtracted Earth's velocity.
+        """Rotate Earth-relative excess velocities into ECI and initialize angular grids."""
         self.v_dep_eci_km = (
             self.grid.v_dep_pci_km @ ECI_from_HCI().T
         )  # Numpy arrays are the transposed version of normal ones
@@ -448,6 +714,11 @@ class EarthDepartureGrid:
         self.calc_ra_dec()
 
     def calc_ra_dec(self):
+        """Recalculate RLA/DLA in degrees using ``departure_characteristics``.
+
+        Only valid, nonzero excess-velocity entries are evaluated. Replaces
+        ``rla_grid`` and ``dla_grid``; all other entries remain NaN.
+        """
         self.rla_grid = np.full(self.C3_grid_km2.shape, np.nan)
         self.dla_grid = np.full(self.C3_grid_km2.shape, np.nan)
 
