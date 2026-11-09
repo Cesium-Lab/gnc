@@ -150,7 +150,9 @@ class EarthDepartureTrajectory:
             (self.v_vec, self.right_vec, self.n_vec), axis=1
         )
         if abs(np.linalg.det(self.dcm_eci_wrt_orbit) - 1.0) > 1e-9:
-            print(f"dcm_eci_wrt_orbit det > 1: ({np.linalg.det(self.dcm_eci_wrt_orbit)})")
+            print(
+                f"dcm_eci_wrt_orbit det > 1: ({np.linalg.det(self.dcm_eci_wrt_orbit)})"
+            )
 
         r_p_orbit = (
             np.array([np.cos(self.ta_asymptote_rad), -np.sin(self.ta_asymptote_rad), 0])
@@ -249,8 +251,12 @@ class EarthDepartureTrajectory:
             print(
                 "  This compares the nearest stored sample; a continuous handoff also requires matching position and epoch."
             )
-            earth_soi_m = sph_of_infl(norm(rv_earth_hci_km[0, 0:3] * KM_TO_M), MU_EARTH, MU_SUN)
-            print(f"Crossed sphere of influence: {norm(self.rv_traj_eci_m[-1, 0:3]) > earth_soi_m}")
+            earth_soi_m = sph_of_infl(
+                norm(rv_earth_hci_km[0, 0:3] * KM_TO_M), MU_EARTH, MU_SUN
+            )
+            print(
+                f"Crossed sphere of influence: {norm(self.rv_traj_eci_m[-1, 0:3]) > earth_soi_m}"
+            )
 
 
 # def flyby_dv(v_arrival_PCI: float, b_arrival: float,
