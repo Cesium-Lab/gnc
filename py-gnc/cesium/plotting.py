@@ -33,6 +33,7 @@ def plot_3d(
     camera_distance=None,
     scale=1.0,
     frames=None,
+    points=None,
 ) -> go.Figure:
     """Plot 3D trajectories, spherical bodies, and vector arrows.
 
@@ -83,6 +84,11 @@ def plot_3d(
         matrix, e.g. itrf_to_gcrs_matrix(epoch_jd).T. Location is expressed
         in plot coordinates. Optional colors default to red/green/blue;
         width defaults to 4. Locations and lengths use scale.
+    points : dict or list of dict, optional
+        Named markers with location (3,) in plot-frame input units. Optional
+        keys: name, color (default red), size (default 7), symbol (default
+        circle), label (default True), and textposition (default top center).
+        Locations are divided by scale and included in automatic axis bounds.
     trace_colors : str or list of str, optional
         One color for all trajectories, or one per trajectory.
     elev, azim : float, optional
@@ -373,6 +379,31 @@ def plot_3d(
                     legendgroup=group,
                     showlegend=False,
                     hoverinfo="skip",
+                )
+            )
+
+    if points is not None:
+        for index, point in enumerate([points] if isinstance(points, dict) else points):
+            location = np.asarray(point["location"], dtype=float)
+            if location.shape != (3,) or not np.isfinite(location).all():
+                raise ValueError("Point location must be a finite (3,) array")
+            location = location / scale
+            name = point.get("name", f"Point {index + 1}")
+            labeled = point.get("label", True)
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[location[0]],
+                    y=[location[1]],
+                    z=[location[2]],
+                    mode="markers+text" if labeled else "markers",
+                    name=name,
+                    text=[name] if labeled else None,
+                    textposition=point.get("textposition", "top center"),
+                    marker={
+                        "size": point.get("size", 7),
+                        "color": point.get("color", "red"),
+                        "symbol": point.get("symbol", "circle"),
+                    },
                 )
             )
 
