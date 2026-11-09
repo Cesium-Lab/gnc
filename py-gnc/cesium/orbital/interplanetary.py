@@ -319,6 +319,7 @@ class InterplanetaryTrajectory:
 
 
 def departure_characteristics(v_dep_eci: np.ndarray):
+    """C3, rla, dla"""
     C3 = norm(v_dep_eci) ** 2
     rla = wrap_to_2pi(np.arctan2(v_dep_eci[1], v_dep_eci[0]))
     dla = wrap_to_pi(np.arcsin(v_dep_eci[2] / norm(v_dep_eci)))
