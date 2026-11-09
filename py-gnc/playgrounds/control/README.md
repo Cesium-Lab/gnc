@@ -11,3 +11,6 @@
   - Design LQR/MPC controller for the identified mode
   - Validate on hardware
 - Sys ID
+
+## Mini project
+- CMFV based off of fluid dynamics (head loss) and controls with varying setpoints
