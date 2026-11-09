@@ -1,6 +1,7 @@
 """Non-COES transformations"""
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 from numpy.linalg import norm
@@ -524,8 +525,10 @@ def W_matrix(xp: float, yp: float, t_tt: float):
         ]
     )
 
+
 def theta_g(jd_ut1):
     return 2 * np.pi * (0.779057273264 + 1.00273781191135448 * (jd_ut1 - 2451545))
+
 
 def R_matrix(jd_ut1: float):
     """Sidereal rotation matrix for ITRF <--> GCRS transformation.
@@ -556,6 +559,7 @@ def R_matrix(jd_ut1: float):
 
 
 # TODO: fix with dX and dY
+@lru_cache(maxsize=16384)
 def _X_Y_s_a(t_tt: float):
     """Compute CIP coordinates `X`, `Y`, CIO locator `s`, and the `a` term.
 
@@ -574,6 +578,12 @@ def _X_Y_s_a(t_tt: float):
         CIO locator [rad].
     a : float
         Approximate `a` term used in the precession-nutation matrix.
+
+    Notes
+    -----
+    Caches the last 16,384 exact epochs, allowing repeated trajectory
+    conversions to reuse the CIP series without rounding timestamps.
+    Clear this cache as well as ``import_table`` after editing CIP tables.
 
     References
     ----------
@@ -794,7 +804,47 @@ def itrf_to_gcrs(
     return r_gcrs, v_gcrs
 
 
-# TODO: ECI ECEF
+def gcrs_to_itrf(
+    r_gcrs: np.ndarray,
+    v_gcrs: np.ndarray,
+    jd_utc: float,
+    eop: EOP = EOP(),
+) -> tuple[np.ndarray, np.ndarray]:
+    """Transform a GCRS (ECI) position and velocity into ITRF (ECEF).
+
+    Parameters
+    ----------
+    r_gcrs, v_gcrs : ndarray, shape (3,)
+        Inertial position and velocity, in m and m/s or km and km/s.
+    jd_utc : float
+        Absolute Julian date in UTC, not elapsed seconds.
+    eop : EOP, optional
+        Earth orientation parameters, with the same defaults and model
+        limitations as `itrf_to_gcrs`.
+
+    Returns
+    -------
+    r_itrf, v_itrf : ndarray, shape (3,)
+        Earth-fixed position and velocity relative to the rotating Earth,
+        preserving the input units.
+
+    References
+    ----------
+    Vallado 4e, Algorithm 23, p. 221.
+
+    Notes
+    -----
+    Like the forward model, omits time derivatives of polar motion and precession/nutation
+    """
+    dcm_gcrs_wrt_itrf = itrf_to_gcrs_matrix(jd_utc, eop)
+    jd_tt = jd_utc + (eop.deltaAT_s + 32.184) * SEC_TO_DAY
+    W = W_matrix(eop.xp, eop.yp, jd_to_julian_centuries(jd_tt))
+    w_earth_tirs = np.array([0, 0, W_EARTH * (1 - eop.lod_s * SEC_TO_DAY)])
+
+    r_itrf = dcm_gcrs_wrt_itrf.T @ r_gcrs
+    v_itrf = dcm_gcrs_wrt_itrf.T @ v_gcrs - W.T @ np.cross(w_earth_tirs, W @ r_itrf)
+    return r_itrf, v_itrf
+
 
 # TODO: RAZEL
 

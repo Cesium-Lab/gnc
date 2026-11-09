@@ -1,3 +1,4 @@
+from functools import cache, lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +26,7 @@ planetary_effect_cols = [
 ]
 
 
+@cache
 def import_table(filename: str):
     """Parse an IERS Conventions Table 5.2 file (CIP X, Y, or s series).
 
@@ -46,6 +48,11 @@ def import_table(filename: str):
     ------
     ImportError
         If the file is empty or is not a Table 5.2 file.
+
+    Notes
+    -----
+    Parsed tables are cached by filename. Treat the returned arrays and list
+    as read-only; call ``import_table.cache_clear()`` after changing a table.
     """
     base = Path(__file__).resolve().parent
     filename = base / filename
@@ -162,6 +169,7 @@ FUNDAMENTAL_ARGUMENTS_RAD = np.array(
 )
 
 
+@lru_cache(maxsize=128)
 def fundamental_arguments(t_tt: float):
     """Compute the 14 fundamental nutation arguments (Delaunay and planetary).
 
@@ -174,6 +182,12 @@ def fundamental_arguments(t_tt: float):
     -------
     args : np.ndarray (14,)
         Fundamental nutation arguments, wrapped to `[0, 2*pi)` [rad].
+
+    Notes
+    -----
+    The last 128 exact epochs are cached to reuse arguments across the CIP
+    series terms. No epoch rounding is applied. Treat the returned array as
+    read-only.
 
     References
     ----------
@@ -239,19 +253,14 @@ def get_summation(rows: np.ndarray, t_tt: float):
     ----------
     Vallado 4e, p. 214.
     """
-    sum = 0
-    for row in rows:
-        if len(row) != 16:
-            raise ImportError(
-                "Imported row must have 2 sinusoidal parameters and 14 nutation parameters\n"
-                f"Received: {row}"
-            )
-
-        a_p_i = np.dot(row[2:], fundamental_arguments(t_tt))  # element-wise
-
-        sum += (row[0] * np.sin(a_p_i)) + (row[1] * np.cos(a_p_i))
-
-    return sum
+    if rows.size == 0:
+        return 0.0
+    if rows.ndim != 2 or rows.shape[1] != 16:
+        raise ImportError(
+            "Imported rows must have 2 sinusoidal parameters and 14 nutation parameters"
+        )
+    phases = rows[:, 2:] @ fundamental_arguments(t_tt)
+    return np.sum(rows[:, 0] * np.sin(phases) + rows[:, 1] * np.cos(phases))
 
 
 # def

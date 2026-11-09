@@ -264,3 +264,49 @@ def test_vallado_full_itrf_rv():
 
 
 # TODO: acceleration
+
+
+def test_vallado_full_gcrs_rv():
+    """Vallado 4e Example 3-14 p. 220, transformed back to ITRF."""
+    # Book values are given in km
+    r_gcrs = np.array([5102.508959, 6123.011403, 6378.136925])
+    v_gcrs = np.array([-4.743220161, 0.790536495, 5.533755724])
+    r_expected = np.array([-1033.479383, 7901.2952754, 6380.3565958])
+    v_expected = np.array([-3.225636520, -2.872451450, 5.531924446])
+    jd = greg_to_jd(2004, 4, 6, 7, 51, 28.386009)
+
+    eop = Trans.EOP(
+        xp=-0.140682 * ARCSEC_TO_RAD,
+        yp=0.333309 * ARCSEC_TO_RAD,
+        dX=-0.000205 * ARCSEC_TO_RAD,
+        dY=-0.000136 * ARCSEC_TO_RAD,
+        deltaUT1_s=-0.4399619,
+        deltaAT_s=32,
+        lod_s=0.0015563,
+    )
+
+    r_itrf, v_itrf = Trans.gcrs_to_itrf(r_gcrs, v_gcrs, jd, eop)
+
+    assert np.allclose(r_itrf, r_expected, rtol=1e-4)
+    assert np.allclose(v_itrf, v_expected, rtol=1e-4)
+
+
+def test_itrf_gcrs_round_trip():
+    """Recover an ITRF state after forward and reverse transformations."""
+    r_itrf = np.array([-1033.479383, 7901.2952754, 6380.3565958])
+    v_itrf = np.array([-3.225636520, -2.872451450, 5.531924446])
+    jd = greg_to_jd(2004, 4, 6, 7, 51, 28.386009)
+
+    eop = Trans.EOP(
+        xp=-0.140682 * ARCSEC_TO_RAD,
+        yp=0.333309 * ARCSEC_TO_RAD,
+        deltaUT1_s=-0.4399619,
+        deltaAT_s=32,
+        lod_s=0.0015563,
+    )
+
+    r_gcrs, v_gcrs = Trans.itrf_to_gcrs(r_itrf, v_itrf, jd, eop)
+    r_recovered, v_recovered = Trans.gcrs_to_itrf(r_gcrs, v_gcrs, jd, eop)
+
+    assert np.allclose(r_recovered, r_itrf, rtol=0, atol=1e-9)
+    assert np.allclose(v_recovered, v_itrf, rtol=0, atol=1e-12)
