@@ -228,13 +228,13 @@ def test_vallado_full_itrf():
         deltaAT_s=32,
     )
 
-    PN, R, W = Trans.itrf_to_gcrs_matrices(jd, eop)
+    dcm_gcrs_wrt_itrf = Trans.itrf_to_gcrs_matrix(jd, eop)
 
     # Tests that determinant is 1
-    assert np.linalg.det(PN @ R @ W) == pytest.approx(1, 1e-9)
+    assert np.linalg.det(dcm_gcrs_wrt_itrf) == pytest.approx(1, 1e-9)
 
     # Transforms vector correctly
-    r_gcrs = PN @ R @ W @ r_itrf
+    r_gcrs = dcm_gcrs_wrt_itrf @ r_itrf
     assert np.allclose(r_gcrs, expected, rtol=1e-4)
 
 

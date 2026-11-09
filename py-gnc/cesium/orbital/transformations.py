@@ -524,6 +524,8 @@ def W_matrix(xp: float, yp: float, t_tt: float):
         ]
     )
 
+def theta_g(jd_ut1):
+    return 2 * np.pi * (0.779057273264 + 1.00273781191135448 * (jd_ut1 - 2451545))
 
 def R_matrix(jd_ut1: float):
     """Sidereal rotation matrix for ITRF <--> GCRS transformation.
@@ -700,8 +702,8 @@ class EOP:
     lod_s: float = 0.0
 
 
-def itrf_to_gcrs_matrices(jd_utc: float, eop: EOP = EOP()):
-    """Compute the PN, R, and W matrices for the ITRF <--> GCRS transformation.
+def itrf_to_gcrs_matrix(jd_utc: float, eop: EOP = EOP()):
+    """Compute the matrix for the ITRF <--> GCRS transformation.
 
     Parameters
     ----------
@@ -713,16 +715,12 @@ def itrf_to_gcrs_matrices(jd_utc: float, eop: EOP = EOP()):
 
     Returns
     -------
-    PN : np.ndarray (3, 3)
-        Precession-nutation matrix (CIRS to GCRS).
-    R : np.ndarray (3, 3)
-        Sidereal-rotation matrix (TIRS to CIRS).
-    W : np.ndarray (3, 3)
-        Polar-motion matrix (ITRF to TIRS).
+    dcm_gcrs_wrt_itrf : np.ndarray (3, 3)
+        Transforms a vector/matrix from itrf to gcrs with `r_GCRS = dcm_gcrs_wrt_itrf @ r_ITRF`
 
     Notes
     -----
-    Position transforms as `r_GCRS = PN @ R @ W @ r_ITRF`. For velocity, use
+    For velocity, use
     `itrf_to_gcrs`, which adds the Earth-rotation term at the R step.
 
     References
@@ -739,7 +737,7 @@ def itrf_to_gcrs_matrices(jd_utc: float, eop: EOP = EOP()):
     R = R_matrix(jd_ut1)
     PN = PN_matrix(t_tt, eop.dX, eop.dY)
 
-    return PN, R, W
+    return PN @ R @ W
 
 
 def itrf_to_gcrs(
@@ -776,7 +774,15 @@ def itrf_to_gcrs(
     ----------
     Vallado 4e, Algorithm 23, p. 221.
     """
-    PN, R, W = itrf_to_gcrs_matrices(jd_utc, eop)
+
+    jd_ut1 = jd_utc + eop.deltaUT1_s * SEC_TO_DAY
+    jd_tai = jd_utc + eop.deltaAT_s * SEC_TO_DAY
+    jd_tt = jd_tai + 32.184 * SEC_TO_DAY
+    t_tt = jd_to_julian_centuries(jd_tt)
+
+    W = W_matrix(eop.xp, eop.yp, t_tt)
+    R = R_matrix(jd_ut1)
+    PN = PN_matrix(t_tt, eop.dX, eop.dY)
 
     r_tirs = W @ r_itrf
     v_tirs = W @ v_itrf

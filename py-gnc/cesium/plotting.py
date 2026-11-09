@@ -76,9 +76,13 @@ def plot_3d(
     frames : dict or list of dict, optional
         Coordinate triads with location (default zero), dcm_body_wrt_hci
         (default identity), length (default 1 in input units), and name.
-        The DCM maps HCI components to body components; its rows give the
-        body's X/Y/Z axes in the plotted HCI frame. Optional colors defaults
-        to red/green/blue; width defaults to 4. Locations and lengths use scale.
+        Despite the key's HCI suffix, the DCM must map components from the
+        plot's coordinate frame into the displayed frame: v_body = DCM @
+        v_plot. Its rows are the displayed X/Y/Z axes expressed in plot
+        coordinates. For an ECI plot showing ECEF axes, pass an ECI-to-ECEF
+        matrix, e.g. itrf_to_gcrs_matrix(epoch_jd).T. Location is expressed
+        in plot coordinates. Optional colors default to red/green/blue;
+        width defaults to 4. Locations and lengths use scale.
     trace_colors : str or list of str, optional
         One color for all trajectories, or one per trajectory.
     elev, azim : float, optional

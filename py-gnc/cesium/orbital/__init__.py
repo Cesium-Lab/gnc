@@ -4,7 +4,7 @@ from .transformations import (
     ECEF_to_geodetic_LLA,
     geodetic_LLA_to_ECEF,
     itrf_to_gcrs,
-    itrf_to_gcrs_matrices,
+    itrf_to_gcrs_matrix,
 )
 
 __all__ = [
@@ -13,6 +13,6 @@ __all__ = [
     "coes_to_rv",
     "geodetic_LLA_to_ECEF",
     "itrf_to_gcrs",
-    "itrf_to_gcrs_matrices",
+    "itrf_to_gcrs_matrix",
     "rv_to_coes",
 ]
