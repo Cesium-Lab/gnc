@@ -54,10 +54,12 @@ def _coordinates(values, date_axes):
 
 
 def _plot_coordinates(values, is_date):
+    """Serialize numeric or datetime coordinates as Plotly-compatible lists."""
     return values.astype(str).tolist() if is_date else values.tolist()
 
 
 def _julian_dates(values):
+    """Convert calendar inputs to Julian days, leaving numeric inputs in Julian days."""
     coordinates, is_date = _coordinates(values, False)
     if is_date:
         return coordinates.astype("int64") / 86400000 + 2440587.5
@@ -65,6 +67,7 @@ def _julian_dates(values):
 
 
 def _axis_coordinates(values, mode):
+    """Return Julian or Gregorian coordinates and whether Plotly needs a date axis."""
     return _coordinates(_julian_dates(values), mode == "gregorian")
 
 
@@ -120,7 +123,8 @@ def plot_porkchop(
     trace_kwargs=None,
     layout_kwargs=None,
     show=False,
-):
+    markers=None,
+) -> go.Figure:
     """Return a configurable Plotly contour figure without changing the inputs.
 
     ``values`` has shape ``(len(departure), len(arrival))``: pass the
@@ -159,6 +163,11 @@ def plot_porkchop(
     ``trace_kwargs`` and ``layout_kwargs`` override other Plotly settings.
     An entirely masked grid returns an empty, labeled figure. The returned
     figure supports further customization and ``write_image``/``write_html``.
+
+    ``markers`` accepts a dict or list of dicts with ``departure_jd`` and
+    ``arrival_jd`` (Julian or calendar dates), plus optional ``name``, ``color``,
+    ``size``, ``symbol``, and ``textposition``. Markers are labeled on the plot
+    and converted to the same coordinates as the contours.
     """
     if date_axes:
         xaxis = yaxis = "gregorian"
@@ -318,6 +327,38 @@ def plot_porkchop(
             )
         else:
             fig.add_trace(go.Contour(**options))
+    if markers is not None:
+        markers = [markers] if isinstance(markers, dict) else markers
+        for marker in markers:
+            dep = float(_julian_dates([marker["departure_jd"]])[0])
+            arr = float(_julian_dates([marker["arrival_jd"]])[0])
+            if not np.all(np.isfinite([dep, arr])):
+                raise ValueError("Marker departure and arrival dates must be finite")
+            mx, _ = _axis_coordinates([dep], xaxis)
+            my = (
+                np.array([arr - dep])
+                if yaxis == "time-of-flight"
+                else _axis_coordinates([arr], yaxis)[0]
+            )
+            name = marker.get("name", "Selected transfer")
+            fig.add_trace(
+                go.Scatter(
+                    x=_plot_coordinates(mx, xdate),
+                    y=_plot_coordinates(my, ydate),
+                    mode="markers+text",
+                    text=[name],
+                    name=name,
+                    textposition=marker.get("textposition", "top center"),
+                    marker={
+                        "color": marker.get("color", "red"),
+                        "size": marker.get("size", 12),
+                        "symbol": marker.get("symbol", "star"),
+                        "line": {"color": "white", "width": 1},
+                    },
+                    zorder=2,
+                    hoverinfo="skip",
+                )
+            )
     if layout_kwargs:
         fig.update_layout(**layout_kwargs)
     if show:

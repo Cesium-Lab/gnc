@@ -1,8 +1,7 @@
-import numpy as np
 import matplotlib.pyplot as plt
-
-from csim.simulation import Simulator, rigid_body_step_fn
+import numpy as np
 from csim.entities import Spacecraft
+from csim.simulation import Simulator, rigid_body_step_fn
 
 if __name__ == "__main__":
     dt = 0.01

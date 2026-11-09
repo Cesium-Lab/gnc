@@ -1,13 +1,16 @@
 """Non-COES transformations"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 from numpy.linalg import norm
 
 from ..constants import ARCSEC_TO_RAD, DEG_TO_RAD, RAD_TO_DEG, SEC_TO_DAY
 from ..math.quaternion import unit
-from ..math.rotations import dcm_z, wrap_to_2pi
+from ..math.rotations import dcm_z, wrap_to_2pi, wrap_to_pi
 from ..math.time import jd_to_julian_centuries
 from ..world import ECC_EARTH, ECLIPTIC_ANGLE, R_EARTH, R_EARTH_POLAR, W_EARTH
 from .CIP.parse import get_summation, import_table
@@ -68,6 +71,80 @@ def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
     n_hat = np.cross(t_hat, w_hat)
 
     return np.vstack((n_hat, t_hat, w_hat))
+
+
+################################################################################
+#               SEZ <--> ECEF
+################################################################################
+
+
+def geodetic_ECEF_to_SEZ(
+    r_sat_ecef_m: np.ndarray, lat: float, lon: float, alt_m=0.0, deg=True
+):
+    """Return geodetic site azimuth, elevation, and slant range using SEZ axes.
+
+    Parameters
+    ----------
+    r_sat_ecef_m : ndarray, shape (3,)
+        Satellite Earth-fixed position in meters.
+    lat, lon : float
+        Site geodetic latitude and east-positive longitude; degrees when
+        deg=True, otherwise radians.
+    alt_m : float, optional
+        Site height above the reference ellipsoid in meters.
+    deg : bool, optional
+        Interpret input angles and return output angles in degrees when True.
+
+    Returns
+    -------
+    azimuth, elevation, rho : float
+        Azimuth clockwise from north in [0, 360) degrees (or [0, 2*pi)),
+        elevation above the local horizon, and site-to-satellite range in m.
+        Azimuth is undefined for an exactly vertical line of sight.
+
+    Raises
+    ------
+    ValueError
+        If the satellite and site coincide, making the viewing angles undefined.
+    """
+    r_site_ecef_m = geodetic_LLA_to_ECEF(lat, lon, alt_m, deg)
+    if deg:
+        lat *= DEG_TO_RAD
+        lon *= DEG_TO_RAD
+
+    # Local ellipsoid-normal zenith, not the geocentric radial direction.
+    south = np.array(
+        [np.sin(lat) * np.cos(lon), np.sin(lat) * np.sin(lon), -np.cos(lat)]
+    )
+    east = np.array([-np.sin(lon), np.cos(lon), 0])
+    zenith = np.array(
+        [np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)]
+    )
+    dcm_sez_wrt_ecef = np.stack(
+        (south, east, zenith)
+    )  # columns makes sez->ecef so rows makes ecef->sez
+    r_sat_sez = dcm_sez_wrt_ecef @ (r_sat_ecef_m - r_site_ecef_m)
+
+    rho = norm(r_sat_sez)
+    if rho == 0:
+        raise ValueError("Satellite and site coincide; viewing angles are undefined")
+
+    horizontal = np.hypot(r_sat_sez[0], r_sat_sez[1])
+    azimuth = (
+        0
+        if horizontal <= 1e-9 * rho
+        else wrap_to_2pi(np.arctan2(r_sat_sez[1], -r_sat_sez[0]))
+    )
+    elevation = (
+        np.pi / 2
+        if horizontal <= 1e-9 * rho
+        else wrap_to_pi(np.arctan2(r_sat_sez[2], horizontal))
+    )
+
+    if deg:
+        azimuth *= RAD_TO_DEG
+        elevation *= RAD_TO_DEG
+    return azimuth, elevation, rho
 
 
 ################################################################################
@@ -190,8 +267,8 @@ def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, fl
         )
 
     if deg:
-        lat_gd /= DEG_TO_RAD
-        lon_gd /= DEG_TO_RAD
+        lat_gd *= RAD_TO_DEG
+        lon_gd *= RAD_TO_DEG
 
     return lat_gd, lon_gd, alt_m
 
@@ -525,6 +602,10 @@ def W_matrix(xp: float, yp: float, t_tt: float):
     )
 
 
+def theta_g(jd_ut1):
+    return 2 * np.pi * (0.779057273264 + 1.00273781191135448 * (jd_ut1 - 2451545))
+
+
 def R_matrix(jd_ut1: float):
     """Sidereal rotation matrix for ITRF <--> GCRS transformation.
 
@@ -554,6 +635,7 @@ def R_matrix(jd_ut1: float):
 
 
 # TODO: fix with dX and dY
+@lru_cache(maxsize=16384)
 def _X_Y_s_a(t_tt: float):
     """Compute CIP coordinates `X`, `Y`, CIO locator `s`, and the `a` term.
 
@@ -572,6 +654,12 @@ def _X_Y_s_a(t_tt: float):
         CIO locator [rad].
     a : float
         Approximate `a` term used in the precession-nutation matrix.
+
+    Notes
+    -----
+    Caches the last 16,384 exact epochs, allowing repeated trajectory
+    conversions to reuse the CIP series without rounding timestamps.
+    Clear this cache as well as ``import_table`` after editing CIP tables.
 
     References
     ----------
@@ -700,8 +788,8 @@ class EOP:
     lod_s: float = 0.0
 
 
-def itrf_to_gcrs_matrices(jd_utc: float, eop: EOP = EOP()):
-    """Compute the PN, R, and W matrices for the ITRF <--> GCRS transformation.
+def itrf_to_gcrs_matrix(jd_utc: float, eop: EOP = EOP()):
+    """Compute the matrix for the ITRF <--> GCRS transformation.
 
     Parameters
     ----------
@@ -713,16 +801,12 @@ def itrf_to_gcrs_matrices(jd_utc: float, eop: EOP = EOP()):
 
     Returns
     -------
-    PN : np.ndarray (3, 3)
-        Precession-nutation matrix (CIRS to GCRS).
-    R : np.ndarray (3, 3)
-        Sidereal-rotation matrix (TIRS to CIRS).
-    W : np.ndarray (3, 3)
-        Polar-motion matrix (ITRF to TIRS).
+    dcm_gcrs_wrt_itrf : np.ndarray (3, 3)
+        Transforms a vector/matrix from itrf to gcrs with `r_GCRS = dcm_gcrs_wrt_itrf @ r_ITRF`
 
     Notes
     -----
-    Position transforms as `r_GCRS = PN @ R @ W @ r_ITRF`. For velocity, use
+    For velocity, use
     `itrf_to_gcrs`, which adds the Earth-rotation term at the R step.
 
     References
@@ -739,7 +823,7 @@ def itrf_to_gcrs_matrices(jd_utc: float, eop: EOP = EOP()):
     R = R_matrix(jd_ut1)
     PN = PN_matrix(t_tt, eop.dX, eop.dY)
 
-    return PN, R, W
+    return PN @ R @ W
 
 
 def itrf_to_gcrs(
@@ -776,7 +860,15 @@ def itrf_to_gcrs(
     ----------
     Vallado 4e, Algorithm 23, p. 221.
     """
-    PN, R, W = itrf_to_gcrs_matrices(jd_utc, eop)
+
+    jd_ut1 = jd_utc + eop.deltaUT1_s * SEC_TO_DAY
+    jd_tai = jd_utc + eop.deltaAT_s * SEC_TO_DAY
+    jd_tt = jd_tai + 32.184 * SEC_TO_DAY
+    t_tt = jd_to_julian_centuries(jd_tt)
+
+    W = W_matrix(eop.xp, eop.yp, t_tt)
+    R = R_matrix(jd_ut1)
+    PN = PN_matrix(t_tt, eop.dX, eop.dY)
 
     r_tirs = W @ r_itrf
     v_tirs = W @ v_itrf
@@ -788,7 +880,47 @@ def itrf_to_gcrs(
     return r_gcrs, v_gcrs
 
 
-# TODO: ECI ECEF
+def gcrs_to_itrf(
+    r_gcrs: np.ndarray,
+    v_gcrs: np.ndarray,
+    jd_utc: float,
+    eop: EOP = EOP(),
+) -> tuple[np.ndarray, np.ndarray]:
+    """Transform a GCRS (ECI) position and velocity into ITRF (ECEF).
+
+    Parameters
+    ----------
+    r_gcrs, v_gcrs : ndarray, shape (3,)
+        Inertial position and velocity, in m and m/s or km and km/s.
+    jd_utc : float
+        Absolute Julian date in UTC, not elapsed seconds.
+    eop : EOP, optional
+        Earth orientation parameters, with the same defaults and model
+        limitations as `itrf_to_gcrs`.
+
+    Returns
+    -------
+    r_itrf, v_itrf : ndarray, shape (3,)
+        Earth-fixed position and velocity relative to the rotating Earth,
+        preserving the input units.
+
+    References
+    ----------
+    Vallado 4e, Algorithm 23, p. 221.
+
+    Notes
+    -----
+    Like the forward model, omits time derivatives of polar motion and precession/nutation
+    """
+    dcm_gcrs_wrt_itrf = itrf_to_gcrs_matrix(jd_utc, eop)
+    jd_tt = jd_utc + (eop.deltaAT_s + 32.184) * SEC_TO_DAY
+    W = W_matrix(eop.xp, eop.yp, jd_to_julian_centuries(jd_tt))
+    w_earth_tirs = np.array([0, 0, W_EARTH * (1 - eop.lod_s * SEC_TO_DAY)])
+
+    r_itrf = dcm_gcrs_wrt_itrf.T @ r_gcrs
+    v_itrf = dcm_gcrs_wrt_itrf.T @ v_gcrs - W.T @ np.cross(w_earth_tirs, W @ r_itrf)
+    return r_itrf, v_itrf
+
 
 # TODO: RAZEL
 

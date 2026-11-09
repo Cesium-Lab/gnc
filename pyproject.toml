@@ -1,7 +1,12 @@
 [tool.ruff]
-exclude = [
-    "extras",
-    "estimation",
-    "projects",
-    "sims", # TODO: change this later
+# exclude = [
+#     "extras",
+#     "estimation",
+#     "sims", # TODO: change this later
+# ]
+include = [
+    "py-gnc/**/*.py",
+    "py-gnc/**/*.ipynb",
+    "projects/mars-courier/**/*.py",
+    "projects/mars-courier/**/*.ipynb",
 ]

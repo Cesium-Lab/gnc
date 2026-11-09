@@ -60,6 +60,61 @@ def test_r_to_lla_example_3_3():
 
 
 #########################################################################################################
+#               SEZ
+#########################################################################################################
+
+
+def test_ecef_to_sez():
+    # Book values are given in km
+    r_ecef = np.array([6524.834, 6862.875, 6448.296]) * KM_TO_M
+    lat, lon, alt_m = Trans.ECEF_to_geodetic_LLA(r_ecef)
+
+    # Site on the ellipsoid directly underneath the satellite.
+    r_site_ecef_m = Trans.geodetic_LLA_to_ECEF(lat, lon, 0)
+    _az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_ecef, lat, lon, 0)
+
+    assert el == pytest.approx(90, rel=1e-5)
+    assert rho == pytest.approx(norm(r_ecef - r_site_ecef_m))
+    assert rho == pytest.approx(alt_m)
+
+
+def test_ecef_to_sez_cardinal_directions():
+    """Mainly tests azimuth. Edge cases"""
+    r_site = Trans.geodetic_LLA_to_ECEF(0, 0)  # equator
+
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 1000, 0], 0, 0)
+    assert np.allclose([az, el, rho], [90, 0, 1000])
+
+    # arctan2 returns 0 for azimuth if no s direction
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 0, 1000], 0, 0)
+    assert np.allclose([az, el, rho], [0, 0, 1000])
+
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_site + [0, -1000, 0], 0, 0)
+    assert np.allclose([az, el, rho], [270, 0, 1000])
+
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 0, -1000], 0, 0)
+    assert np.allclose([az, el, rho], [180, 0, 1000])
+
+
+def test_ecef_to_sez_geodetic_axes():
+    lat, lon = 45 * DEG_TO_RAD, 30 * DEG_TO_RAD
+    r_site = Trans.geodetic_LLA_to_ECEF(lat, lon, 100, deg=False)
+    up = np.array([np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)])
+    east = np.array([-np.sin(lon), np.cos(lon), 0])
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(
+        r_site + 1000 * up, lat, lon, 100, deg=False
+    )
+
+    assert az == pytest.approx(0)
+    assert el == pytest.approx(np.pi / 2)
+    assert rho == pytest.approx(1000)
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(
+        r_site + 1000 * east + 1000 * up, 45, 30, 100
+    )
+    assert np.allclose([az, el, rho], [90, 45, np.sqrt(2) * 1000])
+
+
+#########################################################################################################
 #               RSW
 #########################################################################################################
 
@@ -228,13 +283,13 @@ def test_vallado_full_itrf():
         deltaAT_s=32,
     )
 
-    PN, R, W = Trans.itrf_to_gcrs_matrices(jd, eop)
+    dcm_gcrs_wrt_itrf = Trans.itrf_to_gcrs_matrix(jd, eop)
 
     # Tests that determinant is 1
-    assert np.linalg.det(PN @ R @ W) == pytest.approx(1, 1e-9)
+    assert np.linalg.det(dcm_gcrs_wrt_itrf) == pytest.approx(1, 1e-9)
 
     # Transforms vector correctly
-    r_gcrs = PN @ R @ W @ r_itrf
+    r_gcrs = dcm_gcrs_wrt_itrf @ r_itrf
     assert np.allclose(r_gcrs, expected, rtol=1e-4)
 
 
@@ -264,3 +319,49 @@ def test_vallado_full_itrf_rv():
 
 
 # TODO: acceleration
+
+
+def test_vallado_full_gcrs_rv():
+    """Vallado 4e Example 3-14 p. 220, transformed back to ITRF."""
+    # Book values are given in km
+    r_gcrs = np.array([5102.508959, 6123.011403, 6378.136925])
+    v_gcrs = np.array([-4.743220161, 0.790536495, 5.533755724])
+    r_expected = np.array([-1033.479383, 7901.2952754, 6380.3565958])
+    v_expected = np.array([-3.225636520, -2.872451450, 5.531924446])
+    jd = greg_to_jd(2004, 4, 6, 7, 51, 28.386009)
+
+    eop = Trans.EOP(
+        xp=-0.140682 * ARCSEC_TO_RAD,
+        yp=0.333309 * ARCSEC_TO_RAD,
+        dX=-0.000205 * ARCSEC_TO_RAD,
+        dY=-0.000136 * ARCSEC_TO_RAD,
+        deltaUT1_s=-0.4399619,
+        deltaAT_s=32,
+        lod_s=0.0015563,
+    )
+
+    r_itrf, v_itrf = Trans.gcrs_to_itrf(r_gcrs, v_gcrs, jd, eop)
+
+    assert np.allclose(r_itrf, r_expected, rtol=1e-4)
+    assert np.allclose(v_itrf, v_expected, rtol=1e-4)
+
+
+def test_itrf_gcrs_round_trip():
+    """Recover an ITRF state after forward and reverse transformations."""
+    r_itrf = np.array([-1033.479383, 7901.2952754, 6380.3565958])
+    v_itrf = np.array([-3.225636520, -2.872451450, 5.531924446])
+    jd = greg_to_jd(2004, 4, 6, 7, 51, 28.386009)
+
+    eop = Trans.EOP(
+        xp=-0.140682 * ARCSEC_TO_RAD,
+        yp=0.333309 * ARCSEC_TO_RAD,
+        deltaUT1_s=-0.4399619,
+        deltaAT_s=32,
+        lod_s=0.0015563,
+    )
+
+    r_gcrs, v_gcrs = Trans.itrf_to_gcrs(r_itrf, v_itrf, jd, eop)
+    r_recovered, v_recovered = Trans.gcrs_to_itrf(r_gcrs, v_gcrs, jd, eop)
+
+    assert np.allclose(r_recovered, r_itrf, rtol=0, atol=1e-9)
+    assert np.allclose(v_recovered, v_itrf, rtol=0, atol=1e-12)

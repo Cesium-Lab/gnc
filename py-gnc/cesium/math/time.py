@@ -197,7 +197,14 @@ def jd_to_greg(jd: float):
     min = np.trunc((T - hr) * 60)
     sec = (T - hr - min / 60) * 3600
 
-    return year, month + 1, day_of_yr - day_sum, hr, min, sec
+    return (
+        int(year),
+        int(month + 1),
+        int(day_of_yr - day_sum),
+        int(hr),
+        int(min),
+        float(sec),
+    )
 
 
 ################################################################################

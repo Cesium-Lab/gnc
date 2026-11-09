@@ -10,6 +10,123 @@ from .constants import AU_TO_KM
 from .orbital.interplanetary import OrbitalFlyby
 
 
+def plot_sky(
+    azimuth,
+    elevation,
+    times=None,
+    *,
+    elevation_mask=0.0,
+    visible_mask=None,
+    deg=True,
+    title="Satellite sky track",
+    time_label="Elapsed time",
+    color="purple",
+    cmap="viridis",
+    figsize=(9, 8),
+    show=True,
+):
+    """Plot a site's satellite sky track with a shaded elevation mask.
+
+    Parameters
+    ----------
+    azimuth, elevation : array_like, shape (N,)
+        Azimuth clockwise from north and elevation above the horizon.
+        NaN angles are omitted. Compute these with geodetic_ECEF_to_SEZ.
+    times : array_like, shape (N,), optional
+        Numeric values used to color the track. Convert seconds to hours
+        before passing them if time_label describes hours.
+    elevation_mask : float, optional
+        Minimum visible elevation, in the same angular units as the inputs.
+        The excluded sky region is shaded gray.
+    visible_mask : array_like of bool, shape (N,), optional
+        Additional visibility conditions, combined with the elevation mask.
+    deg : bool, optional
+        Input angles and elevation_mask are degrees if True, radians otherwise.
+    title, time_label : str
+        Plot title and time colorbar label.
+    color, cmap : str
+        Marker color without times, or colormap when times are supplied.
+    figsize : tuple[float, float]
+        Figure width and height in inches.
+    show : bool, optional
+        Display immediately. The figure and axes are returned either way.
+
+    Returns
+    -------
+    fig, ax : matplotlib Figure and polar Axes
+        North is at the top; azimuth increases clockwise. The horizon is the
+        outer circle and zenith is the center. Lines break across hidden or
+        undefined samples rather than joining separate visible intervals.
+    """
+    az = np.asarray(azimuth, dtype=float)
+    el = np.asarray(elevation, dtype=float)
+    if az.ndim != 1 or el.shape != az.shape:
+        raise ValueError(
+            "Azimuth and elevation must be matching one-dimensional arrays"
+        )
+    el_deg = el if deg else np.rad2deg(el)
+    mask_deg = elevation_mask if deg else np.rad2deg(elevation_mask)
+    if not np.isfinite(mask_deg) or not 0 <= mask_deg <= 90:
+        raise ValueError("Elevation mask must be between horizon and zenith")
+    visible = np.isfinite(az) & np.isfinite(el) & (el_deg >= mask_deg) & (el_deg <= 90)
+    if visible_mask is not None:
+        keep = np.asarray(visible_mask)
+        if keep.shape != az.shape or keep.dtype != np.bool_:
+            raise ValueError("visible_mask must be a boolean array matching the angles")
+        visible &= keep
+    if times is not None:
+        times = np.asarray(times, dtype=float)
+        if times.shape != az.shape or not np.isfinite(times).all():
+            raise ValueError("Times must be finite and match the angle arrays")
+    theta = np.deg2rad(az) if deg else az
+    radius = 90 - el_deg
+
+    fig, ax = plt.subplots(figsize=figsize, subplot_kw={"projection": "polar"})
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_thetagrids(
+        np.arange(0, 360, 45), ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    )
+    ax.set_ylim(0, 90)
+    ax.set_yticks([0, 30, 60, 90], labels=["90°", "60°", "30°", "0°"])
+    ax.set_title(title, pad=25)
+    ax.grid(True, alpha=0.4)
+    mask_angles = np.linspace(0, 2 * np.pi, 361)
+    ax.fill_between(mask_angles, 90 - mask_deg, 90, color="gray", alpha=0.25, zorder=0)
+    ax.plot(
+        mask_angles,
+        np.full_like(mask_angles, 90 - mask_deg),
+        color="gray",
+        linestyle="--",
+        linewidth=1,
+    )
+    ax.plot(
+        np.where(visible, theta, np.nan),
+        np.where(visible, radius, np.nan),
+        color="gray",
+        linewidth=1,
+    )
+    if visible.any():
+        dots = ax.scatter(
+            theta[visible],
+            radius[visible],
+            s=8,
+            **(
+                {"c": times[visible], "cmap": cmap}
+                if times is not None
+                else {"color": color}
+            ),
+        )
+        if times is not None:
+            fig.colorbar(dots, ax=ax, pad=0.1, label=time_label)
+    else:
+        ax.text(0.5, 0.5, "No visible samples", transform=ax.transAxes, ha="center")
+    fig.tight_layout()
+    if show:
+        plt.show()
+    return fig, ax
+
+
 def plot_3d(
     traces=None,
     t_arrs=None,
@@ -32,6 +149,8 @@ def plot_3d(
     projection="ortho",
     camera_distance=None,
     scale=1.0,
+    frames=None,
+    points=None,
 ) -> go.Figure:
     """Plot 3D trajectories, spherical bodies, and vector arrows.
 
@@ -72,6 +191,21 @@ def plot_3d(
     vectors : dict or list of dict, optional
         Arrows with nonzero direction (3,), optional origin (default zero),
         length (default direction magnitude, before scaling), name, color, width.
+    frames : dict or list of dict, optional
+        Coordinate triads with location (default zero), dcm_body_wrt_hci
+        (default identity), length (default 1 in input units), and name.
+        Despite the key's HCI suffix, the DCM must map components from the
+        plot's coordinate frame into the displayed frame: v_body = DCM @
+        v_plot. Its rows are the displayed X/Y/Z axes expressed in plot
+        coordinates. For an ECI plot showing ECEF axes, pass an ECI-to-ECEF
+        matrix, e.g. itrf_to_gcrs_matrix(epoch_jd).T. Location is expressed
+        in plot coordinates. Optional colors default to red/green/blue;
+        width defaults to 4. Locations and lengths use scale.
+    points : dict or list of dict, optional
+        Named markers with location (3,) in plot-frame input units. Optional
+        keys: name, color (default red), size (default 7), symbol (default
+        circle), label (default True), and textposition (default top center).
+        Locations are divided by scale and included in automatic axis bounds.
     trace_colors : str or list of str, optional
         One color for all trajectories, or one per trajectory.
     elev, azim : float, optional
@@ -266,10 +400,43 @@ def plot_3d(
                 )
             )
 
+    # Coordinate triads reuse the same arrow geometry as other vectors.
+    vector_specs = (
+        []
+        if vectors is None
+        else ([vectors] if isinstance(vectors, dict) else list(vectors))
+    )
+    if frames is not None:
+        for frame in [frames] if isinstance(frames, dict) else frames:
+            dcm = np.asarray(frame.get("dcm_body_wrt_hci", np.eye(3)), dtype=float)
+            if (
+                dcm.shape != (3, 3)
+                or not np.isfinite(dcm).all()
+                or not np.allclose(dcm @ dcm.T, np.eye(3), atol=1e-6, rtol=0)
+                or not np.isclose(np.linalg.det(dcm), 1, atol=1e-6, rtol=0)
+            ):
+                raise ValueError(
+                    "dcm_body_wrt_hci must be a proper 3x3 rotation matrix"
+                )
+            frame_colors = frame.get("colors", ["red", "green", "blue"])
+            if len(frame_colors) != 3:
+                raise ValueError("Frame colors must contain one color per axis")
+            for axis, direction, color in zip("XYZ", dcm, frame_colors):
+                vector_specs.append(
+                    {
+                        "origin": frame.get("location", [0, 0, 0]),
+                        "direction": direction,
+                        "length": frame.get("length", 1.0),
+                        "name": f"{frame.get('name', 'Frame')} {axis}",
+                        "color": color,
+                        "width": frame.get("width", 4),
+                        "label": True,
+                    }
+                )
+
     # Vector shafts and arrowheads share a legend entry.
-    if vectors is not None:
-        vectors = [vectors] if isinstance(vectors, dict) else vectors
-        for idx, vector in enumerate(vectors):
+    if vector_specs:
+        for idx, vector in enumerate(vector_specs):
             origin = np.asarray(vector.get("origin", [0, 0, 0]), dtype=float)
             direction = np.asarray(vector["direction"], dtype=float)
             if (
@@ -304,7 +471,9 @@ def plot_3d(
                     x=[origin[0], endpoint[0]],
                     y=[origin[1], endpoint[1]],
                     z=[origin[2], endpoint[2]],
-                    mode="lines",
+                    mode="lines+text" if vector.get("label", False) else "lines",
+                    text=["", name] if vector.get("label", False) else None,
+                    textposition="top center",
                     name=name,
                     legendgroup=group,
                     line={"color": color, "width": vector.get("width", 5)},
@@ -327,6 +496,31 @@ def plot_3d(
                     legendgroup=group,
                     showlegend=False,
                     hoverinfo="skip",
+                )
+            )
+
+    if points is not None:
+        for index, point in enumerate([points] if isinstance(points, dict) else points):
+            location = np.asarray(point["location"], dtype=float)
+            if location.shape != (3,) or not np.isfinite(location).all():
+                raise ValueError("Point location must be a finite (3,) array")
+            location = location / scale
+            name = point.get("name", f"Point {index + 1}")
+            labeled = point.get("label", True)
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[location[0]],
+                    y=[location[1]],
+                    z=[location[2]],
+                    mode="markers+text" if labeled else "markers",
+                    name=name,
+                    text=[name] if labeled else None,
+                    textposition=point.get("textposition", "top center"),
+                    marker={
+                        "size": point.get("size", 7),
+                        "color": point.get("color", "red"),
+                        "symbol": point.get("symbol", "circle"),
+                    },
                 )
             )
 
