@@ -1,5 +1,6 @@
 # CMFV
 
+Keep in mind this is before I knew LQR. btw
 
 ## Design Process / Order
 ### `intro.ipynb`
