@@ -1,5 +1,7 @@
 """Non-COES transformations"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -8,7 +10,7 @@ from numpy.linalg import norm
 
 from ..constants import ARCSEC_TO_RAD, DEG_TO_RAD, RAD_TO_DEG, SEC_TO_DAY
 from ..math.quaternion import unit
-from ..math.rotations import dcm_z, wrap_to_2pi
+from ..math.rotations import dcm_z, wrap_to_2pi, wrap_to_pi
 from ..math.time import jd_to_julian_centuries
 from ..world import ECC_EARTH, ECLIPTIC_ANGLE, R_EARTH, R_EARTH_POLAR, W_EARTH
 from .CIP.parse import get_summation, import_table
@@ -69,6 +71,78 @@ def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
     n_hat = np.cross(t_hat, w_hat)
 
     return np.vstack((n_hat, t_hat, w_hat))
+
+
+################################################################################
+#               SEZ <--> ECEF
+################################################################################
+
+
+def geodetic_ECEF_to_SEZ(
+    r_sat_ecef_m: np.ndarray, lat: float, lon: float, alt_m=0.0, deg=True
+):
+    """Return geodetic site azimuth, elevation, and slant range using SEZ axes.
+
+    Parameters
+    ----------
+    r_sat_ecef_m : ndarray, shape (3,)
+        Satellite Earth-fixed position in meters.
+    lat, lon : float
+        Site geodetic latitude and east-positive longitude; degrees when
+        deg=True, otherwise radians.
+    alt_m : float, optional
+        Site height above the reference ellipsoid in meters.
+    deg : bool, optional
+        Interpret input angles and return output angles in degrees when True.
+
+    Returns
+    -------
+    azimuth, elevation, rho : float
+        Azimuth clockwise from north in [0, 360) degrees (or [0, 2*pi)),
+        elevation above the local horizon, and site-to-satellite range in m.
+        Azimuth is undefined for an exactly vertical line of sight.
+
+    Raises
+    ------
+    ValueError
+        If the satellite and site coincide, making the viewing angles undefined.
+    """
+    r_site_ecef_m = geodetic_LLA_to_ECEF(lat, lon, alt_m, deg)
+    if deg:
+        lat *= DEG_TO_RAD
+        lon *= DEG_TO_RAD
+
+    # Local ellipsoid-normal zenith, not the geocentric radial direction.
+    south = np.array(
+        [np.sin(lat) * np.cos(lon), np.sin(lat) * np.sin(lon), -np.cos(lat)]
+    )
+    east = np.array([-np.sin(lon), np.cos(lon), 0])
+    zenith = np.array(
+        [np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)]
+    )
+    dcm_sez_wrt_ecef = np.stack((south, east, zenith)) # columns makes sez->ecef so rows makes ecef->sez
+    r_sat_sez = dcm_sez_wrt_ecef @ (r_sat_ecef_m - r_site_ecef_m)
+
+    rho = norm(r_sat_sez)
+    if rho == 0:
+        raise ValueError("Satellite and site coincide; viewing angles are undefined")
+    
+    horizontal = np.hypot(r_sat_sez[0], r_sat_sez[1])
+    azimuth = (
+        0 if horizontal <= 1e-9 * rho
+        else wrap_to_2pi(np.arctan2(r_sat_sez[1], -r_sat_sez[0]))
+    )
+    elevation = (
+        np.pi/2 if horizontal <= 1e-9 * rho
+        else wrap_to_pi(np.arctan2(r_sat_sez[2], horizontal))
+    )
+    
+
+
+    if deg:
+        azimuth *= RAD_TO_DEG
+        elevation *= RAD_TO_DEG
+    return azimuth, elevation, rho
 
 
 ################################################################################
@@ -191,8 +265,8 @@ def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, fl
         )
 
     if deg:
-        lat_gd /= DEG_TO_RAD
-        lon_gd /= DEG_TO_RAD
+        lat_gd *= RAD_TO_DEG
+        lon_gd *= RAD_TO_DEG
 
     return lat_gd, lon_gd, alt_m
 

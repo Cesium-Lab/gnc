@@ -60,6 +60,61 @@ def test_r_to_lla_example_3_3():
 
 
 #########################################################################################################
+#               SEZ
+#########################################################################################################
+
+
+def test_ecef_to_sez():
+    # Book values are given in km
+    r_ecef = np.array([6524.834, 6862.875, 6448.296]) * KM_TO_M
+    lat, lon, alt_m = Trans.ECEF_to_geodetic_LLA(r_ecef)
+
+    # Site on the ellipsoid directly underneath the satellite.
+    r_site_ecef_m = Trans.geodetic_LLA_to_ECEF(lat, lon, 0)
+    _az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_ecef, lat, lon, 0)
+
+    assert el == pytest.approx(90, rel=1e-5)
+    assert rho == pytest.approx(norm(r_ecef - r_site_ecef_m))
+    assert rho == pytest.approx(alt_m)
+
+
+def test_ecef_to_sez_cardinal_directions():
+    """Mainly tests azimuth. Edge cases"""
+    r_site = Trans.geodetic_LLA_to_ECEF(0, 0) # equator
+    
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 1000, 0], 0, 0)
+    assert np.allclose([az, el, rho], [90, 0, 1000])
+
+    # arctan2 returns 0 for azimuth if no s direction
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 0, 1000], 0, 0)
+    assert np.allclose([az, el, rho], [0, 0, 1000])
+
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_site + [0, -1000, 0], 0, 0)
+    assert np.allclose([az, el, rho], [270, 0, 1000])
+
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 0, -1000], 0, 0)
+    assert np.allclose([az, el, rho], [180, 0, 1000])
+
+
+def test_ecef_to_sez_geodetic_axes():
+    lat, lon = 45 * DEG_TO_RAD, 30 * DEG_TO_RAD
+    r_site = Trans.geodetic_LLA_to_ECEF(lat, lon, 100, deg=False)
+    up = np.array([np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)])
+    east = np.array([-np.sin(lon), np.cos(lon), 0])
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(
+        r_site + 1000 * up, lat, lon, 100, deg=False
+    )
+    
+    assert az == pytest.approx(0)
+    assert el == pytest.approx(np.pi / 2)
+    assert rho == pytest.approx(1000)
+    az, el, rho = Trans.geodetic_ECEF_to_SEZ(
+        r_site + 1000 * east + 1000 * up, 45, 30, 100
+    )
+    assert np.allclose([az, el, rho], [90, 45, np.sqrt(2) * 1000])
+
+
+#########################################################################################################
 #               RSW
 #########################################################################################################
 
