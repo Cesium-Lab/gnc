@@ -10,7 +10,7 @@ from numpy.linalg import norm
 
 from ..constants import ARCSEC_TO_RAD, DEG_TO_RAD, RAD_TO_DEG, SEC_TO_DAY
 from ..math.quaternion import unit
-from ..math.rotations import dcm_z, wrap_to_2pi, wrap_to_pi
+from ..math.rotations import dcm_z, wrap_to_2pi
 from ..math.time import jd_to_julian_centuries
 from ..world import ECC_EARTH, ECLIPTIC_ANGLE, R_EARTH, R_EARTH_POLAR, W_EARTH
 from .CIP.parse import get_summation, import_table
@@ -79,21 +79,24 @@ def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
 
 
 def geodetic_ECEF_to_SEZ(
-    r_sat_ecef_m: np.ndarray, lat: float, lon: float, alt_m=0.0, deg=True
+    r_sat_ecef_m: np.ndarray, v_sat_ecef_m: np.ndarray, lat: float, lon: float, alt_m=0.0, deg=True
 ):
-    """Return geodetic site azimuth, elevation, and slant range using SEZ axes.
+    """Return geodetic site azimuth, elevation, slant range, and their rates.
 
     Parameters
     ----------
     r_sat_ecef_m : ndarray, shape (3,)
         Satellite Earth-fixed position in meters.
+    v_sat_ecef_m : ndarray, shape (3,)
+        Satellite Earth-fixed velocity in meters per second.
     lat, lon : float
         Site geodetic latitude and east-positive longitude; degrees when
         deg=True, otherwise radians.
     alt_m : float, optional
         Site height above the reference ellipsoid in meters.
     deg : bool, optional
-        Interpret input angles and return output angles in degrees when True.
+        Use degrees and deg/s for angles and angular rates when True (default),
+        otherwise radians and rad/s. Also controls input latitude and longitude.
 
     Returns
     -------
@@ -101,18 +104,26 @@ def geodetic_ECEF_to_SEZ(
         Azimuth clockwise from north in [0, 360) degrees (or [0, 2*pi)),
         elevation above the local horizon, and site-to-satellite range in m.
         Azimuth is undefined for an exactly vertical line of sight.
+    azimuth_dot, elevation_dot, rho_dot : float
+        Angular rates in deg/s when deg=True, otherwise rad/s, followed by
+        range rate in m/s (positive when receding). Angular rates are NaN
+        when the horizontal range divided by slant range is at most 1e-9.
 
     Raises
     ------
     ValueError
         If the satellite and site coincide, making the viewing angles undefined.
+
+    References
+    ------
+    Vallado 4e, Algorithm 27, p. 265.
     """
     r_site_ecef_m = geodetic_LLA_to_ECEF(lat, lon, alt_m, deg)
     if deg:
         lat *= DEG_TO_RAD
         lon *= DEG_TO_RAD
 
-    # Local ellipsoid-normal zenith, not the geocentric radial direction.
+    # dcm
     south = np.array(
         [np.sin(lat) * np.cos(lon), np.sin(lat) * np.sin(lon), -np.cos(lat)]
     )
@@ -124,27 +135,35 @@ def geodetic_ECEF_to_SEZ(
         (south, east, zenith)
     )  # columns makes sez->ecef so rows makes ecef->sez
     r_sat_sez = dcm_sez_wrt_ecef @ (r_sat_ecef_m - r_site_ecef_m)
+    v_sat_sez = dcm_sez_wrt_ecef @ v_sat_ecef_m
 
     rho = norm(r_sat_sez)
     if rho == 0:
         raise ValueError("Satellite and site coincide; viewing angles are undefined")
 
     horizontal = np.hypot(r_sat_sez[0], r_sat_sez[1])
+    elevation = np.arctan2(r_sat_sez[2], horizontal)
+
+    vertical = horizontal / rho <= 1e-9
     azimuth = (
         0
-        if horizontal <= 1e-9 * rho
+        if vertical
         else wrap_to_2pi(np.arctan2(r_sat_sez[1], -r_sat_sez[0]))
     )
-    elevation = (
-        np.pi / 2
-        if horizontal <= 1e-9 * rho
-        else wrap_to_pi(np.arctan2(r_sat_sez[2], horizontal))
-    )
+
+    rho_dot = np.dot(r_sat_sez, v_sat_sez) / rho
+    if vertical:
+        azimuth_dot = elevation_dot = np.nan
+    else:
+        azimuth_dot = (v_sat_sez[0]*r_sat_sez[1] - r_sat_sez[0]*v_sat_sez[1]) / horizontal**2
+        elevation_dot = (v_sat_sez[2] - rho_dot*np.sin(elevation)) / horizontal
 
     if deg:
         azimuth *= RAD_TO_DEG
         elevation *= RAD_TO_DEG
-    return azimuth, elevation, rho
+        azimuth_dot *= RAD_TO_DEG
+        elevation_dot *= RAD_TO_DEG
+    return azimuth, elevation, rho, azimuth_dot, elevation_dot, rho_dot
 
 
 ################################################################################
