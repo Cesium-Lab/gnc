@@ -168,8 +168,8 @@ INC_MOON = 5.145
 #                       Mars
 # ==================================================
 
-M_MARS = 641.9e21
-"""Mars mass [kg]. Source: Curtis, Table A.1."""
+MU_MARS = 42828e9
+"""Mars standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
 
 R_MARS = 3396e3
 """Mars radius [m]. Source: Curtis, Table A.1."""

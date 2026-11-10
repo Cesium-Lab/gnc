@@ -445,14 +445,14 @@ class InterplanetaryTrajectory:
 ###########################################################################
 
 
-def departure_characteristics(v_dep_eci: np.ndarray):
+def hyperbolic_characteristics(v_dep_intrl: np.ndarray):
     """Calculate characteristic energy and asymptote angles from excess velocity.
 
     Parameters
     ----------
-    v_dep_eci : ndarray, shape (3,)
+    v_dep_intrl : ndarray, shape (3,)
         Nonzero, planet-relative hyperbolic excess velocity expressed in
-        Earth's equatorial inertial axes. Subtract Earth's velocity BEFORE
+        Earth's equatorial inertial axes. Subtract Planet's velocity BEFORE
         rotating from HCI; do not supply heliocentric spacecraft velocity.
 
     Returns
@@ -465,9 +465,9 @@ def departure_characteristics(v_dep_eci: np.ndarray):
     dla : float
         Declination of the outgoing asymptote in radians, in [-pi/2, pi/2].
     """
-    C3 = norm(v_dep_eci) ** 2
-    rla = wrap_to_2pi(np.arctan2(v_dep_eci[1], v_dep_eci[0]))
-    dla = wrap_to_pi(np.arcsin(v_dep_eci[2] / norm(v_dep_eci)))
+    C3 = norm(v_dep_intrl) ** 2
+    rla = wrap_to_2pi(np.arctan2(v_dep_intrl[1], v_dep_intrl[0]))
+    dla = wrap_to_pi(np.arcsin(v_dep_intrl[2] / norm(v_dep_intrl)))
     return C3, rla, dla
 
 
@@ -714,7 +714,7 @@ class EarthDepartureGrid:
         self.calc_ra_dec()
 
     def calc_ra_dec(self):
-        """Recalculate RLA/DLA in degrees using ``departure_characteristics``.
+        """Recalculate RLA/DLA in degrees using ``hyperbolic_characteristics``.
 
         Only valid, nonzero excess-velocity entries are evaluated. Replaces
         ``rla_grid`` and ``dla_grid``; all other entries remain NaN.
@@ -725,6 +725,6 @@ class EarthDepartureGrid:
         for dep_i, arr_i in zip(
             *np.where(self.valid_mask & (self.v_inf_dep_norm_km_s > 0))
         ):
-            _, rla, dla = departure_characteristics(self.v_dep_eci_km[dep_i, arr_i])
+            _, rla, dla = hyperbolic_characteristics(self.v_dep_eci_km[dep_i, arr_i])
             self.rla_grid[dep_i, arr_i] = rla * RAD_TO_DEG
             self.dla_grid[dep_i, arr_i] = dla * RAD_TO_DEG
