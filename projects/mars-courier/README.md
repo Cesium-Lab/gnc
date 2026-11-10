@@ -30,11 +30,15 @@
 
 ### Order of Implementation
 1. `interplanetary.ipynb`
-   1. Creates `.mission` file
+   1. Creates `trajectories/<mission>.mission` file
    2. TODO: modularize it
 2. `departure.ipynb`
-   1. Uses `.mission` file to create launch profile for departure
-3. `arrival.ipynb`
+   1. Loads the HCI `.mission` reference and models the Earth escape trajectory
+   2. Saves `trajectories/<mission>-departure.mission`: burn-reference epoch [JD], elapsed time [s], and ECI states [m, m/s]
+3. `ground_segment.ipynb`
+   1. Loads the ECI departure
+   2. Computes ECEF states, ground tracks, sky plots, and per-station/network visibility
+4. `arrival.ipynb`
    1. Uses `.mission` file to B-target and rendezvous in-orbit
-4. `descent.ipynb`
+5. `descent.ipynb`
    1. Descending to landing site
