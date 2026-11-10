@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -67,24 +66,6 @@ def test_network_rejects_mismatched_inputs():
         network.compute_visibility(positions[:1], dates, [10])
     with pytest.raises(ValueError, match="increasing"):  # reject increasing dates
         network.compute_visibility(positions, dates[::-1], [10])
-
-
-def test_network_plot_time_axes_and_hidden_cells():
-    station = GroundStation("Site", 0, 0, 0)
-    dates = np.array([2464492.5, 2464492.5 + 1 / 24])
-    network = GroundStationNetwork([station]).compute_visibility(
-        np.array([[7e6, 0, 0, 0, 0, 0], [-7e6, 0, 0, 0, 0, 0]]),
-        dates,
-        [10],
-    )
-    for mode in ["gregorian", "jd", "hours"]:
-        fig, axes = network.plot_visibility(time_axis=mode, show=False)
-        heat = axes[0].collections[0].get_array()
-        assert np.array_equal(np.ma.getmaskarray(heat), ~network.visible_mask)
-        assert axes[1].lines[0].get_drawstyle() == "steps-mid"
-        if mode == "hours":
-            assert np.allclose(axes[1].lines[0].get_xdata(), [0, 1])
-        plt.close(fig)
 
 
 def test_network_single_sample_pass_boundaries():

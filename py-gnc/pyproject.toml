@@ -18,6 +18,7 @@ dev = [
     "kaleido>=1",
     "juliandate",
     "lamberthub",
+    "matplotlib",
 ]
 
 [tool.setuptools.packages.find]
