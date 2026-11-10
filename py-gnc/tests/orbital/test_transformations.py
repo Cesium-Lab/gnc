@@ -128,17 +128,23 @@ def test_ecef_to_sez_geodetic_axes():
 
 def test_ecef_to_sez_rates():
     r_site = Trans.geodetic_LLA_to_ECEF(0, 0)
-    r_ecef = r_site + [1000, 1000, 0]
-    v_ecef = np.array([20, 10, 30])
+    r_ecef = r_site + [1000, 1000, 0] # rho = [0,1000,1000] -> 1000*sqrt(2)
+    v_ecef = np.array([20, 10, 30])  # [-30,10,20] in sed, norm of sqrt(14)*10
 
     az, el, rho, az_dot, el_dot, rho_dot = Trans.geodetic_ECEF_to_SEZ(
         r_ecef, v_ecef, 0, 0, deg=False
     )
+
+    # rho_dot = dot([0,1000,1000], [-30,10,20]) / 1000*sqrt(2)
+    #         = 30 / sqrt(2)
+    # az_dot = ((-30)*1000) / (1000^2) = -0.03
+    # el_dot = (20 - 30/sqrt(2)*sin(np.pi / 4)) / 1000 = 0.005
     assert np.allclose([az, el, rho], [np.pi / 2, np.pi / 4, np.sqrt(2) * 1000])
     assert az_dot == pytest.approx(-0.03)
     assert el_dot == pytest.approx(0.005)
     assert rho_dot == pytest.approx(30 / np.sqrt(2))
 
+    # works in degrees too
     az_deg, el_deg, rho_m, az_dot_deg, el_dot_deg, rho_dot_m_s = (
         Trans.geodetic_ECEF_to_SEZ(r_ecef, v_ecef, 0, 0)
     )

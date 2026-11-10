@@ -46,7 +46,8 @@ class GroundStationNetwork:
 
     visible_mask[j, i] says whether station j sees the satellite at t_jd[i].
     windows_jd maps station names to (start JD, end JD) rows. Boundaries are
-    first/last visible samples; no crossing-time interpolation is performed.
+    first/last visible samples, both inclusive; no crossing-time interpolation
+    is performed.
     """
 
     def __init__(self, stations: list[GroundStation]):
@@ -70,9 +71,9 @@ class GroundStationNetwork:
             or np.any(np.diff(self.t_jd) <= 0)
         ):
             raise ValueError("Julian dates must be finite and strictly increasing")
-        if r_ecef_m.shape != (len(self.t_jd), 3) or not np.isfinite(r_ecef_m).all():
+        if r_ecef_m.shape != (len(self.t_jd), 6) or not np.isfinite(r_ecef_m).all():
             raise ValueError(
-                "Provide one finite ECEF position in meters per Julian date"
+                "Provide one finite ECEF position/velocity state (m, m/s) per Julian date"
             )
         if self.elevation_masks_deg.shape != (len(self.stations),):
             raise ValueError("Provide one elevation threshold per station")
@@ -85,7 +86,7 @@ class GroundStationNetwork:
                 f"Elevation thresholds must be between 0 and 90 degrees: {elevation_masks_deg}"
             )
 
-        self.az_el_rho = np.empty((len(self.stations), len(self.t_jd), 3))
+        self.az_el_rho = np.empty((len(self.stations), len(self.t_jd), 6))
         self.visible_mask = np.empty((len(self.stations), len(self.t_jd)), dtype=bool)
 
         self.windows_jd = {}
@@ -105,7 +106,7 @@ class GroundStationNetwork:
         return self
 
     def _windows(self, mask):
-        """Return inclusive sampled JD endpoints for contiguous True runs."""
+        """Return inclusive first/last sampled JD endpoints for contiguous True runs."""
         edges = np.diff(np.r_[False, mask, False].astype(int))
         starts = np.flatnonzero(edges == 1)
         ends = np.flatnonzero(edges == -1) - 1
