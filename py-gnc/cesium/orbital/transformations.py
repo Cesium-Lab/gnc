@@ -79,7 +79,12 @@ def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
 
 
 def geodetic_ECEF_to_SEZ(
-    r_sat_ecef_m: np.ndarray, v_sat_ecef_m: np.ndarray, lat: float, lon: float, alt_m=0.0, deg=True
+    r_sat_ecef_m: np.ndarray,
+    v_sat_ecef_m: np.ndarray,
+    lat: float,
+    lon: float,
+    alt_m=0.0,
+    deg=True,
 ):
     """Return geodetic site azimuth, elevation, slant range, and their rates.
 
@@ -145,18 +150,16 @@ def geodetic_ECEF_to_SEZ(
     elevation = np.arctan2(r_sat_sez[2], horizontal)
 
     vertical = horizontal / rho <= 1e-9
-    azimuth = (
-        0
-        if vertical
-        else wrap_to_2pi(np.arctan2(r_sat_sez[1], -r_sat_sez[0]))
-    )
+    azimuth = 0 if vertical else wrap_to_2pi(np.arctan2(r_sat_sez[1], -r_sat_sez[0]))
 
     rho_dot = np.dot(r_sat_sez, v_sat_sez) / rho
     if vertical:
         azimuth_dot = elevation_dot = np.nan
     else:
-        azimuth_dot = (v_sat_sez[0]*r_sat_sez[1] - r_sat_sez[0]*v_sat_sez[1]) / horizontal**2
-        elevation_dot = (v_sat_sez[2] - rho_dot*np.sin(elevation)) / horizontal
+        azimuth_dot = (
+            v_sat_sez[0] * r_sat_sez[1] - r_sat_sez[0] * v_sat_sez[1]
+        ) / horizontal**2
+        elevation_dot = (v_sat_sez[2] - rho_dot * np.sin(elevation)) / horizontal
 
     if deg:
         azimuth *= RAD_TO_DEG

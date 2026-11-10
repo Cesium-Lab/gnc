@@ -82,17 +82,25 @@ def test_ecef_to_sez_cardinal_directions():
     """Mainly tests azimuth. Edge cases"""
     r_site = Trans.geodetic_LLA_to_ECEF(0, 0)  # equator
 
-    az, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 1000, 0], np.zeros(3), 0, 0)
+    az, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(
+        r_site + [0, 1000, 0], np.zeros(3), 0, 0
+    )
     assert np.allclose([az, el, rho], [90, 0, 1000])
 
     # arctan2 returns 0 for azimuth if no s direction
-    az, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 0, 1000], np.zeros(3), 0, 0)
+    az, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(
+        r_site + [0, 0, 1000], np.zeros(3), 0, 0
+    )
     assert np.allclose([az, el, rho], [0, 0, 1000])
 
-    az, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(r_site + [0, -1000, 0], np.zeros(3), 0, 0)
+    az, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(
+        r_site + [0, -1000, 0], np.zeros(3), 0, 0
+    )
     assert np.allclose([az, el, rho], [270, 0, 1000])
 
-    az, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(r_site + [0, 0, -1000], np.zeros(3), 0, 0)
+    az, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(
+        r_site + [0, 0, -1000], np.zeros(3), 0, 0
+    )
     assert np.allclose([az, el, rho], [180, 0, 1000])
 
 
@@ -128,7 +136,7 @@ def test_ecef_to_sez_geodetic_axes():
 
 def test_ecef_to_sez_rates():
     r_site = Trans.geodetic_LLA_to_ECEF(0, 0)
-    r_ecef = r_site + [1000, 1000, 0] # rho = [0,1000,1000] -> 1000*sqrt(2)
+    r_ecef = r_site + [1000, 1000, 0]  # rho = [0,1000,1000] -> 1000*sqrt(2)
     v_ecef = np.array([20, 10, 30])  # [-30,10,20] in sed, norm of sqrt(14)*10
 
     az, el, rho, az_dot, el_dot, rho_dot = Trans.geodetic_ECEF_to_SEZ(
@@ -149,7 +157,9 @@ def test_ecef_to_sez_rates():
         Trans.geodetic_ECEF_to_SEZ(r_ecef, v_ecef, 0, 0)
     )
     assert np.allclose([az_deg, el_deg], np.array([az, el]) * RAD_TO_DEG)
-    assert np.allclose([az_dot_deg, el_dot_deg], np.array([az_dot, el_dot]) * RAD_TO_DEG)
+    assert np.allclose(
+        [az_dot_deg, el_dot_deg], np.array([az_dot, el_dot]) * RAD_TO_DEG
+    )
     assert rho_m == pytest.approx(rho)
     assert rho_dot_m_s == pytest.approx(rho_dot)
 

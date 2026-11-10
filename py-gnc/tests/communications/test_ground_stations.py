@@ -14,19 +14,21 @@ def test_station_uses_geodetic_location_and_altitude():
     position = geodetic_LLA_to_ECEF(45, 30, 100) + 1000 * up
     angles, visible = station.sat_pass(np.array([np.r_[position, np.zeros(3)]]), 10)
 
-    assert np.allclose(angles[0, 1:3], [90, 1000]) # elevation and range
+    assert np.allclose(angles[0, 1:3], [90, 1000])  # elevation and range
     assert visible.tolist() == [True]
 
 
 def test_network_windows_and_station_identity():
     stations = [GroundStation("ONE", 0, 0, 0), GroundStation("West", 0, 20, 0)]
     one = np.array([R_EARTH + 100, 0, 0])
-    two = np.array([R_EARTH, R_EARTH, 0]) # Hella 45
+    two = np.array([R_EARTH, R_EARTH, 0])  # Hella 45
     both = np.array([R_EARTH * 10, R_EARTH * 10, 0])  # should be in view of both
     hidden = np.array([0, 0, R_EARTH + 1000])
     dates = 2464492.5 + np.arange(6) / 1440
     network = GroundStationNetwork(stations).compute_visibility(
-        np.column_stack((np.array([one, both, two, two, hidden, one]), np.zeros((6, 3)))),
+        np.column_stack(
+            (np.array([one, both, two, two, hidden, one]), np.zeros((6, 3)))
+        ),
         dates,
         [10, 20],
     )
@@ -44,11 +46,13 @@ def test_network_windows_and_station_identity():
     assert network.station_count.tolist() == [1, 2, 1, 1, 0, 1]
     assert network.stations_available(dates[2]) == ["West"]
     assert np.allclose(
-        network.windows_jd["ONE"], [[dates[0], dates[1]], [dates[5], dates[5]]]  # for ONE ground station
+        network.windows_jd["ONE"],
+        [[dates[0], dates[1]], [dates[5], dates[5]]],  # for ONE ground station
     )
     assert np.allclose(network.windows_jd["West"], [[dates[1], dates[3]]])
     assert np.allclose(
-        network.network_windows_jd, [[dates[0], dates[3]], [dates[5], dates[5]]]  # FULL windows
+        network.network_windows_jd,
+        [[dates[0], dates[3]], [dates[5], dates[5]]],  # FULL windows
     )
 
 

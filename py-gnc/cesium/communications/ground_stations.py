@@ -28,7 +28,8 @@ class GroundStation:
 
         for i in tqdm(range(rv_ecef_m.shape[0]), desc=f"{self.name} az/el calculation"):
             az_el_rho[i] = geodetic_ECEF_to_SEZ(
-                rv_ecef_m[i,0:3], rv_ecef_m[i,3:6],
+                rv_ecef_m[i, 0:3],
+                rv_ecef_m[i, 3:6],
                 self.lat_deg,
                 self.lon_deg,
                 alt_m=self.alt_m,
