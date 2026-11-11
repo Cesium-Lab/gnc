@@ -5,7 +5,7 @@ A mini-capstone exploring navigation, spacecraft mission design, orbital mechani
 ## Featured projects
 
 - **[Voyager trajectory analysis](py-gnc/playgrounds/orbital/voyager.ipynb)** — Models Voyager 1 and 2 interplanetary transfers using Lambert solutions, numerical propagation, and planetary flyby geometry. Includes comparisons with JPL Horizons ephemerides and visualizations of the trajectories and gravity assists.
-- **[Mars Courier mission design](projects/mars-courier/README.md)** — A Earth-to-Mars mission plan linking launch-window selection, Earth escape, ground-station coverage, with Mars arrival as the next phase. Built around reusable trajectory, coordinate-transformation, and plotting tools.
+- **[Mars Courier mission design](projects/mars-courier)** — A Earth-to-Mars mission plan linking launch-window selection, Earth escape, ground-station coverage, with Mars arrival as the next phase. Built around reusable trajectory, coordinate-transformation, and plotting tools.
   - [Interplanetary transfer](projects/mars-courier/interplanetary.ipynb): porkchop plots, launch-window constraints, and transfer selection.
   - [Earth departure](projects/mars-courier/departure.ipynb): hyperbolic escape geometry, propagation, and trajectory corrections.
   - [Ground segment](projects/mars-courier/ground_segment.ipynb): ground tracks, sky plots, and visibility windows across a station network.
