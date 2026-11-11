@@ -15,7 +15,9 @@ def test_circular_orbit_returns_after_one_period():
     rv = propagate_two_body(RV0, np.linspace(0, PERIOD_S, 200), MU_EARTH)
 
     assert rv.shape == (200, 6)
-    assert np.allclose(rv[-1], RV0, rtol=0, atol=[0.1] * 3 + [1e-4] * 3)  # Last point matches
+    assert np.allclose(
+        rv[-1], RV0, rtol=0, atol=[0.1] * 3 + [1e-4] * 3
+    )  # Last point matches
     assert np.allclose(norm(rv[:, :3], axis=1), R0, rtol=1e-8)  # circle condition
 
 

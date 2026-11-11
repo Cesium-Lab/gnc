@@ -110,13 +110,15 @@ def b_plane_flyby(v_inf_arr: np.ndarray, v_inf_dep: np.ndarray, mu: float):
 
     return B_vec, r_p
 
+
 @dataclass(frozen=True)
 class ArrivalPlan:
-    r_p: np.ndarray            # (3,)  periapsis position, MCI [m]
-    v_p_hyp: np.ndarray        # (3,)  hyperbolic velocity at periapsis (pre-burn) [m/s]
-    B_TR: np.ndarray           # (2,) aim point [B·T, B·R] [m]
-    burns: list[tuple[np.ndarray, np.ndarray]]          # each: location/epoch, dv vector, |dv|
+    r_p: np.ndarray  # (3,)  periapsis position, MCI [m]
+    v_p_hyp: np.ndarray  # (3,)  hyperbolic velocity at periapsis (pre-burn) [m/s]
+    B_TR: np.ndarray  # (2,) aim point [B·T, B·R] [m]
+    burns: list[tuple[np.ndarray, np.ndarray]]  # each: location/epoch, dv vector, |dv|
     dv_total: float
+
 
 def plan_direct_injection(
     v_inf_hci_km: np.ndarray,
@@ -131,10 +133,8 @@ def plan_direct_injection(
     # Everything in meters unless specified
 
     # Coplanar circular capture cost and hyperbola geometry
-    _dv_periapse_m, ta_asymptote_rad, _B, e = (
-        interplanetary_circ_injection(
-            norm(v_inf_hci_km * KM_TO_M), target_periapse_m, mu, deg=False
-        )
+    _dv_periapse_m, ta_asymptote_rad, _B, e = interplanetary_circ_injection(
+        norm(v_inf_hci_km * KM_TO_M), target_periapse_m, mu, deg=False
     )
     v_hat = unit(v_inf_hci_km)
     if deg:
@@ -147,11 +147,8 @@ def plan_direct_injection(
     )
     orbit_normal = unit(np.cross(r_target, v_target))
 
-
     # Incoming velocity direction projected into the target plane.
-    v_projected = (
-        v_hat - np.dot(v_hat, orbit_normal) * orbit_normal
-    )
+    v_projected = v_hat - np.dot(v_hat, orbit_normal) * orbit_normal
     q = norm(v_projected)
     if q < 1 / e - 1e-12:
         raise ValueError(
@@ -164,10 +161,7 @@ def plan_direct_injection(
     # Each p appears on both sides of the v_inf_vec when viewed from above
     theta_rad = np.pi - ta_asymptote_rad
     p_hats = np.array(
-        [
-            unit(np.cos(theta_rad) * u + sign * np.sin(theta_rad) * w)
-            for sign in (1, -1)
-        ]
+        [unit(np.cos(theta_rad) * u + sign * np.sin(theta_rad) * w) for sign in (1, -1)]
     )
     r_p_captures_mci = target_periapse_m * p_hats
 
@@ -177,16 +171,13 @@ def plan_direct_injection(
     v_p_captures_mci = v_p * v_hyp_hats
 
     # Capture orbit things
-    v_captures_mci = np.sqrt(mu / target_periapse_m) * np.cross(
-        orbit_normal, p_hats
-    )
-    dv_captures_mci = (
-        v_captures_mci - v_p_captures_mci
-    )
+    v_captures_mci = np.sqrt(mu / target_periapse_m) * np.cross(orbit_normal, p_hats)
+    dv_captures_mci = v_captures_mci - v_p_captures_mci
 
     # Keep both branches; select the smaller combined capture/plane-change burn.
     selected_index = int(np.argmin(norm(dv_captures_mci, axis=1)))
-    if not low_energy_path: selected_index = 1-selected_index  # switches off
+    if not low_energy_path:
+        selected_index = 1 - selected_index  # switches off
     r_p_mci = r_p_captures_mci[selected_index]
     v_p_mci = v_p_captures_mci[selected_index]
     v_capture_mci = v_captures_mci[selected_index]
