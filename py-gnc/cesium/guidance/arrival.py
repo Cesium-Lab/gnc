@@ -1,7 +1,12 @@
+from dataclasses import dataclass
+
 import numpy as np
 from numpy.linalg import norm
 
+from ..constants import DEG_TO_RAD, KM_TO_M
 from ..math.base import unit
+from ..orbital.coes import coes_to_rv
+from .interplanetary import interplanetary_circ_injection
 
 
 def b_plane_frame(r_pci: np.ndarray, v_pci: np.ndarray, mu: float):
@@ -104,3 +109,89 @@ def b_plane_flyby(v_inf_arr: np.ndarray, v_inf_dep: np.ndarray, mu: float):
     B_vec = B * B_hat
 
     return B_vec, r_p
+
+@dataclass(frozen=True)
+class ArrivalPlan:
+    r_p: np.ndarray            # (3,)  periapsis position, MCI [m]
+    v_p_hyp: np.ndarray        # (3,)  hyperbolic velocity at periapsis (pre-burn) [m/s]
+    B_TR: np.ndarray           # (2,) aim point [B·T, B·R] [m]
+    burns: list[tuple[np.ndarray, np.ndarray]]          # each: location/epoch, dv vector, |dv|
+    dv_total: float
+
+def plan_direct_injection(
+    v_inf_hci_km: np.ndarray,
+    target_periapse_m: float,
+    target_raan: float,
+    target_i: float,
+    mu: float,
+    deg=True,
+    low_energy_path=True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Capture + plane change in one periapsis burn into a fixed (i, Ω) circular orbit."""
+    # Everything in meters unless specified
+
+    # Coplanar circular capture cost and hyperbola geometry
+    dv_periapse_m, ta_asymptote_rad, B, e = (
+        interplanetary_circ_injection(
+            norm(v_inf_hci_km * KM_TO_M), target_periapse_m, mu, deg=False
+        )
+    )
+    v_hat = unit(v_inf_hci_km)
+    if deg:
+        target_raan *= DEG_TO_RAD
+        target_i *= DEG_TO_RAD
+
+    # Use the existing element conversion at the ascending node.
+    r_target, v_target = coes_to_rv(
+        target_periapse_m, 0.0, target_i, target_raan, 0.0, 0.0, mu
+    )
+    orbit_normal = unit(np.cross(r_target, v_target))
+
+
+    # Incoming velocity direction projected into the target plane.
+    v_projected = (
+        v_hat - np.dot(v_hat, orbit_normal) * orbit_normal
+    )
+    q = norm(v_projected)
+    if q < 1 / e - 1e-12:
+        raise ValueError(
+            "Cannot enter target plane for the chosen v_inf and radius (usually because turning angle will not exist in the orbit)"
+        )
+    u = unit(v_projected)
+    w = np.cross(orbit_normal, u)  # along track in target orbit
+
+    # Arrival: dot(p_hat, v_inf_hat) = 1/e. Use basis vectors
+    # Each p appears on both sides of the v_inf_vec when viewed from above
+    # also theta is 
+    # theta_rad = np.arccos(np.clip(1 / (e * q), -1, 1))
+    theta_rad = np.pi - ta_asymptote_rad
+    p_hats = np.array(
+        [
+            unit(np.cos(theta_rad) * u + sign * np.sin(theta_rad) * w)
+            for sign in (1, -1)
+        ]
+    )
+    r_p_captures_mci = target_periapse_m * p_hats
+
+    # Hyperbola things
+    v_p = np.sqrt(norm(v_inf_hci_km * KM_TO_M) ** 2 + 2 * mu / target_periapse_m)
+    v_hyp_hats = np.array([unit(np.cross(np.cross(p, v_hat), p)) for p in p_hats])
+    v_p_captures_mci = v_p * v_hyp_hats
+
+    # Capture orbit things
+    v_captures_mci = np.sqrt(mu / target_periapse_m) * np.cross(
+        orbit_normal, p_hats
+    )
+    dv_captures_mci = (
+        v_captures_mci - v_p_captures_mci
+    )
+
+    # Keep both branches; select the smaller combined capture/plane-change burn.
+    selected_index = int(np.argmin(norm(dv_captures_mci, axis=1)))
+    if not low_energy_path: selected_index = 1-selected_index  # switches off
+    r_p_mci = r_p_captures_mci[selected_index]
+    v_p_mci = v_p_captures_mci[selected_index]
+    v_capture_mci = v_captures_mci[selected_index]
+    dv_capture_mci = dv_captures_mci[selected_index]
+
+    return r_p_mci, v_p_mci, v_capture_mci, dv_capture_mci

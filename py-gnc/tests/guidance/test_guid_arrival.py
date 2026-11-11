@@ -1,12 +1,11 @@
 import numpy as np
 import pytest
 from numpy.linalg import norm
-from scipy.integrate import solve_ivp
 
 from cesium.constants import DAY_TO_SEC, DEG_TO_RAD
 from cesium.guidance.arrival import b_plane_flyby, b_plane_frame
 from cesium.math.base import unit
-from cesium.physics.dynamics import two_body
+from cesium.physics.dynamics import propagate_two_body
 from cesium.world.constants import MU_MARS, R_MARS
 
 EXAMPLE_MARS_R_P = R_MARS + 300e3  # m
@@ -33,16 +32,14 @@ def _propagated_b_vector(r0, v0, days=200):
 
     Mars-equatorial axes assumed (pole along +z), matching `b_plane_frame`.
     """
-    sol = solve_ivp(
-        lambda _, s: two_body(s, MU_MARS),
-        (0, -days * DAY_TO_SEC),
+    rv_far = propagate_two_body(
         np.concatenate((r0, v0)),
+        [0.0, -days * DAY_TO_SEC],
+        MU_MARS,
         rtol=1e-12,
         atol=1e-6,
-    )
-    assert sol.success
-
-    r_far, v_far = sol.y[:3, -1], sol.y[3:, -1]
+    )[-1]
+    r_far, v_far = rv_far[:3], rv_far[3:]
     S_hat = unit(v_far)
     T_hat = unit(np.cross(S_hat, [0, 0, 1]))
     R_hat = np.cross(S_hat, T_hat)

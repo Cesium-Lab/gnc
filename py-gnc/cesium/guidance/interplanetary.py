@@ -1,6 +1,5 @@
 import numpy as np
 from numpy.linalg import norm
-from scipy.integrate import solve_ivp
 
 from ..constants import DAY_TO_SEC, HOUR_TO_SEC, KM_TO_M, M_TO_KM, RAD_TO_DEG
 from ..math.base import unit
@@ -8,7 +7,7 @@ from ..math.time import jd_to_greg
 from ..orbital.ephemeris import planet_elements_and_rv
 from ..orbital.interplanetary import sph_of_infl
 from ..orbital.transformations import calc_dcm_eci_wrt_hci, calc_dcm_gcrs_wrt_itrf
-from ..physics.dynamics import two_body
+from ..physics.dynamics import propagate_two_body
 from ..world.constants import MU_EARTH, MU_SUN
 
 
@@ -167,17 +166,7 @@ class EarthDepartureTrajectory:
         rv_eci_0 = np.concatenate((self.r_p_eci, self.v_p_eci))
 
         self.t_traj_s = np.linspace(0, tspan_s, npoints)
-        departure_eci = solve_ivp(
-            lambda _, s: two_body(s, MU_EARTH),
-            (self.t_traj_s[0], self.t_traj_s[-1]),
-            rv_eci_0,
-            t_eval=self.t_traj_s,
-            rtol=1e-9,
-            atol=1e-12,
-        )
-        assert departure_eci.success
-
-        self.rv_traj_eci_m = departure_eci.y.T
+        self.rv_traj_eci_m = propagate_two_body(rv_eci_0, self.t_traj_s, MU_EARTH)
 
         return self.rv_traj_eci_m
 

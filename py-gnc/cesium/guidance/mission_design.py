@@ -8,14 +8,13 @@ from datetime import datetime
 import juliandate as jd
 import numpy as np
 from numpy.linalg import norm
-from scipy.integrate import solve_ivp
 from tqdm import tqdm
 
 from ..constants import DAY_TO_SEC, M_TO_KM, RAD_TO_DEG
 from ..orbital.ephemeris import planet_elements_and_rv
 from ..orbital.interplanetary import calc_transfer, hyperbolic_characteristics
 from ..orbital.transformations import calc_dcm_eci_wrt_hci
-from ..physics.dynamics import two_body
+from ..physics.dynamics import propagate_two_body
 from ..world.constants import MU_SUN
 
 
@@ -311,18 +310,12 @@ class InterplanetaryTrajectory:
 
         state0_hci = np.concatenate((self.rv_dep_body_hci[0, 0:3], v1))
 
-        t_eval_s = self.t_eval_jd * DAY_TO_SEC
-        sat_coast = solve_ivp(
-            lambda _, s: two_body(s, MU_SUN),
-            (t_eval_s[0], t_eval_s[-1]),
-            state0_hci,
-            t_eval=t_eval_s,
-            rtol=1e-9,
-            atol=1e-12,
-        )
+        # Relative to departure: absolute JD seconds (~2e11 s) waste float precision.
+        t_eval_s = (self.t_eval_jd - self.t_eval_jd[0]) * DAY_TO_SEC
+        rv_sat_hci = propagate_two_body(state0_hci, t_eval_s, MU_SUN)
 
-        self.r_sat_hci = sat_coast.y.T[:, 0:3]
-        self.v_sat_hci = sat_coast.y.T[:, 3:6]
+        self.r_sat_hci = rv_sat_hci[:, 0:3]
+        self.v_sat_hci = rv_sat_hci[:, 3:6]
 
         self.C3 = norm(self.v_sat_hci[0] - self.rv_dep_body_hci[0, 0:3]) ** 2
 
