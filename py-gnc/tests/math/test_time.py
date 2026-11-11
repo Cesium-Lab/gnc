@@ -56,11 +56,33 @@ def test_jd_to_greg_leap_year_does_not_corrupt_later_calls():
     assert sec == pytest.approx(3.70368, rel=1e-5)
 
 
-def test_vallado_jd_to_jc():
-    # In example Vallado 4e Example 3-7 p. 196
-    assert T.jd_to_julian_centuries(2453140.197) == pytest.approx(0.043674121031)
+def test_vallado_many():
+    # Vallado 4e Example 3-7 p. 196
+    jd_tt = 2453140.197
+    T_tt = 0.043674121031
+    jd_tdb = 2453140.197270667
+
+    assert T.jd_to_julian_centuries(jd_tt) == pytest.approx(T_tt)
+    assert T.jd_tt_to_tdb(jd_tt) == pytest.approx(jd_tdb)
+    assert T.jd_to_julian_centuries(jd_tdb) == pytest.approx(
+        T_tt
+    )  # Shows that tdb barely changes from tt
 
 
 def test_dms():
     assert T.dms_to_rad(-35, -15, -53.63) == pytest.approx(-0.6154886)
     assert np.allclose(T.rad_to_dms(-0.6154886), (-35, -15, -53.6299), atol=1e-2)
+
+
+def test_tdb_minus_tt_bounds():
+    """TDB - TT stays within the 1.657 ms amplitude over a year."""
+    jds = np.linspace(2451545.0, 2451545.0 + 365.25, 1000)
+    offsets = np.array([T.tdb_minus_tt_s(jd) for jd in jds])
+    assert np.abs(offsets).max() == pytest.approx(0.001657, rel=1e-3)
+
+
+def test_tt_tdb_round_trip():
+    """TT -> TDB -> TT recovers the input to JD float resolution."""
+    jd_tt = T.greg_to_jd(2035, 12, 25, 0, 0, 0)
+    jd_back = T.jd_tdb_to_tt(T.jd_tt_to_tdb(jd_tt))
+    assert (jd_back - jd_tt) * 86400 == pytest.approx(0.0, abs=1e-6)

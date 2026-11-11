@@ -44,7 +44,7 @@
 
 #     References
 #     ----------
-#     Vallado 4e, Algorithm 47, p. 387.
+#     Vallado 4e, Algorithm 47 (Low Thrust Transfer), p. 387.
 #     """
 
 #     if scale != "short":
@@ -86,7 +86,7 @@
 
 #         # Propagate Kepler
 #         rv_curr_ECI = 0.0
-#         dcm_ECI_to_NTW = PCI_to_NTW(rv_curr_ECI)
+#         dcm_ECI_to_NTW = calc_dcm_ntw_wrt_pci(rv_curr_ECI)
 #         a_ECI = dcm_ECI_to_NTW.T @ a_NTW
 
 #         if norm(a_final - a_curr < eps) and norm(a_final - a_curr < eps):

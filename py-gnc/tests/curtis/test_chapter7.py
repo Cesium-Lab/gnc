@@ -5,7 +5,7 @@ from numpy.linalg import norm
 import cesium.guidance as guid
 from cesium.constants import DAY_TO_SEC, HOUR_TO_SEC, KM_TO_M, MIN_TO_SEC
 from cesium.orbital.hcw import calc_Phi, rv_hcw_2d, rv_hcw_3d
-from cesium.orbital.transformations import PCI_to_RSW
+from cesium.orbital.transformations import calc_dcm_rsw_wrt_pci
 from cesium.physics.gravity import grav_accel
 from cesium.world import MU_EARTH
 
@@ -45,7 +45,7 @@ def test_example_7_1():
         + 2 * np.cross(w_A_ECI, v_B_A_ECI)
     )
 
-    dcm_RSW_wrt_ECI = PCI_to_RSW(np.concat((r_A_ECI, v_A_ECI)))
+    dcm_RSW_wrt_ECI = calc_dcm_rsw_wrt_pci(np.concat((r_A_ECI, v_A_ECI)))
 
     r_B_A_RSW = dcm_RSW_wrt_ECI @ r_B_A_ECI
     v_B_A_RSW = dcm_RSW_wrt_ECI @ v_B_A_ECI
@@ -71,7 +71,7 @@ def test_example_7_2():
     # r_c = np.array([ 1612.75, 5310.19, 3750.33]) * KM_TO_M
     # v_c = np.array([-7.35321, 0.463856, 2.46920]) * KM_TO_M
 
-    # dcm_RSW_wrt_ECI = PCI_to_RSW(np.concat((r_t, v_t)))
+    # dcm_RSW_wrt_ECI = calc_dcm_rsw_wrt_pci(np.concat((r_t, v_t)))
 
     # w_t_ECI = np.cross(r_t, v_t) / norm(r_t)**2
     # w_t_RSW = dcm_RSW_wrt_ECI @ w_t_ECI # also from norm

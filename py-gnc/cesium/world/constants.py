@@ -7,10 +7,16 @@ References
     Table A.1: Astronomical Data for the Sun, Planets, and Moon.
 - David A. Vallado, Fundamentals of Astrodynamics and Applications,
     4th Edition
+- Folkner et al. (1997), Interior Structure and Seasonal Mass Redistribution
+    of Mars from Radio Tracking of Mars Pathfinder, Science 278, 1749-1752.
+- Duxbury, Kirk, Archinal, and Neumann (2002), Mars Geodesy/Cartography Working
+    Group Recommendations on Mars Cartographic Constants and Coordinate Systems,
+    ISPRS Symposium on Geospatial Theory, Ottawa.
 
 All values are in SI units unless otherwise indicated.
 """
 
+from ..constants import DEG_TO_RAD, SEC_TO_DAY
 
 # ==================================================
 #              Physical Constants
@@ -168,8 +174,8 @@ INC_MOON = 5.145
 #                       Mars
 # ==================================================
 
-M_MARS = 641.9e21
-"""Mars mass [kg]. Source: Curtis, Table A.1."""
+MU_MARS = 42828e9
+"""Mars standard gravitational parameter [m3/s2]. Source: Curtis, Table A.2."""
 
 R_MARS = 3396e3
 """Mars radius [m]. Source: Curtis, Table A.1."""
@@ -183,6 +189,28 @@ ECC_MARS_ORBIT = 0.0935
 INC_MARS = 1.850
 """Mars orbital inclination to ecliptic [deg]. Source: Curtis, Table A.1."""
 
+# Mars rotational elements: Folkner et al. (1997), as adopted in Duxbury et al. (2002)
+# Angles measured in ICRF; T = Julian centuries and d = days since J2000 TDB.
+MARS_POLE_RA_J2000 = 317.68143
+"""Mars north pole right ascension at J2000, alpha_0 [deg]. Source: Folkner et al. (1997)."""
+
+MARS_POLE_RA_RATE = -0.1061
+"""Mars north pole right ascension rate [deg/century]. Source: Folkner et al. (1997)."""
+
+MARS_POLE_DEC_J2000 = 52.88650
+"""Mars north pole declination at J2000, delta_0 [deg]. Source: Folkner et al. (1997)."""
+
+MARS_POLE_DEC_RATE = -0.0609
+"""Mars north pole declination rate [deg/century]. Source: Folkner et al. (1997)."""
+
+MARS_PRIME_MERIDIAN_J2000 = 176.630
+"""Mars prime meridian angle at J2000, W_0 [deg]. Source: Duxbury et al. (2002), Section 1.2 (Airy-0)."""
+
+MARS_PRIME_MERIDIAN_RATE = 350.89198226
+"""Mars prime meridian rate [deg/day]. Source: Folkner et al. (1997)."""
+
+W_MARS = MARS_PRIME_MERIDIAN_RATE * DEG_TO_RAD * SEC_TO_DAY
+"""Mars rotation rate about its pole, dW/dt [rad/s]."""
 
 # ==================================================
 #                     Jupiter

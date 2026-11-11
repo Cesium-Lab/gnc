@@ -21,7 +21,7 @@ def guid_i_change(di: float, phi_fpa: float, v_i: float):
 
     References
     ----------
-    Vallado 4e, Algorithm 39, p. 344.
+    Vallado 4e, Algorithm 39 (Inclination Only), p. 344.
     """
     dv = 2 * v_i * np.cos(phi_fpa) * np.sin(di / 2.0)
     return dv
@@ -47,7 +47,7 @@ def guid_raan_change_circular(draan: float, i: float, v_i: float):
 
     References
     ----------
-    Vallado 4e, Algorithm 40, p. 347.
+    Vallado 4e, Algorithm 40 (Change in the Ascending Node—Circular), p. 347.
     """
     ta = np.arccos(np.cos(i) ** 2 + np.sin(i) ** 2 * np.cos(draan))
     dv = 2 * v_i * np.sin(ta / 2)

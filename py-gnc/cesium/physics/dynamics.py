@@ -3,6 +3,7 @@ n-body
 """
 
 import numpy as np
+from scipy.integrate import solve_ivp
 
 from ..world.constants import MU_EARTH, R_EARTH
 from .gravity import grav_accel
@@ -37,6 +38,66 @@ def two_body(rv_I: np.ndarray, mu=MU_EARTH, j2=None, r_cb=R_EARTH) -> np.ndarray
     rv_dot_I[3:6] = a
 
     return rv_dot_I
+
+
+def propagate_two_body(
+    rv0_I: np.ndarray,
+    t_eval_s: np.ndarray,
+    mu=MU_EARTH,
+    j2=None,
+    r_cb=R_EARTH,
+    rtol=1e-9,
+    atol=1e-12,
+) -> np.ndarray:
+    """Integrate `two_body` from an initial state over a time grid.
+
+    `rv0_I` is the state at `t_eval_s[0]`. A decreasing grid (e.g.
+    `np.linspace(0, -T, n)`) propagates backwards in time; positions and
+    velocities both stay physical, so no velocity flipping is needed.
+
+    Parameters
+    ----------
+    rv0_I : np.ndarray (6,)
+        Initial position and velocity in an inertial frame [m, m/s].
+    t_eval_s : np.ndarray (N,)
+        Monotonic output times [s]; the first entry is the epoch of `rv0_I`.
+    mu : float, optional
+        Gravitational parameter of the central body [m3/s2]. Default is `MU_EARTH`.
+    j2 : float, optional
+        J2 coefficient. If None, J2 is not applied. Default is None.
+    r_cb : float, optional
+        Equatorial radius of the central body, used for J2 [m]. Default is `R_EARTH`.
+    rtol, atol : float, optional
+        `solve_ivp` tolerances. Defaults are 1e-9 and 1e-12.
+
+    Returns
+    -------
+    rv_I : np.ndarray (N, 6)
+        States at `t_eval_s` [m, m/s].
+
+    Raises
+    ------
+    RuntimeError
+        If the integrator fails, does not reach every requested time, or
+        returns non-finite states.
+    """
+    t_eval_s = np.asarray(t_eval_s, dtype=float)
+    sol = solve_ivp(
+        lambda _, s: two_body(s, mu, j2, r_cb),
+        (t_eval_s[0], t_eval_s[-1]),
+        np.asarray(rv0_I, dtype=float),
+        t_eval=t_eval_s,
+        rtol=rtol,
+        atol=atol,
+    )
+    if (
+        not sol.success
+        or sol.y.shape[1] != t_eval_s.size
+        or not np.all(np.isfinite(sol.y))
+    ):
+        raise RuntimeError(f"Two-body propagation failed: {sol.message}")
+
+    return sol.y.T
 
 
 def synodic_dynamics(

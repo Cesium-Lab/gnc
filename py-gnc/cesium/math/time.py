@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..constants import J2000_JD, JD_CENTURY_TO_DAY
+from ..constants import J2000_JD, JD_CENTURY_TO_DAY, SEC_TO_DAY
 
 LMonth = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 """List of month lengths as discussed in Vallado 3.6.4"""
@@ -70,12 +70,12 @@ def jd_to_julian_centuries(jd: float):
     return (jd - J2000_JD) / JD_CENTURY_TO_DAY
 
 
-def julian_centuries_to_jd(julian_centuries: float):
+def julian_centuries_to_jd(T: float):
     """Convert Julian centuries since J2000 to a Julian date.
 
     Parameters
     ----------
-    julian_centuries : float
+    T : float
         Julian centuries since J2000 in any time standard (e.g. TT, TAI, UT1).
 
     Returns
@@ -87,7 +87,7 @@ def julian_centuries_to_jd(julian_centuries: float):
     ----------
     Vallado 4e, Equation 3-42, p. 184.
     """
-    return (julian_centuries * JD_CENTURY_TO_DAY) + J2000_JD
+    return (T * JD_CENTURY_TO_DAY) + J2000_JD
 
 
 def greg_to_jd(yr: int, mo: int, d: int, h: int, min: int, s: float, meeus=True):
@@ -118,7 +118,7 @@ def greg_to_jd(yr: int, mo: int, d: int, h: int, min: int, s: float, meeus=True)
 
     References
     ----------
-    Vallado 4e, p. 183.
+    Vallado 4e, Algorithm 14 (Julian Date), p. 183.
     """
 
     if meeus:
@@ -168,7 +168,7 @@ def jd_to_greg(jd: float):
 
     References
     ----------
-    Vallado 4e, Algorithm 22, p. 202.
+    Vallado 4e, Algorithm 22 (JDToGregorianDate), p. 202.
     """
     month_lengths = list(LMonth)
 
@@ -231,7 +231,7 @@ def dms_to_rad(deg: int, min: int, sec: float):
 
     References
     ----------
-    Vallado 4e, Algorithm 17, p. 197.
+    Vallado 4e, Algorithm 17 (DMSToRad), p. 197.
     """
     return (deg + min / 60 + sec / 3600) * np.pi / 180.0
 
@@ -255,10 +255,78 @@ def rad_to_dms(angle_rad: float):
 
     References
     ----------
-    Vallado 4e, Algorithm 18, p. 198.
+    Vallado 4e, Algorithm 18 (RadToDMS), p. 197.
     """
     temp = angle_rad * 180.0 / np.pi
     deg = np.trunc(temp)
     min = np.trunc((temp - deg) * 60)
     sec = (temp - deg - min / 60) * 3600
     return (deg, min, sec)
+
+
+################################################################################
+#               Standards
+################################################################################
+
+
+def tdb_minus_tt_s(jd: float):
+    """TDB - TT offset, main periodic term only (~±1.657 ms).
+
+    Parameters
+    ----------
+    jd : float
+        Julian date in TT or TDB (the offset is insensitive to which).
+
+    Returns
+    -------
+    float
+        TDB - TT [s]. Use like `sec_tdb = tdb_minus_tt_s() + sec_tt`
+
+    References
+    ----------
+    Vallado 4e, Equation 3-53.
+    """
+    t = jd_to_julian_centuries(jd)
+    return 0.001657 * np.sin(628.3076 * t + 6.2401)
+
+
+def jd_tt_to_tdb(jd_tt: float):
+    """Convert a TT Julian date to TDB.
+
+    Parameters
+    ----------
+    jd_tt : float
+        Julian date in TT.
+
+    Returns
+    -------
+    jd_tdb : float
+        Julian date in TDB.
+
+    References
+    ----------
+    Vallado 4e, Equation 3-53.
+    """
+    return jd_tt + tdb_minus_tt_s(jd_tt) * SEC_TO_DAY
+
+
+def jd_tdb_to_tt(jd_tdb: float):
+    """Convert a TDB Julian date to TT.
+
+    Evaluating the offset at TDB instead of TT changes it by < 1e-12 s.
+
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian date in TDB.
+
+    Returns
+    -------
+    jd_tt : float
+        Julian date in TT.
+
+    References
+    ----------
+    Vallado 4e, Equation 3-53.
+    """
+    return jd_tdb - tdb_minus_tt_s(jd_tdb) * SEC_TO_DAY

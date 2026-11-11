@@ -42,3 +42,6 @@
    1. Uses `.mission` file to B-target and rendezvous in-orbit
 5. `descent.ipynb`
    1. Descending to landing site
+
+## Approximations
+- TDB ≈ TT

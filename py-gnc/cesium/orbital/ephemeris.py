@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..constants import AU_TO_KM, DEG_TO_RAD, J2000_JD, JD_CENTURY_TO_DAY, KM_TO_M
+from ..constants import AU_TO_KM, DEG_TO_RAD, KM_TO_M
 from ..math.rotations import wrap_to_2pi
+from ..math.time import jd_to_julian_centuries
 from ..orbital.coes import coes_to_rv, kepler_eq, ta_from_E
 from ..world.constants import MU_SUN
 
@@ -43,7 +44,7 @@ CENTENNIAL_RATES = np.array(
 
 
 def planet_elements_and_rv(
-    planet_num: int, jd: float
+    planet_num: int, jd_tdb: float
 ) -> tuple[tuple[float, float, float, float, float, float], np.ndarray, np.ndarray]:
     """
     Calculate a planet's heliocentric orbital elements and state vectors
@@ -53,8 +54,8 @@ def planet_elements_and_rv(
     ----------
     planet_num : int
         1 (Mercury) to 8 (Neptune) BUT further ones beyond Mars technically require more coefficients
-    jd : float
-        Julian Date
+    jd_tdb : float
+        Julian Date [Barycentric Dynamical Time]
 
     Returns
     -------
@@ -75,7 +76,7 @@ def planet_elements_and_rv(
     Notes
     ----------
         t0: Julian centuries elapsed since J2000.
-        elements: Orbital elements evaluated at jd.
+        elements: Orbital elements evaluated at jd_tdb.
 
         Required functions:
             J0
@@ -87,13 +88,13 @@ def planet_elements_and_rv(
     Curtis, Algorithm 8.1, p. 643
     """
 
-    tt_jd = (jd - J2000_JD) / JD_CENTURY_TO_DAY
+    T_tdb = jd_to_julian_centuries(jd_tdb)
 
     elements, rates = j2000_planetary_elements(planet_num)
 
     #  1. Value of six elements (angles in degrees)
     a_au, e, i_deg, raan_deg, w_bar_deg, L_deg = [
-        x + dx * tt_jd for x, dx in zip(elements, rates)
+        x + dx * T_tdb for x, dx in zip(elements, rates)
     ]
 
     a = a_au * AU_TO_KM * KM_TO_M
@@ -113,7 +114,7 @@ def planet_elements_and_rv(
 
 
 def j2000_planetary_elements(planet_id: int) -> tuple[np.ndarray, np.ndarray]:
-    """J2000 heliocentric orbital elements and their centennial rates for a planet.
+    """J2000 (TDB) heliocentric orbital elements and their centennial rates for a planet.
 
     Data is valid for 1800 AD - 2050 AD. A "century" (cty) is 36525 days.
 

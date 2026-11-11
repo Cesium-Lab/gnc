@@ -198,7 +198,7 @@ def plot_3d(
         plot's coordinate frame into the displayed frame: v_body = DCM @
         v_plot. Its rows are the displayed X/Y/Z axes expressed in plot
         coordinates. For an ECI plot showing ECEF axes, pass an ECI-to-ECEF
-        matrix, e.g. itrf_to_gcrs_matrix(epoch_jd).T. Location is expressed
+        matrix, e.g. calc_dcm_gcrs_wrt_itrf(epoch_jd).T. Location is expressed
         in plot coordinates. Optional colors default to red/green/blue;
         width defaults to 4. Locations and lengths use scale.
     points : dict or list of dict, optional
