@@ -12,6 +12,7 @@ from cesium.constants import (
     RAD_TO_DEG,
 )
 from cesium.math.time import greg_to_jd
+from cesium.world.constants import R_MARS, W_MARS
 
 #########################################################################################################
 #               LLA to R
@@ -179,7 +180,7 @@ def test_PCI_to_RSW_Curtis_example_7_2():
     r_c = np.array([1612.75, 5310.19, 3750.33]) * KM_TO_M
     v_c = np.array([-7.35321, 0.463856, 2.46920]) * KM_TO_M
 
-    dcm_RSW_wrt_ECI = Trans.PCI_to_RSW(np.concat((r_t, v_t)))
+    dcm_RSW_wrt_ECI = Trans.calc_dcm_rsw_wrt_pci(np.concat((r_t, v_t)))
 
     w_t_ECI = np.cross(r_t, v_t) / np.linalg.norm(r_t) ** 2
 
@@ -336,7 +337,7 @@ def test_vallado_itrf_W():
     xp = -0.140682 * ARCSEC_TO_RAD
     yp = 0.333309 * ARCSEC_TO_RAD
 
-    W = Trans.W_matrix(xp, yp, t_tt)
+    W = Trans.calc_dcm_tirs_wrt_itrf(xp, yp, t_tt)
 
     # Tests that determinant is 1
     assert np.linalg.det(W) == pytest.approx(1, 1e-9)
@@ -360,7 +361,7 @@ def test_vallado_itrf_R():
 
     jd_ut1 = greg_to_jd(2004, 4, 6, 7, 51, 27.946047 + 0.4399619)
 
-    R = Trans.R_matrix(jd_ut1)
+    R = Trans.calc_dcm_cirs_wrt_tirs(jd_ut1)
 
     # Tests that determinant is 1 and checks rotation angle
     assert np.linalg.det(R) == pytest.approx(1, 1e-9)
@@ -401,7 +402,7 @@ def test_vallado_itrf_PN():
     dX = -0.000205 * ARCSEC_TO_RAD
     dY = -0.000136 * ARCSEC_TO_RAD
 
-    PN = Trans.PN_matrix(t_tt, dX, dY)
+    PN = Trans.calc_dcm_gcrs_wrt_cirs(t_tt, dX, dY)
 
     # Tests that determinant is 1
     assert np.linalg.det(PN) == pytest.approx(1, 1e-9)
@@ -432,7 +433,7 @@ def test_vallado_full_itrf():
         deltaAT_s=32,
     )
 
-    dcm_gcrs_wrt_itrf = Trans.itrf_to_gcrs_matrix(jd, eop)
+    dcm_gcrs_wrt_itrf = Trans.calc_dcm_gcrs_wrt_itrf(jd, eop)
 
     # Tests that determinant is 1
     assert np.linalg.det(dcm_gcrs_wrt_itrf) == pytest.approx(1, 1e-9)
@@ -525,7 +526,7 @@ def test_mars_rotational_elements_pole_and_node():
     """Mars pole maps to MCI +z; MCI +x (node) lies on the ICRF equator."""
     jd = greg_to_jd(2035, 12, 25, 0, 0, 0)
     alpha_0, delta_0, _ = Trans.mars_rotational_elements(jd)
-    dcm = Trans.MCI_from_ECI(jd)
+    dcm = Trans.calc_dcm_mci_wrt_eci(jd)
 
     pole_eci, _ = Trans.radec_to_cartesian(alpha_0, delta_0, 1.0, 0, 0, 0, deg=False)
     assert np.allclose(dcm @ pole_eci, [0, 0, 1], atol=1e-12)
@@ -536,7 +537,7 @@ def test_mars_rotational_elements_pole_and_node():
 
 def test_MCI_from_ECI_j2000_pole_radec():
     """MCI z-axis expressed in ECI recovers the IAU 2009 J2000 pole."""
-    pole_eci = Trans.MCI_from_ECI().T @ [0, 0, 1]
+    pole_eci = Trans.calc_dcm_mci_wrt_eci().T @ [0, 0, 1]
     ra, dec, *_ = Trans.cartesian_to_radec(pole_eci, np.zeros(3))
     assert ra == pytest.approx(317.68143)
     assert dec == pytest.approx(52.88650)
@@ -548,7 +549,7 @@ def test_mars_obliquity_from_MCI_from_HCI():
     orbit_normal_hci = np.array(
         [np.sin(raan) * np.sin(inc), -np.cos(raan) * np.sin(inc), np.cos(inc)]
     )
-    pole_hci = Trans.MCI_from_HCI().T @ [0, 0, 1]
+    pole_hci = Trans.calc_dcm_mci_wrt_hci().T @ [0, 0, 1]
     obliquity = np.arccos(pole_hci @ orbit_normal_hci) * RAD_TO_DEG
     assert obliquity == pytest.approx(25.19, abs=0.02)
 
@@ -558,8 +559,56 @@ def test_MCMF_from_MCI_sidereal_day():
     sidereal_day_days = 360 / 350.89198226  # 24.6229 hr
     jd = greg_to_jd(2035, 12, 25, 0, 0, 0)
     assert np.allclose(
-        Trans.MCMF_from_MCI(jd), Trans.MCMF_from_MCI(jd + sidereal_day_days), atol=1e-9
+        Trans.calc_dcm_mcmf_wrt_mci(jd),
+        Trans.calc_dcm_mcmf_wrt_mci(jd + sidereal_day_days),
+        atol=1e-9,
     )
     assert np.allclose(
-        Trans.MCMF_from_ECI(jd), Trans.MCMF_from_MCI(jd) @ Trans.MCI_from_ECI(jd)
+        Trans.calc_dcm_mcmf_wrt_eci(jd),
+        Trans.calc_dcm_mcmf_wrt_mci(jd) @ Trans.calc_dcm_mci_wrt_eci(jd),
     )
+
+
+class Test_mci_mcmf_states:
+    JD = greg_to_jd(2035, 12, 25, 0, 0, 0)
+
+    def test_round_trip(self):
+        """MCI -> MCMF -> MCI recovers position and velocity."""
+        r_mci = np.array([3.1e6, -2.4e6, 1.7e6])
+        v_mci = np.array([1200.0, 2900.0, -800.0])
+
+        r_mcmf, v_mcmf = Trans.mci_to_mcmf(r_mci, v_mci, self.JD)
+        r_back, v_back = Trans.mcmf_to_mci(r_mcmf, v_mcmf, self.JD)
+
+        assert np.allclose(r_back, r_mci, rtol=0, atol=1e-6)
+        assert np.allclose(v_back, v_mci, rtol=0, atol=1e-9)
+
+    def test_surface_point_moves_at_rotation_speed(self):
+        """A point fixed on Mars's equator moves at W_MARS * R_MARS (~240.7 m/s) in MCI."""
+        r_mcmf = np.array([R_MARS, 0.0, 0.0])
+        r_mci, v_mci = Trans.mcmf_to_mci(r_mcmf, np.zeros(3), self.JD)
+
+        assert norm(v_mci) == pytest.approx(W_MARS * R_MARS, rel=1e-12)
+        assert norm(v_mci) == pytest.approx(240.7, abs=0.1)
+        assert np.dot(v_mci, r_mci) == pytest.approx(0.0, abs=1e-6)
+        assert v_mci[2] == pytest.approx(0.0, abs=1e-12)  # perpendicular to the pole
+
+    def test_velocity_matches_finite_difference(self):
+        """v_MCMF equals d(r_MCMF)/dt for an inertial straight-line motion. More of a sanity check. AI slop lowk"""
+        r0 = np.array([3.1e6, -2.4e6, 1.7e6])
+        v_mci = np.array([1200.0, 2900.0, -800.0])
+        dt_s = 1.0
+
+        def r_mcmf_at(t_s):
+            return Trans.mci_to_mcmf(r0 + v_mci * t_s, v_mci, self.JD + t_s / 86400)[0]
+
+        v_fd = (r_mcmf_at(dt_s) - r_mcmf_at(-dt_s)) / (2 * dt_s)
+        _, v_mcmf = Trans.mci_to_mcmf(r0, v_mci, self.JD)
+
+        # JD float resolution (~40 us) limits the finite difference to ~mm/s here
+        assert np.allclose(v_mcmf, v_fd, rtol=0, atol=5e-2)
+
+    def test_position_part_matches_dcm(self):
+        r_mci = np.array([3.1e6, -2.4e6, 1.7e6])
+        r_mcmf, _ = Trans.mci_to_mcmf(r_mci, np.zeros(3), self.JD)
+        assert np.allclose(r_mcmf, Trans.calc_dcm_mcmf_wrt_mci(self.JD) @ r_mci)

@@ -31,6 +31,7 @@ from ..world.constants import (
     R_EARTH,
     R_EARTH_POLAR,
     W_EARTH,
+    W_MARS,
 )
 from .CIP.parse import get_summation, import_table
 
@@ -40,7 +41,7 @@ from .CIP.parse import get_summation, import_table
 
 
 # TODO: test
-def PCI_to_RSW(rv_PCI: np.ndarray) -> np.ndarray:
+def calc_dcm_rsw_wrt_pci(rv_PCI: np.ndarray) -> np.ndarray:
     """DCM from the planet-centered inertial (PCI) frame to the satellite RSW frame.
 
     - `R` - radial outward
@@ -65,7 +66,7 @@ def PCI_to_RSW(rv_PCI: np.ndarray) -> np.ndarray:
     return np.vstack((r_hat, s_hat, w_hat))
 
 
-def PCI_to_NTW(rv_PCI: np.ndarray) -> np.ndarray:
+def calc_dcm_ntw_wrt_pci(rv_PCI: np.ndarray) -> np.ndarray:
     """DCM from the planet-centered inertial (PCI) frame to the satellite NTW frame.
 
     NTW axes are N (in-plane, normal to velocity), T (tangent, along velocity),
@@ -406,7 +407,7 @@ def PCPF_to_geocentric_LLA(r_PCPF: np.ndarray, r_body_m=R_EARTH, deg=True):
 ###########################################################################
 
 
-def ECI_from_HCI():
+def calc_dcm_eci_wrt_hci():
     """HCI to ICRF/J2000 ECI"""
     return np.array(
         [
@@ -439,7 +440,7 @@ For a strictly inertial frame (e.g. for propagation), evaluate at one fixed epoc
 and reuse the DCM rather than re-evaluating it every step.
 
 TODO: IAU 2015 (Archinal et al. 2018) adds periodic terms to alpha_0, delta_0, W;
-sub-0.01 deg, so ignored here.
+less than 0.01 deg, so ignored here.
 """
 
 
@@ -449,7 +450,7 @@ def mars_rotational_elements(jd_tdb: float):
     Parameters
     ----------
     jd_tdb : float
-        Julian date in TDB (TT is fine to well under a millisecond).
+        Julian date in TDB (TT is fine, since it is less than a millisecond difference).
 
     Returns
     -------
@@ -481,8 +482,9 @@ def mars_rotational_elements(jd_tdb: float):
     return alpha_0, delta_0, W
 
 
-def MCI_from_ECI(jd_tdb: float = J2000_JD):
+def calc_dcm_mci_wrt_eci(jd_tdb: float = J2000_JD):
     """DCM from ICRF/J2000 ECI axes to Mars-centered inertial (Mars equator) axes.
+    BARELY changes during a given mission.
 
     Rotation only; translate to Mars-centered first (e.g. `r_sat_hci - r_mars_hci`).
 
@@ -500,8 +502,7 @@ def MCI_from_ECI(jd_tdb: float = J2000_JD):
     Notes
     -----
     First two rotations of the IAU 3-1-3 sequence
-    `[W]_3 [pi/2 - Dec]_1 [pi/2 + RA]_3`, where each `[theta]_i` rotates the
-    coordinate system (passive, same as `dcm_x`/`dcm_z`). `pi/2 + RA` puts x on the
+    `[W]_3 [pi/2 - Dec]_1 [pi/2 + RA]_3`. `pi/2 + RA` puts x on the
     ascending node of the body equator on the J2000 equator; `pi/2 - Dec` tilts z
     onto the body pole.
 
@@ -512,11 +513,15 @@ def MCI_from_ECI(jd_tdb: float = J2000_JD):
     """
     alpha_0, delta_0, _ = mars_rotational_elements(jd_tdb)
 
-    return dcm_x(np.pi / 2 - delta_0) @ dcm_z(np.pi / 2 + alpha_0)
+    # spun being intermediate axis
+    dcm_spun_wrt_hci = dcm_z(np.pi / 2 + alpha_0)
+    dcm_mci_wrt_spun = dcm_x(np.pi / 2 - delta_0)
+    return dcm_mci_wrt_spun @ dcm_spun_wrt_hci
 
 
-def MCI_from_HCI(jd_tdb: float = J2000_JD):
+def calc_dcm_mci_wrt_hci(jd_tdb: float = J2000_JD):
     """DCM from HCI (ecliptic J2000) axes to Mars-centered inertial axes.
+    BARELY changes during a given mission.
 
     Rotation only; translate to Mars-centered first (e.g. `r_sat_hci - r_mars_hci`).
 
@@ -530,15 +535,14 @@ def MCI_from_HCI(jd_tdb: float = J2000_JD):
     dcm_mci_wrt_hci : np.ndarray (3, 3)
         `r_MCI = dcm_mci_wrt_hci @ r_HCI`.
     """
-    return MCI_from_ECI(jd_tdb) @ ECI_from_HCI()
+    return calc_dcm_mci_wrt_eci(jd_tdb) @ calc_dcm_eci_wrt_hci()
 
 
-def MCMF_from_MCI(jd_tdb: float):
+def calc_dcm_mcmf_wrt_mci(jd_tdb: float):
     """DCM from Mars-centered inertial to Mars-centered Mars-fixed (IAU_MARS) axes.
 
-    Both frames use the Mars pole at `jd_tdb`. For velocity, use
-    `v_MCMF = dcm @ v_MCI - w_mars x r_MCMF` with
-    `w_mars = [0, 0, MARS_PRIME_MERIDIAN_RATE * DEG_TO_RAD / DAY_TO_SEC]`.
+    Both frames use the Mars pole at `jd_tdb`. Rotation only; for states use
+    `mci_to_mcmf` / `mcmf_to_mci`, which add the `w_mars x r` velocity term.
 
     Parameters
     ----------
@@ -555,8 +559,77 @@ def MCMF_from_MCI(jd_tdb: float):
     return dcm_z(W)
 
 
-def MCMF_from_ECI(jd_tdb: float):
-    """DCM from ICRF/J2000 ECI axes to Mars-fixed (IAU_MARS) axes at `jd_tdb`.
+def mci_to_mcmf(
+    r_mci: np.ndarray, v_mci: np.ndarray, jd_tdb: float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Transform a position and velocity from Mars inertial (MCI) to Mars-fixed (MCMF).
+
+    `v_MCMF = C @ v_MCI - w_mars x r_MCMF`, with `C = calc_dcm_mcmf_wrt_mci(jd_tdb)` and
+    `w_mars = [0, 0, W_MARS]` (Mars pole is the MCI/MCMF z-axis).
+
+    Parameters
+    ----------
+    r_mci : np.ndarray (3,)
+        Position in MCI [m] (or [km], matching `v_mci`).
+    v_mci : np.ndarray (3,)
+        Inertial velocity in MCI [m/s] (or [km/s], matching `r_mci`).
+    jd_tdb : float
+        Julian date in TDB.
+
+    Returns
+    -------
+    r_mcmf : np.ndarray (3,)
+        Position in MCMF, same units as `r_mci`.
+    v_mcmf : np.ndarray (3,)
+        Velocity relative to the rotating Mars-fixed frame, same units as `v_mci`.
+
+    References
+    ----------
+    Vallado 4e, Section 3.7, p. 203 (rotating-frame velocity, as in `pcpf_to_pci`).
+    """
+    dcm_mcmf_wrt_mci = calc_dcm_mcmf_wrt_mci(jd_tdb)
+    r_mcmf = dcm_mcmf_wrt_mci @ r_mci
+    v_mcmf = dcm_mcmf_wrt_mci @ v_mci - np.cross([0, 0, W_MARS], r_mcmf)
+
+    return r_mcmf, v_mcmf
+
+
+def mcmf_to_mci(
+    r_mcmf: np.ndarray, v_mcmf: np.ndarray, jd_tdb: float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Transform a position and velocity from Mars-fixed (MCMF) to Mars inertial (MCI).
+
+    `v_MCI = C.T @ (v_MCMF + w_mars x r_MCMF)`, inverse of `mci_to_mcmf`.
+
+    Parameters
+    ----------
+    r_mcmf : np.ndarray (3,)
+        Position in MCMF [m] (or [km], matching `v_mcmf`).
+    v_mcmf : np.ndarray (3,)
+        Velocity relative to the Mars-fixed frame [m/s] (or [km/s]).
+    jd_tdb : float
+        Julian date in TDB.
+
+    Returns
+    -------
+    r_mci : np.ndarray (3,)
+        Position in MCI, same units as `r_mcmf`.
+    v_mci : np.ndarray (3,)
+        Inertial velocity in MCI, same units as `v_mcmf`.
+
+    References
+    ----------
+    Vallado 4e, Section 3.7, p. 203 (rotating-frame velocity, as in `pcpf_to_pci`).
+    """
+    dcm_mci_wrt_mcmf = calc_dcm_mcmf_wrt_mci(jd_tdb).T
+    r_mci = dcm_mci_wrt_mcmf @ r_mcmf
+    v_mci = dcm_mci_wrt_mcmf @ (v_mcmf + np.cross([0, 0, W_MARS], r_mcmf))
+
+    return r_mci, v_mci
+
+
+def calc_dcm_mcmf_wrt_eci(jd_tdb: float):
+    """DCM of Mars-fixed (IAU_MARS) axes from ICRF/J2000 ECI axes at `jd_tdb`.
 
     Parameters
     ----------
@@ -568,7 +641,7 @@ def MCMF_from_ECI(jd_tdb: float):
     dcm_mcmf_wrt_eci : np.ndarray (3, 3)
         `r_MCMF = dcm_mcmf_wrt_eci @ r_ECI`.
     """
-    return MCMF_from_MCI(jd_tdb) @ MCI_from_ECI(jd_tdb)
+    return calc_dcm_mcmf_wrt_mci(jd_tdb) @ calc_dcm_mci_wrt_eci(jd_tdb)
 
 
 ################################################################################
@@ -577,7 +650,7 @@ def MCMF_from_ECI(jd_tdb: float):
 
 
 # TODO: test
-def PCI_from_PCPF(
+def pcpf_to_pci(
     r_PCPF: np.ndarray,
     v_PCPF: np.ndarray,
     t: float,
@@ -824,7 +897,7 @@ Maia 2011 tab5.2a/b/d.txt
 """
 
 
-def W_matrix(xp: float, yp: float, t_tt: float):
+def calc_dcm_tirs_wrt_itrf(xp: float, yp: float, t_tt: float):
     """Polar-motion matrix for ITRF <--> GCRS transformation.
 
     Computes TIO locator `s'` from `t_tt` with an accurate linear approximation.
@@ -877,7 +950,7 @@ def theta_g(jd_ut1):
     return 2 * np.pi * (0.779057273264 + 1.00273781191135448 * (jd_ut1 - 2451545))
 
 
-def R_matrix(jd_ut1: float):
+def calc_dcm_cirs_wrt_tirs(jd_ut1: float):
     """Sidereal rotation matrix for ITRF <--> GCRS transformation.
 
     Computes Earth Rotation Angle (ERA) from `jd_ut1`.
@@ -989,7 +1062,7 @@ def _X_Y_s_a(t_tt: float):
 
 
 # TODO: fix to use dX and dY
-def PN_matrix(t_tt: float, dX=0.0, dY=0.0):
+def calc_dcm_gcrs_wrt_cirs(t_tt: float, dX=0.0, dY=0.0):
     """Precession-nutation matrix for the ITRF <--> GCRS transformation.
 
     Computes intermediate `a` term with an approximation.
@@ -1061,7 +1134,7 @@ class EOP:
     lod_s: float = 0.0
 
 
-def itrf_to_gcrs_matrix(jd_utc: float, eop: EOP = EOP()):
+def calc_dcm_gcrs_wrt_itrf(jd_utc: float, eop: EOP = EOP()):
     """Compute the matrix for the ITRF <--> GCRS transformation.
 
     Parameters
@@ -1092,9 +1165,9 @@ def itrf_to_gcrs_matrix(jd_utc: float, eop: EOP = EOP()):
     jd_tt = jd_tai + TAI_TO_TT * SEC_TO_DAY
     t_tt = jd_to_julian_centuries(jd_tt)
 
-    W = W_matrix(eop.xp, eop.yp, t_tt)
-    R = R_matrix(jd_ut1)
-    PN = PN_matrix(t_tt, eop.dX, eop.dY)
+    W = calc_dcm_tirs_wrt_itrf(eop.xp, eop.yp, t_tt)
+    R = calc_dcm_cirs_wrt_tirs(jd_ut1)
+    PN = calc_dcm_gcrs_wrt_cirs(t_tt, eop.dX, eop.dY)
 
     return PN @ R @ W
 
@@ -1139,9 +1212,9 @@ def itrf_to_gcrs(
     jd_tt = jd_tai + TAI_TO_TT * SEC_TO_DAY
     t_tt = jd_to_julian_centuries(jd_tt)
 
-    W = W_matrix(eop.xp, eop.yp, t_tt)
-    R = R_matrix(jd_ut1)
-    PN = PN_matrix(t_tt, eop.dX, eop.dY)
+    W = calc_dcm_tirs_wrt_itrf(eop.xp, eop.yp, t_tt)
+    R = calc_dcm_cirs_wrt_tirs(jd_ut1)
+    PN = calc_dcm_gcrs_wrt_cirs(t_tt, eop.dX, eop.dY)
 
     r_tirs = W @ r_itrf
     v_tirs = W @ v_itrf
@@ -1185,9 +1258,9 @@ def gcrs_to_itrf(
     -----
     Like the forward model, omits time derivatives of polar motion and precession/nutation
     """
-    dcm_gcrs_wrt_itrf = itrf_to_gcrs_matrix(jd_utc, eop)
+    dcm_gcrs_wrt_itrf = calc_dcm_gcrs_wrt_itrf(jd_utc, eop)
     jd_tt = jd_utc + (eop.deltaAT_s + 32.184) * SEC_TO_DAY
-    W = W_matrix(eop.xp, eop.yp, jd_to_julian_centuries(jd_tt))
+    W = calc_dcm_tirs_wrt_itrf(eop.xp, eop.yp, jd_to_julian_centuries(jd_tt))
     w_earth_tirs = np.array([0, 0, W_EARTH * (1 - eop.lod_s * SEC_TO_DAY)])
 
     r_itrf = dcm_gcrs_wrt_itrf.T @ r_gcrs

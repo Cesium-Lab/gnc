@@ -14,7 +14,7 @@ from tqdm import tqdm
 from ..constants import DAY_TO_SEC, M_TO_KM, RAD_TO_DEG
 from ..orbital.ephemeris import planet_elements_and_rv
 from ..orbital.interplanetary import calc_transfer, hyperbolic_characteristics
-from ..orbital.transformations import ECI_from_HCI
+from ..orbital.transformations import calc_dcm_eci_wrt_hci
 from ..physics.dynamics import two_body
 from ..world.constants import MU_SUN
 
@@ -562,7 +562,7 @@ class EarthDepartureGrid:
         # The transfer grid already subtracted Earth's velocity.
         """Rotate Earth-relative excess velocities into ECI and initialize angular grids."""
         self.v_dep_eci_km = (
-            self.grid.v_dep_pci_km @ ECI_from_HCI().T
+            self.grid.v_dep_pci_km @ calc_dcm_eci_wrt_hci().T
         )  # Numpy arrays are the transposed version of normal ones
         self.v_inf_dep_norm_km_s = norm(self.v_dep_eci_km, axis=2)
 

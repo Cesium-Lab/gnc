@@ -7,7 +7,7 @@ from ..math.base import unit
 from ..math.time import jd_to_greg
 from ..orbital.ephemeris import planet_elements_and_rv
 from ..orbital.interplanetary import sph_of_infl
-from ..orbital.transformations import ECI_from_HCI, itrf_to_gcrs_matrix
+from ..orbital.transformations import calc_dcm_eci_wrt_hci, calc_dcm_gcrs_wrt_itrf
 from ..physics.dynamics import two_body
 from ..world.constants import MU_EARTH, MU_SUN
 
@@ -128,7 +128,7 @@ class EarthDepartureTrajectory:
         periapse_m: float,
         r_site_ecef_m: np.ndarray,
     ):
-        self.dcm_ecef_wrt_eci0 = itrf_to_gcrs_matrix(launch_date_jd).T
+        self.dcm_ecef_wrt_eci0 = calc_dcm_gcrs_wrt_itrf(launch_date_jd).T
         self.launch_date_jd = launch_date_jd
         self.v_inf_eci_km = v_inf_eci_km
         self.periapse_m = periapse_m
@@ -214,7 +214,7 @@ class EarthDepartureTrajectory:
         ##### From `interplanetary.ipynb`
         v_lambert_hci_km = (
             rv_earth_hci_km[closest_lambert_i, 3:6]
-            + ECI_from_HCI().T @ rv_sat_eci_km[closest_lambert_i, 3:6]
+            + calc_dcm_eci_wrt_hci().T @ rv_sat_eci_km[closest_lambert_i, 3:6]
         )
         # v_lambert_hci_km = mission["satellite_rv_hci_km"][closest_lambert_i, 3:6]
 
@@ -224,7 +224,7 @@ class EarthDepartureTrajectory:
         v_earth_final_hci_km = planet_elements_and_rv(3, final_epoch_jd)[2] * M_TO_KM
 
         v_final_hci_km = (
-            ECI_from_HCI().T @ (self.rv_traj_eci_m[-1, 3:6] * M_TO_KM)
+            calc_dcm_eci_wrt_hci().T @ (self.rv_traj_eci_m[-1, 3:6] * M_TO_KM)
             + v_earth_final_hci_km
         )
         self.dv_hci_km = v_lambert_hci_km - v_final_hci_km

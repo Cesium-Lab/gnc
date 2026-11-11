@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .transformations import PCI_to_RSW
+from .transformations import calc_dcm_rsw_wrt_pci
 
 
 # AA 279B
@@ -168,7 +168,7 @@ def hcw_RSW_to_PCI(rv_target_PCI: np.ndarray, rv_chaser_RSW: np.ndarray):
     """
     r_t_PCI, v_t_PCI = rv_target_PCI[0:3], rv_target_PCI[3:6]
 
-    dcm_RSW_wrt_PCI = PCI_to_RSW(rv_target_PCI)
+    dcm_RSW_wrt_PCI = calc_dcm_rsw_wrt_pci(rv_target_PCI)
     r_rel_RSW, v_rel_RSW = rv_chaser_RSW[:3], rv_chaser_RSW[3:]
 
     # Angular velocity of RSW frame, expressed in PCI

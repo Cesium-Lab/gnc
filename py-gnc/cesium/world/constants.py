@@ -16,6 +16,7 @@ References
 All values are in SI units unless otherwise indicated.
 """
 
+from ..constants import DEG_TO_RAD, SEC_TO_DAY
 
 # ==================================================
 #              Physical Constants
@@ -208,6 +209,8 @@ MARS_PRIME_MERIDIAN_J2000 = 176.630
 MARS_PRIME_MERIDIAN_RATE = 350.89198226
 """Mars prime meridian rate [deg/day]. Source: Folkner et al. (1997)."""
 
+W_MARS = MARS_PRIME_MERIDIAN_RATE * DEG_TO_RAD * SEC_TO_DAY
+"""Mars rotation rate about its pole, dW/dt [rad/s]."""
 
 # ==================================================
 #                     Jupiter
