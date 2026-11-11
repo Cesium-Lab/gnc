@@ -131,7 +131,7 @@ def plan_direct_injection(
     # Everything in meters unless specified
 
     # Coplanar circular capture cost and hyperbola geometry
-    dv_periapse_m, ta_asymptote_rad, B, e = (
+    _dv_periapse_m, ta_asymptote_rad, _B, e = (
         interplanetary_circ_injection(
             norm(v_inf_hci_km * KM_TO_M), target_periapse_m, mu, deg=False
         )
@@ -162,8 +162,6 @@ def plan_direct_injection(
 
     # Arrival: dot(p_hat, v_inf_hat) = 1/e. Use basis vectors
     # Each p appears on both sides of the v_inf_vec when viewed from above
-    # also theta is 
-    # theta_rad = np.arccos(np.clip(1 / (e * q), -1, 1))
     theta_rad = np.pi - ta_asymptote_rad
     p_hats = np.array(
         [
