@@ -3,10 +3,10 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.linalg import norm
 
-from ..constants import DEG_TO_RAD, KM_TO_M
+from ..constants import DEG_TO_RAD, RAD_TO_DEG
 from ..math.base import unit
 from ..orbital.coes import coes_to_rv
-from .interplanetary import interplanetary_circ_injection
+from .maneuvers import Burn
 
 
 def b_plane_frame(r_pci: np.ndarray, v_pci: np.ndarray, mu: float):
@@ -113,30 +113,83 @@ def b_plane_flyby(v_inf_arr: np.ndarray, v_inf_dep: np.ndarray, mu: float):
 
 @dataclass(frozen=True)
 class ArrivalPlan:
-    r_p: np.ndarray  # (3,)  periapsis position, MCI [m]
-    v_p_hyp: np.ndarray  # (3,)  hyperbolic velocity at periapsis (pre-burn) [m/s]
-    B_TR: np.ndarray  # (2,) aim point [B·T, B·R] [m]
-    burns: list[tuple[np.ndarray, np.ndarray]]  # each: location/epoch, dv vector, |dv|
-    dv_total: float
+    """Result of an arrival planner. All vectors in Planet-Centered-Inertial (MCI) axes."""
+
+    r_p: np.ndarray
+    """(3,) Periapsis position [m]."""
+    v_p_hyp: np.ndarray
+    """(3,) Hyperbolic velocity at periapsis, before the capture burn [m/s]."""
+    v_p_capture: np.ndarray
+    """(3,) Velocity at periapsis after the capture burn [m/s]."""
+    B_TR: np.ndarray
+    """(2,) Aim point [B·T, B·R] of the arrival hyperbola [m]."""
+    beta: float
+    """Angle between the incoming asymptote and the target orbit plane [rad]."""
+    burns: list[Burn]
+    """Maneuvers in time order; `t_s` is relative to periapsis passage."""
+
+    @property
+    def dv_mag(self) -> np.ndarray:
+        """Burn magnitudes [m/s]."""
+        return np.array([burn.dv_mag for burn in self.burns])
+
+    @property
+    def dv_total(self) -> float:
+        """Sum of burn magnitudes [m/s]."""
+        return sum(self.dv_mag)
 
 
 def plan_direct_injection(
-    v_inf_hci_km: np.ndarray,
+    v_inf_mci: np.ndarray,
     target_periapse_m: float,
     target_raan: float,
     target_i: float,
     mu: float,
     deg=True,
     low_energy_path=True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Capture + plane change in one periapsis burn into a fixed (i, Ω) circular orbit."""
-    # Everything in meters unless specified
+) -> ArrivalPlan:
+    """Capture + plane change in one periapsis burn into a fixed (i, Ω) circular orbit.
 
-    # Coplanar circular capture cost and hyperbola geometry
-    _dv_periapse_m, ta_asymptote_rad, _B, e = interplanetary_circ_injection(
-        norm(v_inf_hci_km * KM_TO_M), target_periapse_m, mu, deg=False
-    )
-    v_hat = unit(v_inf_hci_km)
+    Periapsis is placed on the line where the arrival hyperbola's plane
+    meets the target plane, so `p_hat · S_hat = 1/e` with `p_hat` in
+    the target plane. The single burn at periapsis rotates the velocity from
+    the hyperbola plane into the target plane and slows to circular speed.
+
+    Parameters
+    ----------
+    v_inf_mci : np.ndarray (3,)
+        Incoming hyperbolic excess velocity relative to the planet, in
+        planet-equatorial inertial axes (e.g. MCI) [m/s]. Rotate from HCI with
+        `calc_dcm_mci_wrt_hci` first so `target_i` and `target_raan` are
+        measured from the planet's equator.
+    target_periapse_m : float
+        Target circular orbit radius, also the hyperbola's periapsis [m].
+    target_raan, target_i : float
+        Target orbit RAAN and inclination [deg if `deg`, else rad].
+    mu : float
+        Central-body gravitational parameter [m3/s2].
+    deg : bool, optional
+        Angles in degrees when True (default).
+    low_energy_path : bool, optional
+        Pick the cheaper of the two periapsis solutions (default). False picks
+        the other one.
+
+    Returns
+    -------
+    ArrivalPlan
+        Periapsis state before and after the burn, B-plane aim point, beta,
+        and the single capture burn.
+
+    Raises
+    ------
+    ValueError
+        If no periapsis direction in the target plane lies on this hyperbola,
+        i.e. `cos(beta) < 1/e`.
+    """
+    v_inf = norm(v_inf_mci)
+    S_hat = v_inf_mci / v_inf
+    e = 1 + target_periapse_m * v_inf**2 / mu
+
     if deg:
         target_raan *= DEG_TO_RAD
         target_i *= DEG_TO_RAD
@@ -147,30 +200,33 @@ def plan_direct_injection(
     )
     orbit_normal = unit(np.cross(r_target, v_target))
 
-    # Incoming velocity direction projected into the target plane.
-    v_projected = v_hat - np.dot(v_hat, orbit_normal) * orbit_normal
+    # Incoming velocity direction projected into the target plane: q = cos(beta).
+    v_projected = S_hat - np.dot(S_hat, orbit_normal) * orbit_normal
     q = norm(v_projected)
+    beta = float(np.arccos(np.clip(q, -1.0, 1.0)))
     if q < 1 / e - 1e-12:
         raise ValueError(
-            "Cannot enter target plane for the chosen v_inf and radius (usually because turning angle will not exist in the orbit)"
+            f"Cannot enter target plane: beta = {beta * RAD_TO_DEG:.2f} deg exceeds "
+            f"arccos(1/e) = {np.arccos(1 / e) * RAD_TO_DEG:.2f} deg for this v_inf and radius"
         )
     u = unit(v_projected)
     w = np.cross(orbit_normal, u)  # along track in target orbit
 
-    # Arrival: dot(p_hat, v_inf_hat) = 1/e. Use basis vectors
-    # Each p appears on both sides of the v_inf_vec when viewed from above
-    theta_rad = np.pi - ta_asymptote_rad
+    # p_hat = cos(theta) u ± sin(theta) w, with p_hat · S_hat = q cos(theta) = 1/e.
+    # Each p appears on both sides of the v_inf_vec when viewed from above.
+    theta_rad = np.arccos(np.clip(1 / (e * q), -1.0, 1.0))
     p_hats = np.array(
         [unit(np.cos(theta_rad) * u + sign * np.sin(theta_rad) * w) for sign in (1, -1)]
     )
     r_p_captures_mci = target_periapse_m * p_hats
 
-    # Hyperbola things
-    v_p = np.sqrt(norm(v_inf_hci_km * KM_TO_M) ** 2 + 2 * mu / target_periapse_m)
-    v_hyp_hats = np.array([unit(np.cross(np.cross(p, v_hat), p)) for p in p_hats])
+    # Hyperbola: velocity at periapsis is the part of S perpendicular to p
+    # (in span(S, p)), equal to (S - p/e) / sqrt(1 - 1/e^2) since p · S = 1/e.
+    v_p = np.sqrt(v_inf**2 + 2 * mu / target_periapse_m)
+    v_hyp_hats = np.array([unit(np.cross(np.cross(p, S_hat), p)) for p in p_hats])
     v_p_captures_mci = v_p * v_hyp_hats
 
-    # Capture orbit things
+    # Capture orbit: circular, in the target plane
     v_captures_mci = np.sqrt(mu / target_periapse_m) * np.cross(orbit_normal, p_hats)
     dv_captures_mci = v_captures_mci - v_p_captures_mci
 
@@ -180,7 +236,12 @@ def plan_direct_injection(
         selected_index = 1 - selected_index  # switches off
     r_p_mci = r_p_captures_mci[selected_index]
     v_p_mci = v_p_captures_mci[selected_index]
-    v_capture_mci = v_captures_mci[selected_index]
-    dv_capture_mci = dv_captures_mci[selected_index]
 
-    return r_p_mci, v_p_mci, v_capture_mci, dv_capture_mci
+    return ArrivalPlan(
+        r_p=r_p_mci,
+        v_p_hyp=v_p_mci,
+        v_p_capture=v_captures_mci[selected_index],
+        B_TR=b_plane_frame(r_p_mci, v_p_mci, mu),
+        beta=beta,
+        burns=[Burn(t_s=0.0, r=r_p_mci, dv=dv_captures_mci[selected_index])],
+    )

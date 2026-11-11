@@ -2,9 +2,10 @@ import numpy as np
 import pytest
 from numpy.linalg import norm
 
-from cesium.constants import DAY_TO_SEC, DEG_TO_RAD
-from cesium.guidance.arrival import b_plane_flyby, b_plane_frame
+from cesium.constants import DAY_TO_SEC, DEG_TO_RAD, RAD_TO_DEG
+from cesium.guidance.arrival import b_plane_flyby, b_plane_frame, plan_direct_injection
 from cesium.math.base import unit
+from cesium.orbital.coes import rv_to_coes
 from cesium.physics.dynamics import propagate_two_body
 from cesium.world.constants import MU_MARS, R_MARS
 
@@ -141,3 +142,96 @@ class Test_b_plane_flyby:
         assert norm(B_vec) == pytest.approx(
             MU_MARS / EXAMPLE_V_INF**2 / np.tan(phi / 2), rel=1e-9
         )
+
+
+class Test_plan_direct_injection:
+    # Arbitrary arrival direction in Mars-equatorial axes
+    V_INF_MCI = EXAMPLE_V_INF * unit(np.array([0.3, -0.8, 0.2]))
+    E = 1 + EXAMPLE_MARS_R_P * EXAMPLE_V_INF**2 / MU_MARS
+    V_P = np.sqrt(EXAMPLE_V_INF**2 + 2 * MU_MARS / EXAMPLE_MARS_R_P)
+    V_CIRC = np.sqrt(MU_MARS / EXAMPLE_MARS_R_P)
+
+    def _plan(self, i_deg=45.0, raan_deg=90.0, **kwargs):  # beta ~ 24 deg
+        return plan_direct_injection(
+            self.V_INF_MCI, EXAMPLE_MARS_R_P, raan_deg, i_deg, MU_MARS, **kwargs
+        )
+
+    def test_periapsis_is_on_hyperbola_and_in_target_plane(self):
+        plan = self._plan()
+        S_hat = unit(self.V_INF_MCI)
+
+        assert norm(plan.r_p) == pytest.approx(EXAMPLE_MARS_R_P, rel=1e-12)
+        assert np.dot(unit(plan.r_p), S_hat) == pytest.approx(1 / self.E, rel=1e-12)
+        assert np.dot(plan.r_p, plan.v_p_hyp) == pytest.approx(0.0, abs=1e-3)
+        assert norm(plan.v_p_hyp) == pytest.approx(self.V_P, rel=1e-12)
+
+    def test_backward_propagation_recovers_v_inf(self):
+        """The pre-burn periapsis state flies back out along the incoming v_inf."""
+        plan = self._plan()
+        rv_far = propagate_two_body(
+            np.concatenate((plan.r_p, plan.v_p_hyp)),
+            [0.0, -200 * DAY_TO_SEC],
+            MU_MARS,
+            rtol=1e-12,
+            atol=1e-6,
+        )[-1]
+
+        angle_deg = (
+            np.arccos(np.dot(unit(rv_far[3:]), unit(self.V_INF_MCI))) * RAD_TO_DEG
+        )
+        assert angle_deg < 0.05
+        assert norm(rv_far[3:]) == pytest.approx(EXAMPLE_V_INF, rel=1e-3)
+
+    def test_aim_point_matches_propagated_b_vector(self):
+        plan = self._plan()
+        B_TR_prop = _propagated_b_vector(plan.r_p, plan.v_p_hyp)
+        assert plan.B_TR == pytest.approx(B_TR_prop, abs=5e-4 * norm(B_TR_prop))
+
+    @pytest.mark.parametrize(
+        "i_deg, raan_deg", [(45.0, 90.0), (30.0, 210.0), (45.0, 180.0)]
+    )
+    def test_post_burn_state_is_target_orbit(self, i_deg: float, raan_deg: float):
+        plan = self._plan(i_deg, raan_deg)
+        _, e, i, raan, _, _ = rv_to_coes(plan.r_p, plan.v_p_capture, MU_MARS)
+
+        assert e == pytest.approx(0.0, abs=1e-9)
+        assert i == pytest.approx(i_deg * DEG_TO_RAD, abs=1e-9)
+        assert raan == pytest.approx(raan_deg * DEG_TO_RAD, abs=1e-9)
+        assert plan.burns[0].dv == pytest.approx(plan.v_p_capture - plan.v_p_hyp)
+        assert plan.dv_total == pytest.approx(plan.burns[0].dv_mag)
+
+    def test_target_plane_containing_v_inf(self):
+        """beta = 0: no plane change, so dv = v_p - v_circ."""
+        S_hat = unit(self.V_INF_MCI)
+        n_hat = unit(np.cross(S_hat, [0.0, 0.0, 1.0]))  # any normal perpendicular to S
+        if n_hat[2] < 0:
+            n_hat = -n_hat
+        i_deg = np.arccos(n_hat[2]) * RAD_TO_DEG
+        raan_deg = np.arctan2(n_hat[0], -n_hat[1]) * RAD_TO_DEG % 360
+
+        plan = self._plan(i_deg, raan_deg)
+
+        assert plan.beta == pytest.approx(0.0, abs=1e-7)
+        assert plan.dv_total == pytest.approx(self.V_P - self.V_CIRC, rel=1e-9)
+
+    def test_other_branch_costs_more(self):
+        cheap, other = self._plan(), self._plan(low_energy_path=False)
+        assert cheap.dv_total < other.dv_total
+        assert np.dot(cheap.r_p, other.r_p) < EXAMPLE_MARS_R_P**2  # different periapsis
+
+    def test_unreachable_plane_raises(self):
+        """beta > arccos(1/e): the target plane is too far from the asymptote."""
+        S_hat = unit(self.V_INF_MCI)
+        # Normal nearly along S -> plane almost perpendicular to the asymptote
+        n_hat = unit(S_hat + 0.05 * np.array([0.0, 0.0, 1.0]))
+        i_deg = np.arccos(n_hat[2]) * RAD_TO_DEG
+        raan_deg = np.arctan2(n_hat[0], -n_hat[1]) * RAD_TO_DEG % 360
+        with pytest.raises(ValueError, match="Cannot enter target plane"):
+            self._plan(i_deg, raan_deg)
+
+    def test_single_burn_at_periapsis(self):
+        plan = self._plan()
+        burn = plan.burns[0]
+        assert burn.t_s == 0.0
+        assert burn.frame == "PCI"
+        assert np.array_equal(burn.r, plan.r_p)
