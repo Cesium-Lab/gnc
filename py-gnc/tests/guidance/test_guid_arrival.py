@@ -197,8 +197,9 @@ class Test_plan_direct_injection:
         assert e == pytest.approx(0.0, abs=1e-9)
         assert i == pytest.approx(i_deg * DEG_TO_RAD, abs=1e-9)
         assert raan == pytest.approx(raan_deg * DEG_TO_RAD, abs=1e-9)
-        assert plan.burns[0].dv == pytest.approx(plan.v_p_capture - plan.v_p_hyp)
-        assert plan.dv_total == pytest.approx(plan.burns[0].dv_mag)
+        (burn,) = plan.burns
+        assert burn.dv == pytest.approx(plan.v_p_capture - plan.v_p_hyp)
+        assert plan.dv_total == pytest.approx(burn.dv_mag)
 
     def test_target_plane_containing_v_inf(self):
         """beta = 0: no plane change, so dv = v_p - v_circ."""
@@ -231,7 +232,7 @@ class Test_plan_direct_injection:
 
     def test_single_burn_at_periapsis(self):
         plan = self._plan()
-        burn = plan.burns[0]
+        (burn,) = plan.burns
         assert burn.t_s == 0.0
         assert burn.frame == "PCI"
         assert np.array_equal(burn.r, plan.r_p)
