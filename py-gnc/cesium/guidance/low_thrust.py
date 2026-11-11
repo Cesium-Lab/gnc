@@ -44,7 +44,7 @@
 
 #     References
 #     ----------
-#     Vallado 4e, Algorithm 47, p. 387.
+#     Vallado 4e, Algorithm 47 (Low Thrust Transfer), p. 387.
 #     """
 
 #     if scale != "short":

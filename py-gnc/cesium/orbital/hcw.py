@@ -73,7 +73,7 @@ def rv_hcw_3d(
 
     References
     ----------
-    Vallado 4e, Algorithm 48, p. 396-397.
+    Vallado 4e, Algorithm 48 (Hill's Equations), p. 396-397.
     """
 
     Phi_rr, Phi_rv, Phi_vr, Phi_vv = calc_Phi(t, n)
@@ -107,7 +107,7 @@ def rv_hcw_2d(
 
     References
     ----------
-    Vallado 4e, Algorithm 48, p. 396-397.
+    Vallado 4e, Algorithm 48 (Hill's Equations), p. 396-397.
     """
     r, v = rv_hcw_3d(t, n, np.pad(r0, (0, 1)), np.pad(v0, (0, 1)))
     return r[:2], v[:2]
@@ -164,7 +164,7 @@ def hcw_RSW_to_PCI(rv_target_PCI: np.ndarray, rv_chaser_RSW: np.ndarray):
 
     References
     ----------
-    Simplified version of Vallado 4e, Algorithm 49, p. 414.
+    Simplified version of Vallado 4e, Algorithm 49 (HillEQCM to ECI), p. 414.
     """
     r_t_PCI, v_t_PCI = rv_target_PCI[0:3], rv_target_PCI[3:6]
 

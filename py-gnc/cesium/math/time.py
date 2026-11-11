@@ -118,7 +118,7 @@ def greg_to_jd(yr: int, mo: int, d: int, h: int, min: int, s: float, meeus=True)
 
     References
     ----------
-    Vallado 4e, p. 183.
+    Vallado 4e, Algorithm 14 (Julian Date), p. 183.
     """
 
     if meeus:
@@ -168,7 +168,7 @@ def jd_to_greg(jd: float):
 
     References
     ----------
-    Vallado 4e, Algorithm 22, p. 202.
+    Vallado 4e, Algorithm 22 (JDToGregorianDate), p. 202.
     """
     month_lengths = list(LMonth)
 
@@ -231,7 +231,7 @@ def dms_to_rad(deg: int, min: int, sec: float):
 
     References
     ----------
-    Vallado 4e, Algorithm 17, p. 197.
+    Vallado 4e, Algorithm 17 (DMSToRad), p. 197.
     """
     return (deg + min / 60 + sec / 3600) * np.pi / 180.0
 
@@ -255,7 +255,7 @@ def rad_to_dms(angle_rad: float):
 
     References
     ----------
-    Vallado 4e, Algorithm 18, p. 198.
+    Vallado 4e, Algorithm 18 (RadToDMS), p. 197.
     """
     temp = angle_rad * 180.0 / np.pi
     deg = np.trunc(temp)

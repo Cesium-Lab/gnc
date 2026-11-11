@@ -96,7 +96,7 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
 
     References
     ----------
-    Vallado 4e, Algorithm 2, p. 65.
+    Vallado 4e, Algorithm 2 (KepEqtnE), p. 65.
     """
 
     if not (0 <= e < 1):
@@ -117,7 +117,7 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
 
 # TODO: test
 def kepler_eq_p(dt: float, p: float, mu=MU_EARTH):
-    """Vallado 4e, Algorithm 3, p. 69"""
+    """Vallado 4e, Algorithm 3 (KepEqtnP), p. 69"""
     n_p = 2 * np.sqrt(mu / (p**3))
     s = np.arctan(1 / (3 / 2 * n_p * dt)) / 2.0
     w = np.arctan(np.cbrt(np.tan(s)))
@@ -127,7 +127,7 @@ def kepler_eq_p(dt: float, p: float, mu=MU_EARTH):
 
 # TODO: test
 def kepler_eq_h(M: float, e: float, tol=1e-9, max_iter=100):
-    """Vallado 4e, Algorithm 4, p. 71"""
+    """Vallado 4e, Algorithm 4 (KepEqtnH), p. 71"""
 
     if not (e > 1):
         raise ValueError("Kepler solver requires e > 1")
@@ -192,7 +192,7 @@ def pkepler(
 
     References
     ----------
-    Vallado 4e, Algorithm 65, p. 691.
+    Vallado 4e, Algorithm 65 (PKepler), p. 691.
     """
     a, e, i, raan, aop, ta = rv_to_coes(r0, v0, mu)
 
@@ -259,7 +259,7 @@ def rv_to_coes(r_I: np.ndarray, v_I: np.ndarray, mu: float = MU_EARTH):
 
     References
     ----------
-    Vallado 4e, Algorithm 9, p. 113.
+    Vallado 4e, Algorithm 9 (RV2COE), p. 113.
     """
     # To make this easier
     r_norm = norm(r_I)
@@ -367,7 +367,7 @@ def coes_to_rv(
 
     References
     ----------
-    Vallado 4e, Algorithm 10, p. 118.
+    Vallado 4e, Algorithm 10 (COE2RV), p. 118.
     """
 
     # Compute position and velocity in perifocal frame

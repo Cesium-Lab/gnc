@@ -31,7 +31,7 @@ def guid_hohmann(r_i: float, r_f: float, mu=MU_EARTH):
 
     References
     ----------
-    Vallado 4e, Algorithm 36, p. 325.
+    Vallado 4e, Algorithm 36 (Hohmann Transfer), p. 325.
     """
     a_trans = (r_i + r_f) / 2.0
 
@@ -85,7 +85,7 @@ def guid_bielliptic(
 
     References
     ----------
-    Vallado 4e, Algorithm 37, p. 326.
+    Vallado 4e, Algorithm 37 (Bi-elliptic Transfer), p. 326.
     """
     a_trans1 = (r_i + r_b) / 2.0
     a_trans2 = (r_b + r_f) / 2.0
@@ -145,7 +145,7 @@ def guid_one_tangent(
 
     References
     ----------
-    Vallado 4e, Algorithm 38, p. 333.
+    Vallado 4e, Algorithm 38 (One-Tangent Burn), p. 333.
     """
 
     R_inv = r_i / r_f

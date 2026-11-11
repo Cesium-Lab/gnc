@@ -140,7 +140,7 @@ def geodetic_ECEF_to_SEZ(
 
     References
     ------
-    Vallado 4e, Algorithm 27, p. 265.
+    Vallado 4e, Algorithm 27 (RAZEL), p. 265.
     """
     r_site_ecef_m = geodetic_LLA_to_ECEF(lat, lon, alt_m, deg)
     if deg:
@@ -266,7 +266,7 @@ def ECEF_to_geodetic_LLA(r_ECEF: np.ndarray, deg=True) -> tuple[float, float, fl
 
     References
     ----------
-    Vallado 4e, Algorithm 13, p. 173.
+    Vallado 4e, Algorithm 13 (ECEF TO LatLon), p. 173.
     """
     x, y, z = r_ECEF
 
@@ -633,7 +633,7 @@ def PCI_from_PCPF(
 
 
 def cartesian_to_radec(r_cart: np.ndarray, v_cart: np.ndarray, deg=True):
-    """Vallado 4e. Algorithm 25 p. 259 (and Curtis Equation 4.5 p. 155 for position)"""
+    """Vallado 4e. Algorithm 25 (Geocentric Radec), p. 259 (and Curtis Equation 4.5 p. 155 for position)"""
     r_hat = unit(r_cart)
     v_hat = unit(v_cart)
 
@@ -714,7 +714,7 @@ def azel_to_radec(az: float, el: float, lat: float, lst: float, deg=True):
 
     References
     ----------
-    Vallado 4e, Algorithm 28, p. 268.
+    Vallado 4e, Algorithm 28 (AzElToRaDec), p. 268.
     """
     if deg:
         az *= DEG_TO_RAD
@@ -1077,7 +1077,7 @@ def itrf_to_gcrs_matrix(jd_utc: float, eop: EOP = EOP()):
 
     References
     ----------
-    Vallado 4e, Algorithm 23, p. 221.
+    Vallado 4e, Algorithm 23 (IAU-2000, CIO-Based), p. 219.
     """
 
     jd_ut1 = jd_utc + eop.deltaUT1_s * SEC_TO_DAY
@@ -1124,7 +1124,7 @@ def itrf_to_gcrs(
 
     References
     ----------
-    Vallado 4e, Algorithm 23, p. 221.
+    Vallado 4e, Algorithm 23 (IAU-2000, CIO-Based), p. 219.
     """
 
     jd_ut1 = jd_utc + eop.deltaUT1_s * SEC_TO_DAY
@@ -1172,7 +1172,7 @@ def gcrs_to_itrf(
 
     References
     ----------
-    Vallado 4e, Algorithm 23, p. 221.
+    Vallado 4e, Algorithm 23 (IAU-2000, CIO-Based), p. 219.
 
     Notes
     -----
@@ -1188,6 +1188,4 @@ def gcrs_to_itrf(
     return r_itrf, v_itrf
 
 
-# TODO: RAZEL
-
-# TODO: SITE
+# TODO ecliptic lat,lon
