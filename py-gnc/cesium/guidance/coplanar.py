@@ -1,8 +1,8 @@
 import numpy as np
 
-from ...constants import DEG_TO_RAD
-from ...math.coes import E_from_ta
-from ...world.constants import MU_EARTH
+from ..constants import DEG_TO_RAD
+from ..orbital.coes import E_from_ta, vis_viva
+from ..world.constants import MU_EARTH
 
 
 # TODO: Example 6-1 p. 326
@@ -36,9 +36,9 @@ def guid_hohmann(r_i: float, r_f: float, mu=MU_EARTH):
     a_trans = (r_i + r_f) / 2.0
 
     v_i = np.sqrt(mu / r_i)
-    v_trans_a = np.sqrt(2 * mu / r_i - mu / a_trans)
+    v_trans_a = vis_viva(r_i, a_trans, mu)
     v_f = np.sqrt(mu / r_f)
-    v_trans_b = np.sqrt(2 * mu / r_f - mu / a_trans)
+    v_trans_b = vis_viva(r_f, a_trans, mu)
 
     dv_a = v_trans_a - v_i
     dv_b = v_f - v_trans_b
@@ -91,10 +91,10 @@ def guid_bielliptic(
     a_trans2 = (r_b + r_f) / 2.0
 
     v_i = np.sqrt(mu / r_i)
-    v_trans1_a = np.sqrt(2 * mu / r_i - mu / a_trans1)
-    v_trans1_b = np.sqrt(2 * mu / r_b - mu / a_trans1)
-    v_trans2_b = np.sqrt(2 * mu / r_b - mu / a_trans2)
-    v_trans2_c = np.sqrt(2 * mu / r_f - mu / a_trans2)
+    v_trans1_a = vis_viva(r_i, a_trans1, mu)
+    v_trans1_b = vis_viva(r_b, a_trans1, mu)
+    v_trans2_b = vis_viva(r_b, a_trans2, mu)
+    v_trans2_c = vis_viva(r_f, a_trans2, mu)
     v_f = np.sqrt(mu / r_f)
 
     dv_a = v_trans1_a - v_i
@@ -109,7 +109,12 @@ def guid_bielliptic(
 
 # TODO: Example 6-3 p. 334
 def guid_one_tangent(
-    r_i: float, r_f: float, ta_trans_b, burn_at_periapsis: True, mu=MU_EARTH, deg=False
+    r_i: float,
+    r_f: float,
+    ta_trans_b: float,
+    burn_at_periapsis=True,
+    mu=MU_EARTH,
+    deg=False,
 ):
     """One-tangent burn transfer between two coplanar circular orbits.
 
@@ -124,9 +129,9 @@ def guid_one_tangent(
     ta_trans_b : float
         True anomaly on transfer orbit at second burn [rad, or deg if
         `deg` is True].
-    burn_at_periapsis : bool
-        True if first burn is at periapsis of transfer orbit, False if
-        at apoapsis.
+    burn_at_periapsis : bool, optional
+        True (default) if first burn is at periapsis of transfer orbit, False
+        if at apoapsis.
     mu : float, optional
         Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
     deg : bool, optional
@@ -162,9 +167,9 @@ def guid_one_tangent(
     a_trans = r_i / (1 - e_trans) if burn_at_periapsis else r_i / (1 + e_trans)
 
     v_i = np.sqrt(mu / r_i)
-    v_trans_a = np.sqrt(2 * mu / r_i - mu / a_trans)
+    v_trans_a = vis_viva(r_i, a_trans, mu)
     v_f = np.sqrt(mu / r_f)
-    v_trans_b = np.sqrt(2 * mu / r_f - mu / a_trans)
+    v_trans_b = vis_viva(r_f, a_trans, mu)
 
     dv_a = v_trans_a - v_i
 
@@ -182,8 +187,111 @@ def guid_one_tangent(
     E0 = 0.0 if burn_at_periapsis else np.pi
     M = E - e_trans * np.sin(E)
     M0 = E0 - e_trans * np.sin(E0)
-    t_trans = (
-        np.pi * np.sqrt(a_trans**3 / mu) * (2 * k * np.pi + (M - M0) % (2 * np.pi))
-    )
+    # Kepler time of flight: sqrt(a^3/mu) * (2 k pi + M - M0) (Vallado Eq. 2-66)
+    t_trans = np.sqrt(a_trans**3 / mu) * (2 * k * np.pi + (M - M0) % (2 * np.pi))
+
+    return a_trans, t_trans, dv_a, dv_b
+
+
+# TODO: test even though I think this looks rather correct
+
+
+def circularize(a: float, e: float, burn_at_periapsis: bool = True, mu=MU_EARTH):
+    """Tangential burn at an apsis that circularizes the orbit at that radius.
+
+    Parameters
+    ----------
+    a : float
+        Semi-major axis of the current orbit [m].
+    e : float
+        Eccentricity of the current orbit, `0 <= e < 1`.
+    burn_at_periapsis : bool, optional
+        True (default) to burn at periapsis (circle of radius `a (1 - e)`),
+        False to burn at apoapsis (circle of radius `a (1 + e)`).
+    mu : float, optional
+        Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    dv : float
+        Delta-v of the tangential burn; positive is prograde [m/s].
+
+    References
+    ----------
+    Vallado 4e, Equation 1-31 (vis-viva), p. 28.
+    """
+    r_burn = a * (1 - e) if burn_at_periapsis else a * (1 + e)
+    v_burn = vis_viva(r_burn, a, mu)
+    v_circ = np.sqrt(mu / r_burn)
+
+    return v_circ - v_burn
+
+
+def guid_coaxial_hohmann(
+    r_p1: float,
+    r_a1: float,
+    r_p2: float,
+    r_a2: float,
+    depart_at_periapsis: bool = True,
+    arrive_at_periapsis: bool = True,
+    mu=MU_EARTH,
+):
+    """Tangential apse-to-apse transfer between coaxial elliptical orbits.
+
+    Burn 1 at an apsis of orbit 1, coast half of the transfer ellipse, burn 2
+    at an apsis of orbit 2. Reduces to `guid_hohmann` for two circular orbits
+    and handles elliptic-to-circular shape corrections.
+
+    The departure apsis (orbit 1) and arrival apsis (orbit 2) are chosen
+    independently, but the caller must pick a pair that lies 180 deg apart in
+    inertial space; the transfer always covers half an ellipse. For example,
+    if both periapsides point the same way, periapsis 1 pairs with apoapsis 2;
+    if they point opposite ways, periapsis 1 pairs with periapsis 2. Either
+    choice is valid for a circular orbit.
+
+    Parameters
+    ----------
+    r_p1, r_a1 : float
+        Periapsis and apoapsis radii of the initial orbit [m].
+    r_p2, r_a2 : float
+        Periapsis and apoapsis radii of the final orbit [m].
+    depart_at_periapsis : bool, optional
+        True (default) to make the first burn at periapsis of orbit 1, False
+        for apoapsis.
+    arrive_at_periapsis : bool, optional
+        True (default) to make the second burn at periapsis of orbit 2, False
+        for apoapsis.
+    mu : float, optional
+        Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    a_trans : float
+        Semi-major axis of transfer ellipse [m].
+    t_trans : float
+        Transfer time (half transfer-orbit period) [s].
+    dv_a : float
+        Delta-v of first burn, at orbit 1; positive is prograde [m/s].
+    dv_b : float
+        Delta-v of second burn, at orbit 2; positive is prograde [m/s].
+
+    References
+    ----------
+    Curtis, Orbital Mechanics for Engineering Students, Ch. 6 (Hohmann transfer
+    between coaxial elliptical orbits).
+    """
+    if r_p1 > r_a1 or r_p2 > r_a2:
+        raise ValueError("Periapsis radius must not exceed apoapsis radius")
+
+    r_1 = r_p1 if depart_at_periapsis else r_a1
+    r_2 = r_p2 if arrive_at_periapsis else r_a2
+
+    a_1 = (r_p1 + r_a1) / 2
+    a_2 = (r_p2 + r_a2) / 2
+    a_trans = (r_1 + r_2) / 2
+
+    dv_a = vis_viva(r_1, a_trans, mu) - vis_viva(r_1, a_1, mu)
+    dv_b = vis_viva(r_2, a_2, mu) - vis_viva(r_2, a_trans, mu)
+    t_trans = np.pi * np.sqrt(a_trans**3 / mu)
 
     return a_trans, t_trans, dv_a, dv_b

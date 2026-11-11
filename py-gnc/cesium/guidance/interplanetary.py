@@ -2,6 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 
 from ..constants import RAD_TO_DEG
+from ..orbital.coes import vis_viva
 
 
 def interplanetary_circ_injection(
@@ -34,7 +35,7 @@ def interplanetary_circ_injection(
     -------
     AA 279B Lecture 9 p. 23
     """
-    v_p = np.sqrt(v_inf_PCI**2 + 2 * mu / r_p)
+    v_p = vis_viva(r_p, -mu / v_inf_PCI**2, mu)
     v_circ = np.sqrt(mu / r_p)
     dv_p = norm(v_circ - v_p)
 
@@ -102,8 +103,8 @@ def flyby_shoot(
         raise ValueError
 
     # dv
-    v_p1 = np.sqrt(v_arrival_PCI**2 + 2 * mu / r_p)
-    v_p2 = np.sqrt(v_departure_PCI**2 + 2 * mu / r_p)
+    v_p1 = vis_viva(r_p, -mu / v_arrival_PCI**2, mu)
+    v_p2 = vis_viva(r_p, -mu / v_departure_PCI**2, mu)
     dv = abs(v_p2 - v_p1)
     # e
     e1 = 1 + r_p * v_arrival_PCI**2 / mu

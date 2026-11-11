@@ -9,6 +9,8 @@ from cesium.orbital.coes import (
     kepler_eq_h,
     kepler_eq_p,
     rv_to_coes,
+    sma_from_rv,
+    vis_viva,
 )
 from cesium.world import MU_EARTH, MU_EARTH_KM
 
@@ -241,3 +243,37 @@ class TestRoundTrip:
 
             assert np.allclose(r0, r1, rtol=1e-10, atol=1e-6)
             assert np.allclose(v0, v1, rtol=1e-10, atol=1e-9)
+
+
+
+class Test_vis_viva:
+    R = 7000 * KM_TO_M
+
+    def test_circular_speed(self):
+        assert vis_viva(self.R, self.R, MU_EARTH) == pytest.approx(np.sqrt(MU_EARTH / self.R))
+
+    def test_hyperbolic_periapsis_speed(self):
+        """a = -mu / v_inf^2 gives v^2 = v_inf^2 + 2 mu / r."""
+        v_inf = 3.2 * KM_TO_M
+        v = vis_viva(self.R, -MU_EARTH / v_inf**2, MU_EARTH)
+        assert v == pytest.approx(np.sqrt(v_inf**2 + 2 * MU_EARTH / self.R))
+
+    def test_escape_speed_is_parabolic(self):
+        v_esc = np.sqrt(2 * MU_EARTH / self.R)
+        assert sma_from_rv(self.R, v_esc, MU_EARTH) == np.inf
+
+    @pytest.mark.parametrize("a", [9000e3, -25000e3])  # ellipse and hyperbola
+    def test_round_trip(self, a):
+        v = vis_viva(self.R, a, MU_EARTH)
+        assert sma_from_rv(self.R, v, MU_EARTH) == pytest.approx(a, rel=1e-12)
+
+    def test_matches_rv_to_coes(self):
+        """Same speed as long as the `r` and `a` are the same for an arbitrary orbit"""
+        r, v = coes_to_rv(9000e3, 0.2, 0.3, 0.4, 0.5, 1.1, MU_EARTH)
+        assert np.linalg.norm(v) == pytest.approx(
+            vis_viva(np.linalg.norm(r), 9000e3, MU_EARTH), rel=1e-12
+        )
+        r, v = coes_to_rv(9000e3, 0.4, 12.3, 4.4, 4.5, 4.1, MU_EARTH)
+        assert np.linalg.norm(v) == pytest.approx(
+            vis_viva(np.linalg.norm(r), 9000e3, MU_EARTH), rel=1e-12
+        )

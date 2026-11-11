@@ -5,7 +5,7 @@ from numpy.linalg import norm
 
 from ..constants import DEG_TO_RAD, RAD_TO_DEG
 from ..math.base import unit
-from ..orbital.coes import coes_to_rv
+from ..orbital.coes import coes_to_rv, sma_from_rv
 from .maneuvers import Burn
 
 
@@ -48,8 +48,7 @@ def b_plane_frame(r_pci: np.ndarray, v_pci: np.ndarray, mu: float):
     r, v = norm(r_pci), norm(v_pci)
     e = ((v * v - mu / r) * r_pci - np.dot(r_pci, v_pci) * v_pci) / mu
 
-    v_inf_sq = v * v - 2 * mu / r
-    a = -mu / v_inf_sq
+    a = sma_from_rv(r, v, mu)  # negative: hyperbola
     b = -a * np.sqrt(np.dot(e, e) - 1)
 
     ta_asymptote = np.arccos(-1 / norm(e))

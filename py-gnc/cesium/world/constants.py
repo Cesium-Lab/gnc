@@ -189,6 +189,9 @@ ECC_MARS_ORBIT = 0.0935
 INC_MARS = 1.850
 """Mars orbital inclination to ecliptic [deg]. Source: Curtis, Table A.1."""
 
+J2_MARS = 0.001960454
+"""Mars second zonal harmonic coefficient https://janus.astro.umd.edu/astro/calculators/pcalcframe.html"""
+
 # Mars rotational elements: Folkner et al. (1997), as adopted in Duxbury et al. (2002)
 # Angles measured in ICRF; T = Julian centuries and d = days since J2000 TDB.
 MARS_POLE_RA_J2000 = 317.68143

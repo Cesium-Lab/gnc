@@ -17,6 +17,63 @@ a = h*h/mu / (1 - e*e)
 """
 
 ####################################################################################################
+#               Vis-viva
+####################################################################################################
+
+
+def vis_viva(r: float, a: float, mu=MU_EARTH) -> float:
+    """Orbital speed at radius `r` on a conic with semi-major axis `a`.
+
+    `v = sqrt(mu (2/r - 1/a))`. Works for ellipses (`a > 0`) and hyperbolas
+    (`a < 0`, i.e. `a = -mu / v_inf**2`, giving `v**2 = v_inf**2 + 2 mu / r`).
+
+    Parameters
+    ----------
+    r : float
+        Radius from the central body [m].
+    a : float
+        Semi-major axis [m]; negative for hyperbolic orbits.
+    mu : float, optional
+        Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    v : float
+        Speed [m/s].
+
+    References
+    ----------
+    Vallado 4e, Equation 1-31 (vis-viva), p. 28.
+    """
+    return np.sqrt(mu * (2 / r - 1 / a))
+
+
+def sma_from_rv(r: float, v: float, mu=MU_EARTH) -> float:
+    """Semi-major axis from radius and speed (inverse vis-viva).
+
+    Parameters
+    ----------
+    r : float
+        Radius from the central body [m].
+    v : float
+        Speed [m/s].
+    mu : float, optional
+        Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    a : float
+        Semi-major axis [m]; negative for hyperbolic orbits, `inf` if parabolic.
+
+    References
+    ----------
+    Vallado 4e, Equation 1-31 (vis-viva), p. 28.
+    """
+    inv_a = 2 / r - v**2 / mu
+    return np.inf if inv_a == 0 else 1 / inv_a
+
+
+####################################################################################################
 #               Kepler
 ####################################################################################################
 
