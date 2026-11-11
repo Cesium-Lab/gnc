@@ -641,7 +641,7 @@ def cartesian_to_radec(r_cart: np.ndarray, v_cart: np.ndarray, deg=True):
 
     dla = np.arcsin(r_hat[2])  # -pi to pi
 
-    if abs(horizontal) < 1e-12: # meters
+    if abs(horizontal) < 1e-12:  # meters
         rla = np.arctan2(v_hat[1], v_hat[0])
     else:
         rla = np.arctan2(r_hat[1], r_hat[0])
@@ -649,8 +649,12 @@ def cartesian_to_radec(r_cart: np.ndarray, v_cart: np.ndarray, deg=True):
     rla = wrap_to_2pi(rla)
 
     rho_dot = np.dot(r_cart, v_cart) / norm(r_cart)
-    rla_dot = (v_cart[0]*r_cart[1] - v_cart[1]*r_cart[0]) / (-r_cart[1]**2 - r_cart[0]**2)
-    dla_dot = (v_cart[2] - rho_dot*r_hat[2]) / np.sqrt(r_cart[0]**2 + r_cart[1]**2)
+    rla_dot = (v_cart[0] * r_cart[1] - v_cart[1] * r_cart[0]) / (
+        -(r_cart[1] ** 2) - r_cart[0] ** 2
+    )
+    dla_dot = (v_cart[2] - rho_dot * r_hat[2]) / np.sqrt(
+        r_cart[0] ** 2 + r_cart[1] ** 2
+    )
 
     if deg:
         dla *= RAD_TO_DEG
@@ -658,8 +662,16 @@ def cartesian_to_radec(r_cart: np.ndarray, v_cart: np.ndarray, deg=True):
 
     return rla, dla, norm(r_cart), rla_dot, dla_dot, rho_dot
 
-def radec_to_cartesian(rla: float, dla: float, rho: float, 
-                       rla_dot: float, dla_dot: float, rho_dot: float, deg=True):
+
+def radec_to_cartesian(
+    rla: float,
+    dla: float,
+    rho: float,
+    rla_dot: float,
+    dla_dot: float,
+    rho_dot: float,
+    deg=True,
+):
     """Vallado 4e. Equation 4-1 p. 257 and Vallado 4e. Equation 4-2 p. 258 (and Curtis Equation 4.5 p. 155 for position)"""
 
     if deg:
@@ -671,22 +683,17 @@ def radec_to_cartesian(rla: float, dla: float, rho: float,
     cd = np.cos(dla)
     sd = np.sin(dla)
 
-    r = np.array([
-        cd * cr * rho,
-        cd * sr * rho,
-        sd * rho
-    ])
+    r = np.array([cd * cr * rho, cd * sr * rho, sd * rho])
 
-    v = np.array([
-        rho_dot * cd * cr - rho * sd * cr * dla_dot - rho * cd * sr * rla_dot,
-        rho_dot * cd * sr - rho * sd * sr * dla_dot + rho * cd * cr * rla_dot,
-        rho_dot * sd + rho * cd * dla_dot
+    v = np.array(
+        [
+            rho_dot * cd * cr - rho * sd * cr * dla_dot - rho * cd * sr * rla_dot,
+            rho_dot * cd * sr - rho * sd * sr * dla_dot + rho * cd * cr * rla_dot,
+            rho_dot * sd + rho * cd * dla_dot,
+        ]
+    )
 
-    ])
-
-
-
-    return r,v
+    return r, v
 
 
 def azel_to_radec(az: float, el: float, lat: float, lst: float, deg=True):

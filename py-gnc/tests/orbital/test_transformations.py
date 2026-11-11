@@ -64,6 +64,7 @@ def test_r_to_lla_example_3_3():
 #               SEZ
 #########################################################################################################
 
+
 def test_ecef_to_sez():
     # Book values are given in km
     r_ecef = np.array([6524.834, 6862.875, 6448.296]) * KM_TO_M
@@ -209,14 +210,15 @@ def test_cartesian_to_radec():
 
 
 def test_radec_roundtrip():
-    r0 = np.array([-536328, -17132484, 3234691]) # m but arbitrary
-    v0 = np.array([-536, -17132, 3234]) # m/s but arbitrary
+    r0 = np.array([-536328, -17132484, 3234691])  # m but arbitrary
+    v0 = np.array([-536, -17132, 3234])  # m/s but arbitrary
 
     for deg in (True, False):
         results = Trans.cartesian_to_radec(r0, v0, deg=deg)
         r, v = Trans.radec_to_cartesian(*results, deg=deg)
         assert r == pytest.approx(r0)
         assert v == pytest.approx(v0)
+
 
 #########################################################################################################
 #               azel to radec
@@ -232,7 +234,7 @@ def test_azel_to_radec_zenith_and_north_horizon():
 
     ra, dec = Trans.azel_to_radec(0.0, 0.0, lat, lst)
     assert dec == pytest.approx(90 - lat)
-    assert ra == pytest.approx((lst - 180) % 360) # wrap to pi-ish
+    assert ra == pytest.approx((lst - 180) % 360)  # wrap to pi-ish
 
 
 def test_azel_to_radec_matches_sez_rotation():
@@ -242,7 +244,13 @@ def test_azel_to_radec_matches_sez_rotation():
     rng = np.random.default_rng(0)
     for az, el, lat, lst in rng.uniform([0, -80, -80, 0], [360, 80, 80, 360], (50, 4)):
         a_rad, e_rad = az * DEG_TO_RAD, el * DEG_TO_RAD
-        u_sez = np.array([-np.cos(e_rad) * np.cos(a_rad), np.cos(e_rad) * np.sin(a_rad), np.sin(e_rad)])
+        u_sez = np.array(
+            [
+                -np.cos(e_rad) * np.cos(a_rad),
+                np.cos(e_rad) * np.sin(a_rad),
+                np.sin(e_rad),
+            ]
+        )
         dcm_sez_wrt_ijk = dcm_y((90 - lat) * DEG_TO_RAD) @ dcm_z(lst * DEG_TO_RAD)
         ra_exp, dec_exp, *_ = Trans.cartesian_to_radec(
             dcm_sez_wrt_ijk.T @ u_sez, np.zeros(3)
@@ -251,6 +259,7 @@ def test_azel_to_radec_matches_sez_rotation():
         ra, dec = Trans.azel_to_radec(az, el, lat, lst)
         assert dec == pytest.approx(dec_exp, abs=1e-9)
         assert (ra - ra_exp + 180) % 360 - 180 == pytest.approx(0, abs=1e-9)
+
 
 #########################################################################################################
 #               SO MANY OF THEM
@@ -266,14 +275,14 @@ def test_vallado_example_4_1():
     dla_dot = -0.00000001794 * DEG_TO_RAD
     rho_km_dot = -25.53033094  # km
 
-    r_eci_km_expected = np.array([
-        1752246215, -3759563433, -1577568105
-    ])  # km
+    r_eci_km_expected = np.array([1752246215, -3759563433, -1577568105])  # km
     v_eci_km_expected = np.array([-18.323, 18.332, 7.777])
 
     # Radec
-    r_eci_km, v_eci_km = Trans.radec_to_cartesian(rla, dla, rho_km, rla_dot, dla_dot, rho_km_dot, deg=False)
-    assert r_eci_km == pytest.approx(r_eci_km_expected, abs = 10) # 10 km oop
+    r_eci_km, v_eci_km = Trans.radec_to_cartesian(
+        rla, dla, rho_km, rla_dot, dla_dot, rho_km_dot, deg=False
+    )
+    assert r_eci_km == pytest.approx(r_eci_km_expected, abs=10)  # 10 km oop
     assert v_eci_km == pytest.approx(v_eci_km_expected, abs=1e-3)
 
     # Site vector
@@ -286,12 +295,18 @@ def test_vallado_example_4_1():
     jd_utc = greg_to_jd(1994, 5, 14, 13, 11, 20.59856)
     r_site_eci_km, v_site_eci_km = Trans.itrf_to_gcrs(r_site_km, v_site_km, jd_utc)
 
-    assert r_site_eci_km == pytest.approx([4068.213205, -2842.429051, 3996.349956], rel=1e-3)
-    assert v_site_eci_km == pytest.approx([0.207272450, 0.296810996, 0.000116446], rel=1e-3)
+    assert r_site_eci_km == pytest.approx(
+        [4068.213205, -2842.429051, 3996.349956], rel=1e-3
+    )
+    assert v_site_eci_km == pytest.approx(
+        [0.207272450, 0.296810996, 0.000116446], rel=1e-3
+    )
 
     # SEZ
     r_ecef_km, v_ecef_km = Trans.gcrs_to_itrf(r_eci_km, v_eci_km, jd_utc)
-    az, el, rho, az_dot, el_dot, rho_dot = Trans.geodetic_ECEF_to_SEZ(r_ecef_km * KM_TO_M, v_ecef_km * KM_TO_M, *lla, deg=True)
+    az, el, rho, az_dot, el_dot, rho_dot = Trans.geodetic_ECEF_to_SEZ(
+        r_ecef_km * KM_TO_M, v_ecef_km * KM_TO_M, *lla, deg=True
+    )
 
     assert az == pytest.approx(210.8250667)
     assert el == pytest.approx(23.8595052)
@@ -299,7 +314,6 @@ def test_vallado_example_4_1():
     assert az_dot == pytest.approx(0.003862975427)
     assert el_dot == pytest.approx(-0.001663710935)
     assert rho_dot * M_TO_KM == pytest.approx(-25.3608138, rel=1e-5)
-
 
     # TODO ecliptic lat,lon
 
