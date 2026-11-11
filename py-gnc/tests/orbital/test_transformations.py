@@ -7,6 +7,7 @@ from cesium.constants import (
     ARCSEC_TO_RAD,
     DEG_TO_RAD,
     KM_TO_M,
+    M_TO_KM,
     RAD_TO_ARCSEC,
     RAD_TO_DEG,
 )
@@ -63,7 +64,6 @@ def test_r_to_lla_example_3_3():
 #               SEZ
 #########################################################################################################
 
-
 def test_ecef_to_sez():
     # Book values are given in km
     r_ecef = np.array([6524.834, 6862.875, 6448.296]) * KM_TO_M
@@ -71,7 +71,7 @@ def test_ecef_to_sez():
 
     # Site on the ellipsoid directly underneath the satellite.
     r_site_ecef_m = Trans.geodetic_LLA_to_ECEF(lat, lon, 0)
-    _az, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(r_ecef, np.zeros(3), lat, lon, 0)
+    _, el, rho, _, _, _ = Trans.geodetic_ECEF_to_SEZ(r_ecef, np.zeros(3), lat, lon, 0)
 
     assert el == pytest.approx(90, rel=1e-5)
     assert rho == pytest.approx(norm(r_ecef - r_site_ecef_m))
@@ -200,23 +200,66 @@ def test_PCI_to_RSW_Curtis_example_7_2():
 def test_cartesian_to_radec():
     """Curtis Equation 4.5 p. 155"""
     r = np.array([-5368, -1784, 3691])
+    v = np.zeros(3)
 
-    ra, dec, rho = Trans.cartesian_to_radec(r, deg=True)
+    ra, dec, rho, _, _, _ = Trans.cartesian_to_radec(r, v, deg=True)
     assert ra == pytest.approx(198.4, abs=0.1)
     assert dec == pytest.approx(33.12, abs=0.01)
     assert rho == pytest.approx(norm(r))
 
 
 def test_radec_roundtrip():
-    r0 = np.array([-536328, -17132484, 3234691])
+    r0 = np.array([-536328, -17132484, 3234691]) # m but arbitrary
+    v0 = np.array([-536, -17132, 3234]) # m/s but arbitrary
 
-    ra, dec, rho = Trans.cartesian_to_radec(r0, deg=True)
-    r = Trans.radec_to_cartesian(ra, dec, rho, deg=True)
-    assert r == pytest.approx(r0)
+    for deg in (True, False):
+        results = Trans.cartesian_to_radec(r0, v0, deg=deg)
+        r, v = Trans.radec_to_cartesian(*results, deg=deg)
+        assert r == pytest.approx(r0)
+        assert v == pytest.approx(v0)
 
-    ra, dec, rho = Trans.cartesian_to_radec(r0, deg=False)
-    r = Trans.radec_to_cartesian(ra, dec, rho, deg=False)
-    assert r == pytest.approx(r0)
+def test_vallado_example_4_1():
+    """Vallado 4e. Example 4-1 p. 270. Just goin down and calculating"""
+    rla = 294.9891458 * DEG_TO_RAD
+    dla = -20.8234944 * DEG_TO_RAD
+    rho_km = 4437725220.51  # km
+    rla_dot = -0.00000012244 * DEG_TO_RAD
+    dla_dot = -0.00000001794 * DEG_TO_RAD
+    rho_km_dot = -25.53033094  # km
+
+    r_eci_km_expected = np.array([
+        1752246215, -3759563433, -1577568105
+    ])  # km
+    v_eci_km_expected = np.array([-18.323, 18.332, 7.777])
+
+    # Radec
+    r_eci_km, v_eci_km = Trans.radec_to_cartesian(rla, dla, rho_km, rla_dot, dla_dot, rho_km_dot, deg=False)
+    assert r_eci_km == pytest.approx(r_eci_km_expected, abs = 10) # 10 km oop
+    assert v_eci_km == pytest.approx(v_eci_km_expected, abs=1e-3)
+
+    # Site vector
+    lla = (39.007, -104.883, 2194.56)
+    r_site_km = Trans.geodetic_LLA_to_ECEF(*lla) * M_TO_KM
+    assert r_site_km == pytest.approx([-1275.123419, -4797.994704, 3994.302210])
+    v_site_km = np.zeros(3)
+
+    # Hopefully works from ECI to ITRF
+    jd_utc = greg_to_jd(1994, 5, 14, 13, 11, 20.59856)
+    r_site_eci_km, v_site_eci_km = Trans.itrf_to_gcrs(r_site_km, v_site_km, jd_utc)
+
+    assert r_site_eci_km == pytest.approx([4068.213205, -2842.429051, 3996.349956], rel=1e-3)
+    assert v_site_eci_km == pytest.approx([0.207272450, 0.296810996, 0.000116446], rel=1e-3)
+
+    # SEZ
+    r_ecef_km, v_ecef_km = Trans.gcrs_to_itrf(r_eci_km, v_eci_km, jd_utc)
+    az, el, rho, az_dot, el_dot, rho_dot = Trans.geodetic_ECEF_to_SEZ(r_ecef_km * KM_TO_M, v_ecef_km * KM_TO_M, *lla, deg=True)
+
+    assert az == pytest.approx(210.8250667)
+    assert el == pytest.approx(23.8595052)
+    assert rho * M_TO_KM == pytest.approx(4437722626.456)
+    assert az_dot == pytest.approx(0.003862975427)
+    assert el_dot == pytest.approx(-0.001663710935)
+    assert rho_dot * M_TO_KM == pytest.approx(-25.3608138, rel=1e-5)
 
 
 #########################################################################################################
@@ -299,8 +342,8 @@ def test_vallado_itrf_PN():
     Vallado 4e Example 3-14 p. 220"""
 
     t_tt = 0.0426236319
-    dX = -0.000205
-    dY = -0.000136
+    dX = -0.000205 * ARCSEC_TO_RAD
+    dY = -0.000136 * ARCSEC_TO_RAD
 
     PN = Trans.PN_matrix(t_tt, dX, dY)
 
@@ -415,3 +458,52 @@ def test_itrf_gcrs_round_trip():
 
     assert np.allclose(r_recovered, r_itrf, rtol=0, atol=1e-9)
     assert np.allclose(v_recovered, v_itrf, rtol=0, atol=1e-12)
+
+
+#########################################################################################################
+#               ICRF <--> Mars
+#########################################################################################################
+
+
+def test_mars_rotational_elements_pole_and_node():
+    """Mars pole maps to MCI +z; MCI +x (node) lies on the ICRF equator."""
+    jd = greg_to_jd(2035, 12, 25, 0, 0, 0)
+    alpha_0, delta_0, _ = Trans.mars_rotational_elements(jd)
+    dcm = Trans.MCI_from_ECI(jd)
+
+    pole_eci, _ = Trans.radec_to_cartesian(alpha_0, delta_0, 1.0, 0, 0, 0, deg=False)
+    assert np.allclose(dcm @ pole_eci, [0, 0, 1], atol=1e-12)
+    assert dcm[0, 2] == pytest.approx(0.0, abs=1e-12)  # MCI x has no ECI z
+    assert np.allclose(dcm @ dcm.T, np.eye(3), atol=1e-12)
+    assert np.linalg.det(dcm) == pytest.approx(1.0)
+
+
+def test_MCI_from_ECI_j2000_pole_radec():
+    """MCI z-axis expressed in ECI recovers the IAU 2009 J2000 pole."""
+    pole_eci = Trans.MCI_from_ECI().T @ [0, 0, 1]
+    ra, dec, *_ = Trans.cartesian_to_radec(pole_eci, np.zeros(3))
+    assert ra == pytest.approx(317.68143)
+    assert dec == pytest.approx(52.88650)
+
+
+def test_mars_obliquity_from_MCI_from_HCI():
+    """Mars pole vs. orbit normal gives Mars's obliquity, ~25.19 deg."""
+    inc, raan = 1.85061 * DEG_TO_RAD, 49.57854 * DEG_TO_RAD  # J2000 ecliptic
+    orbit_normal_hci = np.array(
+        [np.sin(raan) * np.sin(inc), -np.cos(raan) * np.sin(inc), np.cos(inc)]
+    )
+    pole_hci = Trans.MCI_from_HCI().T @ [0, 0, 1]
+    obliquity = np.arccos(pole_hci @ orbit_normal_hci) * RAD_TO_DEG
+    assert obliquity == pytest.approx(25.19, abs=0.02)
+
+
+def test_MCMF_from_MCI_sidereal_day():
+    """Prime meridian returns to the same angle after one sidereal sol."""
+    sidereal_day_days = 360 / 350.89198226  # 24.6229 hr
+    jd = greg_to_jd(2035, 12, 25, 0, 0, 0)
+    assert np.allclose(
+        Trans.MCMF_from_MCI(jd), Trans.MCMF_from_MCI(jd + sidereal_day_days), atol=1e-9
+    )
+    assert np.allclose(
+        Trans.MCMF_from_ECI(jd), Trans.MCMF_from_MCI(jd) @ Trans.MCI_from_ECI(jd)
+    )

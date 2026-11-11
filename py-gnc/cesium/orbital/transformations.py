@@ -8,11 +8,30 @@ from functools import lru_cache
 import numpy as np
 from numpy.linalg import norm
 
-from ..constants import ARCSEC_TO_RAD, DEG_TO_RAD, RAD_TO_DEG, SEC_TO_DAY
+from ..constants import (
+    ARCSEC_TO_RAD,
+    DEG_TO_RAD,
+    J2000_JD,
+    RAD_TO_DEG,
+    SEC_TO_DAY,
+    TAI_TO_TT,
+)
 from ..math.quaternion import unit
-from ..math.rotations import dcm_z, wrap_to_2pi
+from ..math.rotations import dcm_x, dcm_z, wrap_to_2pi
 from ..math.time import jd_to_julian_centuries
-from ..world import ECC_EARTH, ECLIPTIC_ANGLE, R_EARTH, R_EARTH_POLAR, W_EARTH
+from ..world.constants import (
+    ECC_EARTH,
+    ECLIPTIC_ANGLE,
+    MARS_POLE_DEC_J2000,
+    MARS_POLE_DEC_RATE,
+    MARS_POLE_RA_J2000,
+    MARS_POLE_RA_RATE,
+    MARS_PRIME_MERIDIAN_J2000,
+    MARS_PRIME_MERIDIAN_RATE,
+    R_EARTH,
+    R_EARTH_POLAR,
+    W_EARTH,
+)
 from .CIP.parse import get_summation, import_table
 
 ################################################################################
@@ -407,6 +426,152 @@ def ECI_from_HCI():
 
 
 ################################################################################
+#               ICRF <--> Mars (MCI, MCMF)
+################################################################################
+
+"""
+IAU rotational-elements model for Mars, same construction as any IAU body:
+- MCI  = R1(90 - delta_0) R3(90 + alpha_0) @ ICRF   (Mars mean equator of date, inertial)
+- MCMF = R3(W) @ MCI                                (Mars body-fixed, i.e. SPICE IAU_MARS)
+
+The MCI x-axis is the ascending node of the Mars equator on the ICRF equator.
+For a strictly inertial frame (e.g. for propagation), evaluate at one fixed epoch
+and reuse the DCM rather than re-evaluating it every step.
+
+TODO: IAU 2015 (Archinal et al. 2018) adds periodic terms to alpha_0, delta_0, W;
+sub-0.01 deg, so ignored here.
+"""
+
+
+def mars_rotational_elements(jd_tdb: float):
+    """IAU Mars pole and prime meridian angles at a given epoch.
+
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian date in TDB (TT is fine to well under a millisecond).
+
+    Returns
+    -------
+    alpha_0 : float
+        Right ascension of the Mars north pole in ICRF [rad].
+    delta_0 : float
+        Declination of the Mars north pole in ICRF [rad].
+    W : float
+        Prime meridian angle, measured east along the Mars equator from the
+        MCI x-axis (ascending node on the ICRF equator) [rad], wrapped to [0, 2pi).
+
+    References
+    ----------
+    Folkner et al. (1997), "Interior Structure and Seasonal Mass Redistribution
+        of Mars from Radio Tracking of Mars Pathfinder", Science 278, 1749-1752.
+        Source of the pole (alpha_0, delta_0, rates) and rotation rate.
+    Duxbury, Kirk, Archinal, and Neumann (2002), "Mars Geodesy/Cartography Working
+        Group Recommendations on Mars Cartographic Constants and Coordinate Systems"
+    """
+    d = jd_tdb - J2000_JD
+    T = jd_to_julian_centuries(jd_tdb)
+
+    alpha_0 = (MARS_POLE_RA_J2000 + MARS_POLE_RA_RATE * T) * DEG_TO_RAD
+    delta_0 = (MARS_POLE_DEC_J2000 + MARS_POLE_DEC_RATE * T) * DEG_TO_RAD
+    W = wrap_to_2pi(  # orientation at epoch
+        (MARS_PRIME_MERIDIAN_J2000 + MARS_PRIME_MERIDIAN_RATE * d) * DEG_TO_RAD
+    )
+
+    return alpha_0, delta_0, W
+
+
+def MCI_from_ECI(jd_tdb: float = J2000_JD):
+    """DCM from ICRF/J2000 ECI axes to Mars-centered inertial (Mars equator) axes.
+
+    Rotation only; translate to Mars-centered first (e.g. `r_sat_hci - r_mars_hci`).
+
+    Parameters
+    ----------
+    jd_tdb : float, optional
+        Epoch of the Mars pole orientation [JD, TDB]. Default is J2000, a fixed
+        frame (Mars mean equator of J2000).
+
+    Returns
+    -------
+    dcm_mci_wrt_eci : np.ndarray (3, 3)
+        `r_MCI = dcm_mci_wrt_eci @ r_ECI`. Rows are the MCI axes in ECI.
+
+    Notes
+    -----
+    First two rotations of the IAU 3-1-3 sequence
+    `[W]_3 [pi/2 - Dec]_1 [pi/2 + RA]_3`, where each `[theta]_i` rotates the
+    coordinate system (passive, same as `dcm_x`/`dcm_z`). `pi/2 + RA` puts x on the
+    ascending node of the body equator on the J2000 equator; `pi/2 - Dec` tilts z
+    onto the body pole.
+
+    References
+    ----------
+    NAIF, "PCK Required Reading", section "Orientation Models used by PCK Software".
+        https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/pck.html
+    """
+    alpha_0, delta_0, _ = mars_rotational_elements(jd_tdb)
+
+    return dcm_x(np.pi / 2 - delta_0) @ dcm_z(np.pi / 2 + alpha_0)
+
+
+def MCI_from_HCI(jd_tdb: float = J2000_JD):
+    """DCM from HCI (ecliptic J2000) axes to Mars-centered inertial axes.
+
+    Rotation only; translate to Mars-centered first (e.g. `r_sat_hci - r_mars_hci`).
+
+    Parameters
+    ----------
+    jd_tdb : float, optional
+        Epoch of the Mars pole orientation [JD, TDB]. Default is J2000.
+
+    Returns
+    -------
+    dcm_mci_wrt_hci : np.ndarray (3, 3)
+        `r_MCI = dcm_mci_wrt_hci @ r_HCI`.
+    """
+    return MCI_from_ECI(jd_tdb) @ ECI_from_HCI()
+
+
+def MCMF_from_MCI(jd_tdb: float):
+    """DCM from Mars-centered inertial to Mars-centered Mars-fixed (IAU_MARS) axes.
+
+    Both frames use the Mars pole at `jd_tdb`. For velocity, use
+    `v_MCMF = dcm @ v_MCI - w_mars x r_MCMF` with
+    `w_mars = [0, 0, MARS_PRIME_MERIDIAN_RATE * DEG_TO_RAD / DAY_TO_SEC]`.
+
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian date in TDB.
+
+    Returns
+    -------
+    dcm_mcmf_wrt_mci : np.ndarray (3, 3)
+        `r_MCMF = dcm_mcmf_wrt_mci @ r_MCI`.
+    """
+    _, _, W = mars_rotational_elements(jd_tdb)
+
+    return dcm_z(W)
+
+
+def MCMF_from_ECI(jd_tdb: float):
+    """DCM from ICRF/J2000 ECI axes to Mars-fixed (IAU_MARS) axes at `jd_tdb`.
+
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian date in TDB.
+
+    Returns
+    -------
+    dcm_mcmf_wrt_eci : np.ndarray (3, 3)
+        `r_MCMF = dcm_mcmf_wrt_eci @ r_ECI`.
+    """
+    return MCMF_from_MCI(jd_tdb) @ MCI_from_ECI(jd_tdb)
+
+
+################################################################################
 #               PCI <--> PCPF
 ################################################################################
 
@@ -467,34 +632,61 @@ def PCI_from_PCPF(
 #########################################################################################################
 
 
-def cartesian_to_radec(vec: np.ndarray, deg=True):
-    """Curtis Equation 4.5 p. 155"""
-    r_hat = unit(vec)
-    declination = np.arcsin(r_hat[2])  # -pi to pi
-    ascension = np.arctan2(r_hat[1], r_hat[0])
-    ascension = wrap_to_2pi(ascension)
+def cartesian_to_radec(r_cart: np.ndarray, v_cart: np.ndarray, deg=True):
+    """Vallado 4e. Algorithm 25 p. 259 (and Curtis Equation 4.5 p. 155 for position)"""
+    r_hat = unit(r_cart)
+    v_hat = unit(v_cart)
+
+    horizontal = np.hypot(r_hat[0], r_hat[1])
+
+    dla = np.arcsin(r_hat[2])  # -pi to pi
+
+    if abs(horizontal) < 1e-12: # meters
+        rla = np.arctan2(v_hat[1], v_hat[0])
+    else:
+        rla = np.arctan2(r_hat[1], r_hat[0])
+
+    rla = wrap_to_2pi(rla)
+
+    rho_dot = np.dot(r_cart, v_cart) / norm(r_cart)
+    rla_dot = (v_cart[0]*r_cart[1] - v_cart[1]*r_cart[0]) / (-r_cart[1]**2 - r_cart[0]**2)
+    dla_dot = (v_cart[2] - rho_dot*r_hat[2]) / np.sqrt(r_cart[0]**2 + r_cart[1]**2)
 
     if deg:
-        declination *= RAD_TO_DEG
-        ascension *= RAD_TO_DEG
+        dla *= RAD_TO_DEG
+        rla *= RAD_TO_DEG
 
-    return ascension, declination, norm(vec)
+    return rla, dla, norm(r_cart), rla_dot, dla_dot, rho_dot
 
-
-# TODO: test
-def radec_to_cartesian(ascension: float, declination: float, rho: float, deg=True):
-    """Curtis Equation 4.5 p. 155 but reversed. same units as rho"""
+def radec_to_cartesian(rla: float, dla: float, rho: float, 
+                       rla_dot: float, dla_dot: float, rho_dot: float, deg=True):
+    """Vallado 4e. Equation 4-1 p. 257 and Vallado 4e. Equation 4-2 p. 258 (and Curtis Equation 4.5 p. 155 for position)"""
 
     if deg:
-        ascension *= DEG_TO_RAD
-        declination *= DEG_TO_RAD
+        rla *= DEG_TO_RAD
+        dla *= DEG_TO_RAD
 
-    z = np.sin(declination) * rho
-    horizontal = np.cos(declination) * rho
-    x = np.cos(ascension) * horizontal
-    y = np.sin(ascension) * horizontal
+    cr = np.cos(rla)
+    sr = np.sin(rla)
+    cd = np.cos(dla)
+    sd = np.sin(dla)
 
-    return np.array([x, y, z])
+    r = np.array([
+        cd * cr * rho,
+        cd * sr * rho,
+        sd * rho
+    ])
+
+    v = np.array([
+        rho_dot * cd * cr - rho * sd * cr * dla_dot - rho * cd * sr * rla_dot,
+        rho_dot * cd * sr - rho * sd * sr * dla_dot + rho * cd * cr * rla_dot,
+        rho_dot * sd + rho * cd * dla_dot
+
+    ])
+
+    
+
+    return r,v
 
 
 ################################################################################
@@ -764,6 +956,8 @@ def PN_matrix(t_tt: float, dX=0.0, dY=0.0):
     Vallado 4e, p. 213.
     """
     X, Y, s, a = _X_Y_s_a(t_tt)
+    X += dX
+    Y += dY
     mat = np.array(
         [
             [1 - a * X * X, -a * X * Y, X],
@@ -838,7 +1032,7 @@ def itrf_to_gcrs_matrix(jd_utc: float, eop: EOP = EOP()):
 
     jd_ut1 = jd_utc + eop.deltaUT1_s * SEC_TO_DAY
     jd_tai = jd_utc + eop.deltaAT_s * SEC_TO_DAY
-    jd_tt = jd_tai + 32.184 * SEC_TO_DAY
+    jd_tt = jd_tai + TAI_TO_TT * SEC_TO_DAY
     t_tt = jd_to_julian_centuries(jd_tt)
 
     W = W_matrix(eop.xp, eop.yp, t_tt)
@@ -885,7 +1079,7 @@ def itrf_to_gcrs(
 
     jd_ut1 = jd_utc + eop.deltaUT1_s * SEC_TO_DAY
     jd_tai = jd_utc + eop.deltaAT_s * SEC_TO_DAY
-    jd_tt = jd_tai + 32.184 * SEC_TO_DAY
+    jd_tt = jd_tai + TAI_TO_TT * SEC_TO_DAY
     t_tt = jd_to_julian_centuries(jd_tt)
 
     W = W_matrix(eop.xp, eop.yp, t_tt)

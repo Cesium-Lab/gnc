@@ -77,13 +77,16 @@ JD_CENTURY_TO_DAY = 36525.0
 """Julian century [days]"""
 
 J2000_JD = 2451545.0
-"""J2000 epoch [Julian date, TT]"""
+"""J2000 epoch [Julian date, TT and TDB]"""
 
 
 # Time systems
 
 UTC_TO_GPS = 18
 """GPS minus UTC [s]. Valid for the current leap-second regime, not historical dates."""
+
+TAI_TO_TT = 32.184
+"""TAI minus TT [s]. Add to TAI to make TT """
 
 GPS_TO_UTC = -UTC_TO_GPS
 """UTC minus GPS [s]. Valid for the current leap-second regime, not historical dates."""
