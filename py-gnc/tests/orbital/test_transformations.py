@@ -218,6 +218,45 @@ def test_radec_roundtrip():
         assert r == pytest.approx(r0)
         assert v == pytest.approx(v0)
 
+#########################################################################################################
+#               azel to radec
+#########################################################################################################
+
+
+def test_azel_to_radec_zenith_and_north_horizon():
+    """Zenith points at (LST, lat); north horizon points at dec = 90 - lat."""
+    lat, lst = 39.007, 123.4
+    ra, dec = Trans.azel_to_radec(0.0, 90.0, lat, lst)
+    assert ra == pytest.approx(lst)
+    assert dec == pytest.approx(lat)
+
+    ra, dec = Trans.azel_to_radec(0.0, 0.0, lat, lst)
+    assert dec == pytest.approx(90 - lat)
+    assert ra == pytest.approx((lst - 180) % 360) # wrap to pi-ish
+
+
+def test_azel_to_radec_matches_sez_rotation():
+    """(1) Get cartesian with az/el (2) transform that into radec"""
+    from cesium.math.rotations import dcm_y, dcm_z
+
+    rng = np.random.default_rng(0)
+    for az, el, lat, lst in rng.uniform([0, -80, -80, 0], [360, 80, 80, 360], (50, 4)):
+        a_rad, e_rad = az * DEG_TO_RAD, el * DEG_TO_RAD
+        u_sez = np.array([-np.cos(e_rad) * np.cos(a_rad), np.cos(e_rad) * np.sin(a_rad), np.sin(e_rad)])
+        dcm_sez_wrt_ijk = dcm_y((90 - lat) * DEG_TO_RAD) @ dcm_z(lst * DEG_TO_RAD)
+        ra_exp, dec_exp, *_ = Trans.cartesian_to_radec(
+            dcm_sez_wrt_ijk.T @ u_sez, np.zeros(3)
+        )
+
+        ra, dec = Trans.azel_to_radec(az, el, lat, lst)
+        assert dec == pytest.approx(dec_exp, abs=1e-9)
+        assert (ra - ra_exp + 180) % 360 - 180 == pytest.approx(0, abs=1e-9)
+
+#########################################################################################################
+#               SO MANY OF THEM
+#########################################################################################################
+
+
 def test_vallado_example_4_1():
     """Vallado 4e. Example 4-1 p. 270. Just goin down and calculating"""
     rla = 294.9891458 * DEG_TO_RAD

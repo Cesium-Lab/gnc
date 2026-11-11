@@ -684,9 +684,59 @@ def radec_to_cartesian(rla: float, dla: float, rho: float,
 
     ])
 
-    
+
 
     return r,v
+
+
+def azel_to_radec(az: float, el: float, lat: float, lst: float, deg=True):
+    """Convert site azimuth/elevation to topocentric right ascension/declination.
+
+    Parameters
+    ----------
+    az : float
+        Azimuth, clockwise from north.
+    el : float
+        Elevation above the local horizon.
+    lat : float
+        Site latitude (geodetic for SEZ from `geodetic_ECEF_to_SEZ`).
+    lst : float
+        Local sidereal time (Greenwich sidereal angle + east longitude).
+    deg : bool, optional
+        Inputs and outputs in degrees when True (default), otherwise radians.
+
+    Returns
+    -------
+    ra : float
+        Topocentric right ascension in [0, 360) degrees (or [0, 2*pi)).
+    dec : float
+        Topocentric declination.
+
+    References
+    ----------
+    Vallado 4e, Algorithm 28, p. 268.
+    """
+    if deg:
+        az *= DEG_TO_RAD
+        el *= DEG_TO_RAD
+        lat *= DEG_TO_RAD
+        lst *= DEG_TO_RAD
+
+    sin_dec = np.sin(el) * np.sin(lat) + np.cos(el) * np.cos(lat) * np.cos(az)
+    dec = np.arcsin(np.clip(sin_dec, -1.0, 1.0))
+
+    # cos(dec) factor drops out of atan2.
+    sin_lha = -np.sin(az) * np.cos(el)
+    cos_lha = np.cos(lat) * np.sin(el) - np.sin(lat) * np.cos(az) * np.cos(el)
+    lha = np.arctan2(sin_lha, cos_lha)
+
+    ra = wrap_to_2pi(lst - lha)
+
+    if deg:
+        ra *= RAD_TO_DEG
+        dec *= RAD_TO_DEG
+
+    return ra, dec
 
 
 ################################################################################
