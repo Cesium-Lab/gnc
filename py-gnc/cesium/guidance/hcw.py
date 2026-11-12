@@ -6,7 +6,6 @@ from ..math.base import unit
 from ..math.rotations import wrap_to_2pi, wrap_to_pi
 from ..orbital.coes import COES, orbit_sweep
 from ..orbital.hcw import calc_Phi
-from ..world.constants import J2_MARS, MU_MARS, R_MARS
 from .coplanar import guid_coaxial_hohmann, guid_phasing_same_orbit
 from .maneuvers import Burn
 from .noncoplanar import guid_plane_change_3d, node_line_finder
@@ -61,6 +60,7 @@ def plan_hcw_two_impulse(
         Burn(t_s=float(t_trans), r=np.zeros(3), dv=dv2_rsw, frame="RSW"),
     ]
 
+
 ####################################################################################################
 #               RPO phases
 ####################################################################################################
@@ -68,6 +68,7 @@ def plan_hcw_two_impulse(
 ################################################################################
 #               Plane-changing
 ################################################################################
+
 
 def plane_change_at_node(tl: RpoTimeline, raan_bias: float = 0.0) -> np.ndarray:
     """Burn 1: coast to the node with the target plane (RAAN offset by `raan_bias` [rad]) and rotate into it.
@@ -77,9 +78,7 @@ def plane_change_at_node(tl: RpoTimeline, raan_bias: float = 0.0) -> np.ndarray:
     # Node
     c, t = tl.coes()
     rv_target_biased = t.bias_raan(raan_bias).to_rv(tl.mu)
-    n_hat, d_node, _, _ = node_line_finder(
-        tl.chaser, rv_target_biased
-    )
+    n_hat, d_node, _, _ = node_line_finder(tl.chaser, rv_target_biased)
 
     # Sweep until node
     _, dt_coast = orbit_sweep(c, d_node, tl.mu)
@@ -93,9 +92,11 @@ def plane_change_at_node(tl: RpoTimeline, raan_bias: float = 0.0) -> np.ndarray:
     )
     return n_hat
 
+
 ################################################################################
 #               sma and eccentricity change
 ################################################################################
+
 
 def coast_to_nearer_apsis(tl: RpoTimeline) -> bool:
     """Coast the chaser to its nearer apsis; returns True if that apsis is periapsis."""
@@ -104,6 +105,7 @@ def coast_to_nearer_apsis(tl: RpoTimeline) -> bool:
     sweep = (2 * np.pi - c.ta) if periapsis_is_closer else wrap_to_2pi(np.pi - c.ta)
     tl.coast(orbit_sweep(c, sweep, tl.mu)[1])
     return periapsis_is_closer
+
 
 def hohmann_to_target_radius(tl: RpoTimeline) -> float:
     """Burn 2: from the nearer closest apsis do Hohmann toward the target sma
@@ -119,6 +121,7 @@ def hohmann_to_target_radius(tl: RpoTimeline) -> float:
     tl.burn(dv_a * unit(tl.chaser[3:6]), "Burn 2 (Hohmann)")
     tl.coast(dt_trans)
     return dv_b
+
 
 ################################################################################
 #               Phasing! !!!
@@ -161,7 +164,7 @@ def closed_loop_phasing(tl: RpoTimeline, k_phase: int, stop_sep: float) -> int:
     orbit for the remaining revs. Stops early once separation < `stop_sep` [m].
     Returns the number of phasing revs left unused.
     """
-    phases_remaining = k_phase # Start at max
+    phases_remaining = k_phase  # Start at max
 
     while phases_remaining:
         # sma of phasing orbit (USING ARGUMENT OF LATITUDE)
@@ -200,7 +203,9 @@ def phase_exit(tl: RpoTimeline) -> None:
     _, t = tl.coes()
     r_now = norm(tl.chaser[0:3])
     v_req = np.sqrt(tl.mu * (2 / r_now - 1 / t.a))
-    tl.burn((v_req - norm(tl.chaser[3:6])) * unit(tl.chaser[3:6]), "Burn 5 (phase exit)")
+    tl.burn(
+        (v_req - norm(tl.chaser[3:6])) * unit(tl.chaser[3:6]), "Burn 5 (phase exit)"
+    )
 
 
 def hcw_rendezvous(
@@ -234,9 +239,11 @@ def hcw_rendezvous(
     tl.burn(tl.from_rsw(rv_rsw)[3:6] - tl.chaser[3:6], f"HCW {k}B")
     return k + 1
 
+
 ################################################################################
 #               Running
 ################################################################################
+
 
 def run_rpo(
     chaser0: COES,
@@ -250,8 +257,8 @@ def run_rpo(
     hcw_iter: int = 3,
     raan_bias: float = 0.0,
     epoch0_tdb_s: float = 0.0,
-    j2: float = None,
-    r_cb: float = None,
+    j2: float | None = None,
+    r_cb: float | None = None,
     frame: str = "MCI",
     t_final_coast: float = 1 * DAY_TO_SEC,
     verbose: bool = False,
@@ -276,21 +283,21 @@ def run_rpo(
     info |= enter_phasing(tl, k_phase, dv_circ)
     info["phases_remaining"] = closed_loop_phasing(tl, k_phase, hcw_thresh)
     handoff = relative_summary(tl)
-    
+
     # Burn 5
     phase_exit(tl)
 
     # Burn 6+
     info["hcw_passes"] = hcw_rendezvous(tl, t_rendezvous, dock_thresh, hcw_iter)
     dock = relative_summary(tl)
-    
+
     tl.coast(t_final_coast)
 
     # Verbose
     if verbose:
         print_relative_summary(
-                f"Phasing exit ({info['phases_remaining']} revs unused)", handoff
-            )
+            f"Phasing exit ({info['phases_remaining']} revs unused)", handoff
+        )
         print_relative_summary(f"HCW exit ({info['hcw_passes']} passes)", dock)
         print(f"total dv = {tl.dv_total:.3f} m/s")
 
@@ -300,9 +307,11 @@ def run_rpo(
 
     return tl, info
 
+
 ################################################################################
 #               Helpers
 ################################################################################
+
 
 def relative_summary(tl: RpoTimeline) -> dict:
     """Chaser position relative to the target (RSW) [m] and RAAN difference [rad], now."""

@@ -154,7 +154,6 @@ class RpoTimeline:
             np.concatenate(self._rv_c),
             np.concatenate(self._rv_t),
         )
-    
 
     def epochs_tdb_s(self) -> np.ndarray:
         """Absolute epochs of every sample in `arrays()` [TDB s past J2000]."""
