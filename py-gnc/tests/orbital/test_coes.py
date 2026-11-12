@@ -292,9 +292,10 @@ class Test_COES:
 
     def test_to_rv_matches_coes_to_rv(self):
         coes = COES.from_array(self.ELEMENTS)
-        r, v = coes.to_rv(MU_EARTH)
+        rv = coes.to_rv(MU_EARTH)
         r_ref, v_ref = coes_to_rv(*self.ELEMENTS, mu=MU_EARTH)
-        assert np.array_equal(r, r_ref) and np.array_equal(v, v_ref)
+        assert rv.shape == (6,)
+        assert np.array_equal(rv, np.concatenate((r_ref, v_ref)))
 
     def test_from_rv_round_trip(self):
         r, v = coes_to_rv(*self.ELEMENTS, mu=MU_EARTH)
@@ -322,3 +323,9 @@ class Test_COES:
         )  # small positive, not ~-6.1
         assert d.aop == pytest.approx(6.2 - 0.1 - 2 * np.pi)  # small negative
         assert d.ta == pytest.approx(0.05 - 6.25 + 2 * np.pi)
+
+    def test_apsides_and_mean_motion(self):
+        coes = COES(8000e3, 0.1, 0.0, 0.0, 0.0, 0.0)
+        assert coes.r_p == pytest.approx(7200e3)
+        assert coes.r_a == pytest.approx(8800e3)
+        assert coes.n(MU_EARTH) == pytest.approx(np.sqrt(MU_EARTH / 8000e3**3))

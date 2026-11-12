@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..constants import DEG_TO_RAD
+from ..constants import DEG_TO_RAD, M_TO_KM
 from ..orbital.coes import E_from_ta, vis_viva
 from ..world.constants import MU_EARTH
 
@@ -294,29 +294,35 @@ def guid_coaxial_hohmann(
     dv_b = vis_viva(r_2, a_2, mu) - vis_viva(r_2, a_trans, mu)
     t_trans = np.pi * np.sqrt(a_trans**3 / mu)
 
-    return float(a_trans), float(t_trans), float(dv_a), float(dv_b)
+    return a_trans, t_trans, dv_a, dv_b
 
 
 def guid_phasing_same_orbit(
     a_target: float,
-    d_ta: float,
+    ta_c_minus_t: float,
     mu=MU_EARTH,
     k_target: int = 1,
     k_chaser: int = 1,
     deg=True,
+    r_cb=None
 ):
     """Vallado Algorithm 44. Negative dv means retrograde"""
     w_target = np.sqrt(mu / a_target**3)
     if deg:
-        d_ta *= DEG_TO_RAD
+        ta_c_minus_t *= DEG_TO_RAD
 
-    t_phase = (2 * np.pi * k_target + d_ta) / w_target
+    t_phase = (2 * np.pi * k_target + ta_c_minus_t) / w_target
 
     a_phase = np.cbrt(mu * (t_phase / (2 * np.pi * k_chaser)) ** 2)
 
     dv = 2 * (np.sqrt(2 * mu / a_target - mu / a_phase) - np.sqrt(mu / a_target))
 
-    return float(dv), float(t_phase), float(a_phase)
+    r_other = 2*a_phase - a_target
+    if r_cb is not None and min(a_target, r_other) <= r_cb:
+        raise ValueError(f"phasing orbit periapsis ({(r_other - r_cb) * M_TO_KM:.1f} km alt) hits the planet")
+
+
+    return dv, t_phase, a_phase
 
 
 def guid_phasing_different_orbits(
@@ -340,4 +346,4 @@ def guid_phasing_different_orbits(
         np.sqrt(2 * mu / a_chaser - mu / a_trans) - np.sqrt(mu / a_chaser)
     ) + np.abs(np.sqrt(2 * mu / a_target - mu / a_trans) - np.sqrt(mu / a_target))
 
-    return float(dv), float(t_trans), float(t_wait), float(a_trans)
+    return dv, t_trans, t_wait, a_trans

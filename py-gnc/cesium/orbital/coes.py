@@ -218,7 +218,7 @@ def kepler_eq_h(M: float, e: float, tol=1e-9, max_iter=100):
 
 # TODO: test
 def pkepler(
-    r0: np.ndarray, v0: np.ndarray, dt: float, r_cb=R_EARTH, mu=MU_EARTH, j2=J2_EARTH
+    r0: np.ndarray, v0: np.ndarray, dt: float, mu=MU_EARTH, r_cb=0.0, j2=0.0
 ) -> tuple[np.ndarray, np.ndarray]:
     """Propagate an elliptical orbit analytically with secular J2 effects.
 
@@ -233,12 +233,12 @@ def pkepler(
         Initial satellite velocity in the inertial frame (e.g. ECI) [m/s].
     dt : float
         Propagation time [s].
-    r_cb : float, optional
-        Equatorial radius of the central body [m]. Default is `R_EARTH`.
     mu : float, optional
-        Gravitational parameter of the central body [m3/s2]. Default is `MU_EARTH`.
+        Gravitational parameter of the central body [m3/s2]. Default is `None`.
+    r_cb : float, optional
+        Equatorial radius of the central body [m]. Default is `None`.
     j2 : float, optional
-        J2 zonal harmonic coefficient of the central body. Default is `J2_EARTH`.
+        J2 zonal harmonic coefficient of the central body. Default is `None`.
 
     Returns
     -------
@@ -503,7 +503,7 @@ class COES:
         return cls(float(a), float(e), float(i), float(raan), float(aop), float(ta))
 
     @classmethod
-    def from_rv(cls, r_I: np.ndarray, v_I: np.ndarray, mu: float = MU_EARTH) -> COES:
+    def from_rv(cls, r_I: np.ndarray, v_I: np.ndarray, mu: float) -> COES:
         """Build from an inertial state with `rv_to_coes`."""
         return cls.from_array(rv_to_coes(r_I, v_I, mu))
 
@@ -514,13 +514,34 @@ class COES:
     def __iter__(self):
         return iter(self.elements())
 
-    def to_rv(self, mu: float = MU_EARTH) -> tuple[np.ndarray, np.ndarray]:
+    def to_rv(self, mu: float) -> tuple[np.ndarray, np.ndarray]:
         """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
-        return coes_to_rv(*self.elements(), mu=mu)
+        return np.concatenate(coes_to_rv(*self.elements(), mu=mu))
 
-    def n(self, mu: float = MU_EARTH) -> tuple[np.ndarray, np.ndarray]:
+    def n(self, mu: float) -> float:
         """Mean motion [1/s]."""
         return np.sqrt(mu / self.a**3)
+
+    def copy(self):
+        return replace(self)
+
+    @property
+    def r_p(self):
+        """Periapsis"""
+        return self.a * (1 - self.e)
+
+    @property
+    def aol(self):
+        """Argument of latitude"""
+        return self.aop + self.ta
+
+    def E_sp(self, mu: float):
+        return -mu / 2 / self.a
+
+    @property
+    def r_a(self):
+        """Apoapsis"""
+        return self.a * (1 + self.e)
 
     def with_ta(self, ta: float) -> COES:
         """Same orbit at a different true anomaly [rad]."""
@@ -539,6 +560,9 @@ class COES:
             f"aop = {self.aop * RAD_TO_DEG:.3f} deg, ta = {self.ta * RAD_TO_DEG:.3f} deg"
         )
 
-    def print(self, name: str = "") -> None:
+    def print(self, name: str, mu: float = None) -> None:
         """Print the elements in km and deg, optionally prefixed with `name`."""
-        print(f"{name}: {self}" if name else str(self))
+        ret = f"{name}: {self}"
+        if mu is not None and abs(self.a) > 1e-1:
+            ret += f" (E_sp = {self.E_sp(mu)* M_TO_KM**2:.3f} km2/s2)"
+        print(ret)
