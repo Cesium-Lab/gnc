@@ -70,6 +70,7 @@ def plan_hcw_two_impulse(
 ################################################################################
 
 
+# TODO: test
 def plane_change_at_node(tl: RpoTimeline, raan_bias: float = 0.0) -> np.ndarray:
     """Burn 1: coast to the node with the target plane (RAAN offset by `raan_bias` [rad]) and rotate into it.
 
@@ -98,6 +99,7 @@ def plane_change_at_node(tl: RpoTimeline, raan_bias: float = 0.0) -> np.ndarray:
 ################################################################################
 
 
+# TODO: test
 def coast_to_nearer_apsis(tl: RpoTimeline) -> bool:
     """Coast the chaser to its nearer apsis; returns True if that apsis is periapsis."""
     c, _ = tl.coes()
@@ -107,6 +109,7 @@ def coast_to_nearer_apsis(tl: RpoTimeline) -> bool:
     return periapsis_is_closer
 
 
+# TODO: test
 def hohmann_to_target_radius(tl: RpoTimeline) -> float:
     """Burn 2: from the nearer closest apsis do Hohmann toward the target sma
 
@@ -128,6 +131,7 @@ def hohmann_to_target_radius(tl: RpoTimeline) -> float:
 ################################################################################
 
 
+# TODO: test
 def enter_phasing(tl: RpoTimeline, k_phase: int, dv_circ: float = 0.0) -> dict:
     """Burn 3: circularize (`dv_circ` [m/s], along-track) and enter a `k_phase`-rev phasing orbit in one burn.
 
@@ -157,6 +161,7 @@ def enter_phasing(tl: RpoTimeline, k_phase: int, dv_circ: float = 0.0) -> dict:
     return {"a_phase": a_ph, "t_phase": dt_ph, "a_target": t.a, "i_target": t.i}
 
 
+# TODO: test
 def closed_loop_phasing(tl: RpoTimeline, k_phase: int, stop_sep: float) -> int:
     """Burns 4.x: same-orbit phasing, re-planned every rev from the chaser's actual state.
 
@@ -197,6 +202,7 @@ def closed_loop_phasing(tl: RpoTimeline, k_phase: int, stop_sep: float) -> int:
     return phases_remaining
 
 
+# TODO: test
 def phase_exit(tl: RpoTimeline) -> None:
     """Burn 5: along-track burn to the target's semi-major axis."""
     # Duplicate of last part of closed-loop-phasing
@@ -208,6 +214,7 @@ def phase_exit(tl: RpoTimeline) -> None:
     )
 
 
+# TODO: test
 def hcw_rendezvous(
     tl: RpoTimeline, t_transfer: float, dock_thresh: float, max_iter: int = 3
 ) -> int:
@@ -245,6 +252,7 @@ def hcw_rendezvous(
 ################################################################################
 
 
+# TODO: test
 def run_rpo(
     chaser0: COES,
     target0: COES,
