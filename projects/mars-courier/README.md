@@ -29,18 +29,27 @@
    2. Project from Lunar Lander
 
 ### Order of Implementation
+Each stage writes `trajectories/<stage>-<mission>.mission` (NumPy NPZ), where `<mission>`
+uses underscores, e.g. `departure-birthday_christmas_earlier.mission`. Naming and I/O live
+in `mission_io.py` (`mission_path`, `save_mission`, `load_mission`).
+
 1. `interplanetary.ipynb`
-   1. Creates `trajectories/<mission>.mission` file
-   2. TODO: modularize it
+   1. Saves `interplanetary-<mission>`: Lambert epochs and HCI Earth/Mars/spacecraft states [km, km/s]
 2. `departure.ipynb`
-   1. Loads the HCI `.mission` reference and models the Earth escape trajectory
-   2. Saves `trajectories/<mission>-departure.mission`: burn-reference epoch [JD], elapsed time [s], and ECI states [m, m/s]
+   1. Loads `interplanetary-<mission>` and models the Earth escape trajectory
+   2. Saves `departure-<mission>`: burn-reference epoch [JD], ECI states [m, m/s], escape and midcourse Δv
 3. `ground_segment.ipynb`
-   1. Loads the ECI departure
+   1. Loads `departure-<mission>`
    2. Computes ECEF states, ground tracks, sky plots, and per-station/network visibility
 4. `arrival.ipynb`
-   1. Uses `.mission` file to B-target and rendezvous in-orbit
-5. `descent.ipynb`
+   1. Loads `interplanetary-<mission>`, B-plane targets the direct-injection capture
+   2. Saves `arrival-<mission>`: capture epoch, approach hyperbola, post-capture MCI state, target orbit, capture Δv
+5. `rpo.ipynb`
+   1. Loads `arrival-<mission>`: starts at the capture epoch from the post-capture state
+   2. Runs nominal and dispersed cases; saves `rpo-<mission>`: timelines, burns, Δv by phase
+6. `summary.ipynb`
+   1. Loads all four stages: mission timeline and full Δv budget
+7. `descent.ipynb`
    1. Descending to landing site
 
 ## Approximations

@@ -73,15 +73,25 @@ def plan_hcw_two_impulse(
 
 
 # TODO: test
-def plane_change_at_node(tl: RpoTimeline, raan_bias: float = 0.0) -> np.ndarray:
+PLANE_TOL_RAD = 1e-6
+"""Plane angle below which Burn 1 is skipped (the node line is undefined for coplanar orbits)."""
+
+SHAPE_TOL_M = 1.0
+"""Apsis-radius error below which Burn 2 is skipped."""
+
+
+def plane_change_at_node(tl: RpoTimeline, raan_bias: float = 0.0) -> np.ndarray | None:
     """Burn 1: coast to the node with the target plane (RAAN offset by `raan_bias` [rad]) and rotate into it.
 
-    Returns node hat vector
+    Returns the node-line unit vector, or None (no burn) when the planes already
+    agree to within `PLANE_TOL_RAD`.
     """
     # Node
     c, t = tl.coes()
     rv_target_biased = t.bias_raan(raan_bias).to_rv(tl.mu)
-    n_hat, d_node, _, _ = node_line_finder(tl.chaser, rv_target_biased)
+    n_hat, d_node, h_c, h_t = node_line_finder(tl.chaser, rv_target_biased)
+    if norm(np.cross(unit(h_c), unit(h_t))) < PLANE_TOL_RAD:
+        return None
 
     # Sweep until node
     _, dt_coast = orbit_sweep(c, d_node, tl.mu)
@@ -116,8 +126,12 @@ def hohmann_to_target_radius(tl: RpoTimeline) -> float:
     """Burn 2: from the nearer closest apsis do Hohmann toward the target sma
 
     Applies the first burn and coasts the transfer. Returns the (unapplied) second-burn
-    to-go to merge with the next maneuver.
+    to-go to merge with the next maneuver. Skipped (returns 0) when both apses are
+    already within `SHAPE_TOL_M` of the target's semi-major axis.
     """
+    c, t = tl.coes()
+    if max(abs(c.r_p - t.a), abs(c.r_a - t.a)) < SHAPE_TOL_M:
+        return 0.0  # already on the target radius: no transfer needed
     periapsis_is_closer = coast_to_nearer_apsis(tl)
     c, t = tl.coes()
     _, dt_trans, dv_a, dv_b = guid_coaxial_hohmann(

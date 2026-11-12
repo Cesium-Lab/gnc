@@ -1,0 +1,12 @@
+maneuver                          payer                 nominal [m/s]   dispersed [m/s]
+---------------------------------------------------------------------------------------
+Earth escape                      launch vehicle               3675.6            3675.6
+Midcourse correction              spacecraft                    131.8             131.8
+Mars capture (direct injection)   spacecraft                   5524.4            5524.4
+RPO                               spacecraft                     80.6             248.7
+---------------------------------------------------------------------------------------
+total, spacecraft                                              5736.8            5905.0
+total, launch vehicle                                          3675.6            3675.6
+total, all                                                     9412.4            9580.5
+
+Capture reference: coplanar minimum 2175.2 m/s; direct injection pays 3349.2 m/s for the plane change (beta = 49.7 deg)
