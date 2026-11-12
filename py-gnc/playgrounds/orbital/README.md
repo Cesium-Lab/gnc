@@ -22,7 +22,7 @@ Best for Lambert solvers, patched conics, and flyby optimization.
   - Earth → Jupiter → Saturn
 - [ ] Ulysses — NASA/ESA (USA/Europe)
   - Earth → Jupiter → Solar polar orbit
-- [ ] Cassini–Huygens — NASA/ESA/ASI (USA/Europe)
+- [ ] Cassini-Huygens — NASA/ESA/ASI (USA/Europe)
   - Earth → Venus → Venus → Earth → Jupiter → Saturn
 - [ ] MESSENGER — NASA (USA)
   - Earth → Earth → Venus → Venus → Mercury → Mercury → Mercury → Mercury
@@ -46,13 +46,13 @@ Best for Lambert solvers, patched conics, and flyby optimization.
 Best for Lambert targeting, arrival conditions, and orbit insertion.
 
 ### Venus — Soviet Union
-- [ ] Venera 1–2 — Venus flyby attempts
-- [ ] Venera 3–6 — Venus impact/atmospheric entry
-- [ ] Venera 7–8 — Venus landings
-- [ ] Venera 9–10 — Venus orbiters and landers
-- [ ] Venera 11–14 — Venus landers
-- [ ] Venera 15–16 — Venus orbiters
-- [ ] Vega 1–2 — Earth → Venus → Halley's Comet
+- [ ] Venera 1-2 — Venus flyby attempts
+- [ ] Venera 3-6 — Venus impact/atmospheric entry
+- [ ] Venera 7-8 — Venus landings
+- [ ] Venera 9-10 — Venus orbiters and landers
+- [ ] Venera 11-14 — Venus landers
+- [ ] Venera 15-16 — Venus orbiters
+- [ ] Vega 1-2 — Earth → Venus → Halley's Comet
 
 ### Venus — USA / Japan
 - [ ] Mariner 2 — Earth → Venus flyby
@@ -64,16 +64,16 @@ Best for Lambert targeting, arrival conditions, and orbit insertion.
 
 ### Mars — Soviet Union
 - [ ] Mars 1 — Mars flyby attempt
-- [ ] Mars 2–3 — Earth → Mars orbit and surface
+- [ ] Mars 2-3 — Earth → Mars orbit and surface
 - [ ] Mars 4 — Mars flyby
 - [ ] Mars 5 — Earth → Mars orbit
-- [ ] Mars 6–7 — Mars entry/landing attempts
+- [ ] Mars 6-7 — Mars entry/landing attempts
 
 ### Mars — USA / Europe / Others
 - [ ] Mariner 4 — Earth → Mars flyby
-- [ ] Mariner 6–7 — Earth → Mars flyby
+- [ ] Mariner 6-7 — Earth → Mars flyby
 - [ ] Mariner 9 — Earth → Mars orbit
-- [ ] Viking 1–2 — Earth → Mars orbit and landings
+- [ ] Viking 1-2 — Earth → Mars orbit and landings
 - [ ] Mars Pathfinder — Earth → Mars surface
 - [ ] Mars Global Surveyor — Earth → Mars orbit
 - [ ] Mars Odyssey — Earth → Mars orbit
@@ -95,7 +95,7 @@ Best for Lambert targeting, arrival conditions, and orbit insertion.
 Useful for heliocentric interception and rendezvous optimization.
 
 - [ ] Giotto — ESA
-  - Earth → Halley's Comet → Earth → Comet Grigg–Skjellerup
+  - Earth → Halley's Comet → Earth → Comet Grigg-Skjellerup
 - [ ] NEAR Shoemaker — NASA
   - Earth → Mathilde → Earth → Eros
 - [ ] Deep Space 1 — NASA
@@ -126,26 +126,26 @@ Useful for heliocentric interception and rendezvous optimization.
 - [ ] Luna 2 — USSR — Earth → Moon impact
 - [ ] Luna 9 — USSR — Earth → Moon soft landing
 - [ ] Luna 16, 20, 24 — USSR — Lunar sample return
-- [ ] Apollo 11–17 — USA — Lunar missions (six landings)
-- [ ] Surveyor 1–7 — USA — Lunar landing missions
-- [ ] Chang'e 3–6 — China — Lunar landing/sample return
+- [ ] Apollo 11-17 — USA — Lunar missions (six landings)
+- [ ] Surveyor 1-7 — USA — Lunar landing missions
+- [ ] Chang'e 3-6 — China — Lunar landing/sample return
 - [ ] Chandrayaan-3 — India — Lunar landing
 - [ ] SLIM — Japan — Precision lunar landing
 - [ ] Odysseus (IM-1) — USA — Commercial lunar landing
 
 ### Venus — USSR / USA
 - [ ] Venera 3 — USSR — Venus impact
-- [ ] Venera 4–6 — USSR — Venus atmospheric entry
-- [ ] Venera 7–8 — USSR — Venus landings
-- [ ] Venera 9–10 — USSR — Venus orbiter + lander
-- [ ] Venera 11–14 — USSR — Venus landings
+- [ ] Venera 4-6 — USSR — Venus atmospheric entry
+- [ ] Venera 7-8 — USSR — Venus landings
+- [ ] Venera 9-10 — USSR — Venus orbiter + lander
+- [ ] Venera 11-14 — USSR — Venus landings
 - [ ] Pioneer Venus Multiprobe — USA — Venus atmospheric probes
-- [ ] Vega 1–2 — USSR — Venus landers and balloons
+- [ ] Vega 1-2 — USSR — Venus landers and balloons
 
 ### Mars — USSR / USA / Europe / China
-- [ ] Mars 2–3 — USSR — Mars orbiter + lander
+- [ ] Mars 2-3 — USSR — Mars orbiter + lander
 - [ ] Mars 6 — USSR — Mars descent probe
-- [ ] Viking 1–2 — USA — Mars orbiter + lander
+- [ ] Viking 1-2 — USA — Mars orbiter + lander
 - [ ] Mars Pathfinder / Sojourner — USA — Mars landing
 - [ ] Spirit / Opportunity — USA — Mars rovers
 - [ ] Phoenix — USA — Mars polar landing

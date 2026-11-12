@@ -56,7 +56,7 @@ def test_curtis_problem_7_11():
     """
     Spacecraft A and B are in the same circular earth orbit with a period of 2 hours. B
     is 6 km ahead of A. At t = 0, B applies an in-track delta-v (retrofire) of 3 m/s. Using
-    a Clohessy–Wiltshire frame attached to A, determine the distance between A and B at
+    a Clohessy-Wiltshire frame attached to A, determine the distance between A and B at
     t = 30 minutes and the velocity of B relative to A.
     {Ans.: r= 10.9 km, v= 10.8 m/s}
     """

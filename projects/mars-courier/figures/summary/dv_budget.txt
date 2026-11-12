@@ -1,12 +1,16 @@
-maneuver                          payer                 nominal [m/s]   dispersed [m/s]
+maneuver                          vehicle               nominal [m/s]   dispersed [m/s]
 ---------------------------------------------------------------------------------------
+Earth ascent to LEO (ideal)       launch vehicle               7790.7            7790.7
 Earth escape                      launch vehicle               3675.6            3675.6
 Midcourse correction              spacecraft                    131.8             131.8
 Mars capture (direct injection)   spacecraft                   5524.4            5524.4
 RPO                               spacecraft                     80.6             248.7
 ---------------------------------------------------------------------------------------
 total, spacecraft                                              5736.8            5905.0
-total, launch vehicle                                          3675.6            3675.6
-total, all                                                     9412.4            9580.5
+total, launch vehicle                                         11466.3           11466.3
+total, all                                                    17203.1           17371.3
+
+Mars surface <-> orbit (ideal) *  not in totals                3531.5            3531.5
+* ideal: no drag, gravity losses, aerobraking or parachutes
 
 Capture reference: coplanar minimum 2175.2 m/s; direct injection pays 3349.2 m/s for the plane change (beta = 49.7 deg)

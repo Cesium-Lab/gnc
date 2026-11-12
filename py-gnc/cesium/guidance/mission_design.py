@@ -417,7 +417,7 @@ class EarthLaunchWindow:
                 raise ValueError("Bounds cannot be NaN")
             if low > high and not wraps:
                 raise ValueError("Lower bound must not exceed upper bound")
-            # RA may cross zero, e.g. (350, 10) keeps 350–360 and 0–10 degrees.
+            # RA may cross zero, e.g. (350, 10) keeps 350-360 and 0-10 degrees.
             inside = (
                 ((values >= low) | (values <= high))
                 if low > high
