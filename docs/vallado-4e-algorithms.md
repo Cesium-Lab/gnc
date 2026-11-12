@@ -55,8 +55,8 @@ Cite in docstrings as: `Vallado 4e, Algorithm N (NAME), p. X.`
 | 46 | Noncoplanar Phasing | 368 | |
 | 47 | Low Thrust Transfer | 387 | `guidance.low_thrust` (commented out) |
 | 48 | Hill's Equations | 396 | `orbital.hcw.rv_hcw_3d`, `rv_hcw_2d` |
-| 49 | HillEQCM to ECI | 414 | `orbital.hcw.hcw_RSW_to_PCI` (simplified) |
-| 50 | ECI to HillEQCM | 415 | |
+| 49 | HillEQCM to ECI | 414 | `orbital.hcw.hcw_rsw_to_pci` (simplified) |
+| 50 | ECI to HillEQCM | 415 | `orbital.hcw.hcw_pci_to_rsw` (simplified) |
 | 51 | Site-Track | 430 | |
 | 52 | Angles-Only Gauss | 442 | |
 | 53 | Angles-Double-r | 444 | |
