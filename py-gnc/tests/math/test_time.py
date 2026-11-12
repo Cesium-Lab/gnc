@@ -91,4 +91,6 @@ def test_tt_tdb_round_trip():
 def test_sec_j2000_round_trip():
     assert T.jd_to_sec_j2000(2451545.0) == 0.0
     assert T.jd_to_sec_j2000(2451546.0) == pytest.approx(86400.0)
-    assert T.sec_j2000_to_jd(T.jd_to_sec_j2000(2461000.25)) == pytest.approx(2461000.25, abs=1e-9)
+    assert T.sec_j2000_to_jd(T.jd_to_sec_j2000(2461000.25)) == pytest.approx(
+        2461000.25, abs=1e-9
+    )

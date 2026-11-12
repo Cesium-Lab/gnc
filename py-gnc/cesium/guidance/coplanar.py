@@ -304,7 +304,7 @@ def guid_phasing_same_orbit(
     k_target: int = 1,
     k_chaser: int = 1,
     deg=True,
-    r_cb=None
+    r_cb=None,
 ):
     """Vallado Algorithm 44. Negative dv means retrograde"""
     w_target = np.sqrt(mu / a_target**3)
@@ -317,10 +317,11 @@ def guid_phasing_same_orbit(
 
     dv = 2 * (np.sqrt(2 * mu / a_target - mu / a_phase) - np.sqrt(mu / a_target))
 
-    r_other = 2*a_phase - a_target
+    r_other = 2 * a_phase - a_target
     if r_cb is not None and min(a_target, r_other) <= r_cb:
-        raise ValueError(f"phasing orbit periapsis ({(r_other - r_cb) * M_TO_KM:.1f} km alt) hits the planet")
-
+        raise ValueError(
+            f"phasing orbit periapsis ({(r_other - r_cb) * M_TO_KM:.1f} km alt) hits the planet"
+        )
 
     return dv, t_phase, a_phase
 

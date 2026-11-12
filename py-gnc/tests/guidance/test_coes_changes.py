@@ -85,9 +85,13 @@ class Test_node_line_finder:
 
     def test_equatorial_target_node_is_chaser_ascending_node(self):
         # Chaser at 30 deg past its ascending node (+x); target in the equator
-        n_hat, d_ta, h_c, h_t = node_line_finder(self.rv(0.5, 0.0, 30 * DEG_TO_RAD), self.rv(0.0, 0.0, 0.0))
+        n_hat, d_ta, h_c, h_t = node_line_finder(
+            self.rv(0.5, 0.0, 30 * DEG_TO_RAD), self.rv(0.0, 0.0, 0.0)
+        )
         assert abs(n_hat @ [1.0, 0.0, 0.0]) == pytest.approx(1.0)
-        assert n_hat @ h_c == pytest.approx(0.0, abs=1e-6) and n_hat @ h_t == pytest.approx(0.0, abs=1e-6)
+        assert n_hat @ h_c == pytest.approx(
+            0.0, abs=1e-6
+        ) and n_hat @ h_t == pytest.approx(0.0, abs=1e-6)
         # Next crossing of n_hat: either 150 deg (descending, -x) or 330 deg (ascending, +x) away
         expected = 330 * DEG_TO_RAD if n_hat[0] > 0 else 150 * DEG_TO_RAD
         assert d_ta == pytest.approx(expected)

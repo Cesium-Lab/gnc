@@ -10,7 +10,6 @@ from numpy.linalg import norm
 from ..constants import M_TO_KM, RAD_TO_DEG
 from ..math.quaternion import unit
 from ..math.rotations import dcm_x, dcm_z, wrap_to_2pi, wrap_to_pi
-from ..world import J2_EARTH, R_EARTH
 from ..world.constants import MU_EARTH
 
 ####################################################################################################
@@ -590,7 +589,7 @@ class COES:
     def to_rv(self, mu: float) -> tuple[np.ndarray, np.ndarray]:
         """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
         return np.concatenate(coes_to_rv(*self.elements(), mu=mu))
-    
+
     def to_r_and_v(self, mu: float) -> tuple[np.ndarray, np.ndarray]:
         """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
         return coes_to_rv(*self.elements(), mu=mu)
@@ -614,13 +613,13 @@ class COES:
 
     def h(self, mu: float):
         rv = self.to_rv(mu)
-        return np.cross(rv[0:3],rv[3:6])
+        return np.cross(rv[0:3], rv[3:6])
 
     def E_sp(self, mu: float):
         return -mu / 2 / self.a
 
     def period(self, mu: float):
-        return 2*np.pi * np.sqrt(self.a**3 / mu)
+        return 2 * np.pi * np.sqrt(self.a**3 / mu)
 
     @property
     def r_a(self):
@@ -653,6 +652,6 @@ class COES:
     def print(self, name: str, mu: float = None) -> None:
         """Print the elements in km and deg, optionally prefixed with `name`."""
         ret = f"{name}: {self}"
-        if mu is not None and abs(self.a) > 1: # m
-            ret += f" (E_sp = {self.E_sp(mu)* M_TO_KM**2:.3f} km2/s2)"
+        if mu is not None and abs(self.a) > 1:  # m
+            ret += f" (E_sp = {self.E_sp(mu) * M_TO_KM**2:.3f} km2/s2)"
         print(ret)

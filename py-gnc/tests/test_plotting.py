@@ -254,11 +254,15 @@ def test_separation_plot_units_and_burn_lines():
     ],
 )
 def test_separation_plot_one_sided_limits(kwargs, x_axis, y_axis):
-    fig = plot_separation([0.0, 1.0], np.zeros((2, 3)), np.ones((2, 3)), show=False, **kwargs)
+    fig = plot_separation(
+        [0.0, 1.0], np.zeros((2, 3)), np.ones((2, 3)), show=False, **kwargs
+    )
     for axis, (rng, auto) in ((fig.layout.xaxis, x_axis), (fig.layout.yaxis, y_axis)):
         assert axis.range == rng and axis.autorange == auto
 
 
 def test_separation_plot_rejects_unknown_units():
     with pytest.raises(ValueError, match="units"):
-        plot_separation([0.0], np.zeros((1, 3)), np.zeros((1, 3)), units="au", show=False)
+        plot_separation(
+            [0.0], np.zeros((1, 3)), np.zeros((1, 3)), units="au", show=False
+        )
