@@ -17,7 +17,7 @@ class Test_hcw_two_impulse:
         t_trans = 8 * HOUR_TO_SEC
         w = 0.00115697
 
-        dv1, dv2, _ = guid.hcw_two_impulse(r0, v0, t_trans, w)
+        dv1, dv2 = guid.hcw_two_impulse(r0, v0, t_trans, w)
         assert dv1 == pytest.approx([29.3608, -66.7514, 13.0326], abs=5e-3)
         assert dv2 == pytest.approx([25.8223, 0.472444, 22.2449], rel=2e-1)  # tf
         dv_tot = np.linalg.norm(dv1) + np.linalg.norm(dv2)
@@ -36,7 +36,7 @@ class Test_hcw_two_impulse:
         r0 = np.array([0, -2, 0]) * KM_TO_M
         v0 = np.zeros(3)
 
-        dv1, dv2, _ = guid.hcw_two_impulse(r0, v0, t_trans, n)
+        dv1, dv2 = guid.hcw_two_impulse(r0, v0, t_trans, n)
         dv = norm(dv1) + norm(dv2)
         assert dv1 == pytest.approx([-9.4824e-3, -1.2225e-1, 0], rel=5e-3)
         assert dv2 == pytest.approx([-9.4824e-3, 1.2225e-1, 0], rel=5e-3)
@@ -51,7 +51,7 @@ class Test_plan_hcw_two_impulse:
     N = 0.00115697
 
     def test_matches_hcw_two_impulse(self):
-        dv1, dv2, _ = guid.hcw_two_impulse(self.R0, self.V0, self.T_TRANS, self.N)
+        dv1, dv2 = guid.hcw_two_impulse(self.R0, self.V0, self.T_TRANS, self.N)
         burn1, burn2 = guid.plan_hcw_two_impulse(self.R0, self.V0, self.T_TRANS, self.N)
 
         assert (burn1.t_s, burn2.t_s) == (0.0, self.T_TRANS)

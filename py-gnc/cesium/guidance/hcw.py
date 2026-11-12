@@ -14,9 +14,13 @@ def hcw_two_impulse(r0: np.ndarray, v0: np.ndarray, t_trans: float, n: float):
     v_f = Phi_vr @ r0 + Phi_vv @ v_i
     dv2_RSW = -v_f
 
-    dr = Phi_rr @ r0 + Phi_rv @ v0
+    # Troubleshooting
+    # dr = Phi_rr @ r0 + Phi_rv @ v_i
+    # dv = Phi_vr @ r0 + Phi_vv @ v_i
+    # print(dr)
+    # print(dv)
 
-    return dv1_RSW, dv2_RSW, dr
+    return dv1_RSW, dv2_RSW
 
 
 def plan_hcw_two_impulse(
@@ -42,7 +46,7 @@ def plan_hcw_two_impulse(
         Two burns with `frame="RSW"`; `r` is the chaser's relative position
         (the target, at the origin, for the second burn).
     """
-    dv1_rsw, dv2_rsw, _ = hcw_two_impulse(r0_rsw, v0_rsw, t_trans, n)
+    dv1_rsw, dv2_rsw = hcw_two_impulse(r0_rsw, v0_rsw, t_trans, n)
     # After the transfer the chaser is at the target, the RSW origin.
     return [
         Burn(t_s=0.0, r=np.asarray(r0_rsw, dtype=float), dv=dv1_rsw, frame="RSW"),

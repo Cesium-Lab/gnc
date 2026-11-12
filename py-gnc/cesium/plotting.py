@@ -127,6 +127,107 @@ def plot_sky(
     return fig, ax
 
 
+def plot_rsw(
+    ts,
+    rv_rel_rsw,
+    burns=None,
+    *,
+    title="Chaser relative to target, in-plane (HCW view)",
+    color="#2a78d6",
+    height=550,
+    show=True,
+) -> go.Figure:
+    """Plot relative motion in the target's RSW frame (HCW view).
+
+    Along-track S is horizontal with +S (V-bar, direction of motion) to the
+    left, radial R (R-bar, away from the planet) is up, and both axes share one
+    km scale. The target sits at the origin.
+
+    Parameters
+    ----------
+    ts : array_like, shape (N,)
+        Sample times [s]; shown in hours on hover.
+    rv_rel_rsw : array_like, shape (N, 3) or (N, 6)
+        Chaser position (and velocity) relative to the target in RSW [m]
+        (e.g. from `hcw_pci_to_rsw`). Only the position columns are used.
+    burns : sequence of (t [s], name), optional
+        Burns to mark on the path at the nearest sample.
+    title, color, height : optional
+        Figure title, path color, and figure height [px].
+    show : bool, optional
+        Call `fig.show()` (default True).
+
+    Returns
+    -------
+    go.Figure
+    """
+    ts = np.asarray(ts, dtype=float)
+    rv_rel_rsw = np.asarray(rv_rel_rsw, dtype=float)
+    r_km = rv_rel_rsw[:, 0] / 1000.0
+    s_km = rv_rel_rsw[:, 1] / 1000.0
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scattergl(
+            x=s_km,
+            y=r_km,
+            mode="lines",
+            name="Chaser",
+            line={"color": color, "width": 2},
+            customdata=ts / 3600.0,
+            hovertemplate="S = %{x:.3f} km<br>R = %{y:.3f} km<br>t = %{customdata:.2f} hr<extra></extra>",
+        )
+    )
+    if burns:
+        idx = [int(min(np.searchsorted(ts, t_b), len(ts) - 1)) for t_b, _ in burns]
+        fig.add_trace(
+            go.Scatter(
+                x=s_km[idx],
+                y=r_km[idx],
+                mode="markers",
+                name="Burns",
+                text=[name for _, name in burns],
+                marker={
+                    "color": color,
+                    "size": 8,
+                    "line": {"color": "#fcfcfb", "width": 2},
+                },
+                hovertemplate="%{text}<br>S = %{x:.3f} km<br>R = %{y:.3f} km<extra></extra>",
+            )
+        )
+    fig.add_trace(
+        go.Scatter(
+            x=[0.0],
+            y=[0.0],
+            mode="markers+text",
+            name="Target",
+            text=["target"],
+            textposition="bottom center",
+            textfont={"color": "#52514e"},
+            marker={"color": "#0b0b0b", "size": 10, "symbol": "x"},
+            hovertemplate="target<extra></extra>",
+        )
+    )
+    fig.update_xaxes(
+        title="Along-track S [km]  (+V-bar)",
+        autorange="reversed",
+        zeroline=True,
+        zerolinecolor="#c3c2b7",
+    )
+    fig.update_yaxes(
+        title="Radial R [km]  (+R-bar)",
+        scaleanchor="x",
+        zeroline=True,
+        zerolinecolor="#c3c2b7",
+    )
+    fig.update_layout(
+        title=title, template="plotly_white", showlegend=False, height=height
+    )
+    if show:
+        fig.show()
+    return fig
+
+
 def plot_3d(
     traces=None,
     t_arrs=None,

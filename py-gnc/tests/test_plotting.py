@@ -11,7 +11,7 @@ import pytest
 go = pytest.importorskip("plotly.graph_objects")
 pytest.importorskip("matplotlib")
 
-from cesium.plotting import plot_3d, plot_sky
+from cesium.plotting import plot_3d, plot_rsw, plot_sky
 
 
 def test_vector_only_geometry_and_shared_legend():
@@ -203,3 +203,27 @@ def test_sky_plot_radians_and_empty_visibility():
 def test_invalid_options(options):
     with pytest.raises(ValueError):
         plot_3d(show=False, **options)
+
+
+def test_rsw_plot_axes_and_burn_markers():
+    ts = np.linspace(0.0, 3600.0, 10)
+    rv = np.zeros((10, 6))
+    rv[:, 0] = np.linspace(-1000.0, 1000.0, 10)  # R [m]
+    rv[:, 1] = np.linspace(5000.0, 0.0, 10)  # S [m]
+
+    fig = plot_rsw(ts, rv, burns=[(0.0, "start"), (3600.0, "end")], show=False)
+
+    path, burns, target = fig.data
+    assert np.allclose(path.x, rv[:, 1] / 1000.0) and np.allclose(
+        path.y, rv[:, 0] / 1000.0
+    )
+    assert list(burns.text) == ["start", "end"]
+    assert np.allclose(burns.x, [5.0, 0.0]) and np.allclose(burns.y, [-1.0, 1.0])
+    assert (target.x[0], target.y[0]) == (0.0, 0.0)
+    assert fig.layout.xaxis.autorange == "reversed"  # +S (V-bar) to the left
+    assert fig.layout.yaxis.scaleanchor == "x"  # equal km scaling
+
+
+def test_rsw_plot_without_burns():
+    fig = plot_rsw([0.0, 1.0], np.zeros((2, 3)), show=False)
+    assert len(fig.data) == 2  # path + target

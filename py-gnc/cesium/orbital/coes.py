@@ -551,6 +551,9 @@ class COES:
     def E_sp(self, mu: float):
         return -mu / 2 / self.a
 
+    def period(self, mu: float):
+        return 2*np.pi * np.sqrt(self.a**3 / mu)
+
     @property
     def r_a(self):
         """Apoapsis"""

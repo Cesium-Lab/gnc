@@ -117,7 +117,7 @@ def test_problem_7_8():
     n = np.sqrt(MU_EARTH / r_t**3)
     period = 2 * np.pi / n
 
-    dv1, dv2, _ = guid.hcw_two_impulse(r0, v0, period / 3, n)
+    dv1, dv2 = guid.hcw_two_impulse(r0, v0, period / 3, n)
     dv = norm(dv1) + norm(dv2)
 
     assert dv == pytest.approx(6.21, abs=0.01)
@@ -165,7 +165,7 @@ def test_problem_7_12():
     vf = Phi_vv @ v0
 
     # Getting back!!
-    dv1, dv2, _ = guid.hcw_two_impulse(rf, vf, 6 * HOUR_TO_SEC, n)
+    dv1, dv2 = guid.hcw_two_impulse(rf, vf, 6 * HOUR_TO_SEC, n)
     dv = norm(dv1) + norm(dv2)
 
     assert dv == pytest.approx(3.5, abs=0.1)
