@@ -3,7 +3,7 @@
 import numpy as np
 
 from ..constants import SEC_TO_HOUR
-from ..math.time import sec_j2000_to_jd
+from ..math.time import jd_tdb_to_tt, jd_to_greg_str, jd_tt_to_utc, sec_j2000_to_jd
 from ..orbital.coes import COES
 from ..orbital.hcw import hcw_pci_to_rsw, hcw_rsw_to_pci
 from ..physics.dynamics import propagate_two_body
@@ -188,12 +188,17 @@ class RpoTimeline:
         return [(b.t_s, b.name) for b in self.burns]
 
     def burn_table(self) -> str:
-        """Text table of burns: time since start, absolute epoch, |dv|, and name."""
-        rows = [f"{'#':>3}  {'t [hr]':>9}  {'JD (TDB)':>17}  {'|dv| [m/s]':>10}  name"]
+        """Text table of burns: time since start, absolute epoch (TDB JD and UTC), |dv|, and name."""
+        rows = [
+            f"{'#':>3}  {'t [hr]':>9}  {'JD (TDB)':>17}  {'UTC':>19}  {'|dv| [m/s]':>10}  name"
+        ]
         for i, b in enumerate(self.burns):
             jd = sec_j2000_to_jd(self.epoch0_tdb_s + b.t_s)
+            utc = jd_to_greg_str(jd_tt_to_utc(jd_tdb_to_tt(jd)))
             rows.append(
-                f"{i:>3}  {b.t_s * SEC_TO_HOUR:>9.3f}  {jd:>17.6f}  {b.dv_mag:>10.3f}  {b.name}"
+                f"{i:>3}  {b.t_s * SEC_TO_HOUR:>9.3f}  {jd:>17.6f}  {utc:>19}  {b.dv_mag:>10.3f}  {b.name}"
             )
-        rows.append(f"{'':>3}  {'':>9}  {'total':>17}  {self.dv_total:>10.3f}")
+        rows.append(
+            f"{'':>3}  {'':>9}  {'':>17}  {'total':>19}  {self.dv_total:>10.3f}"
+        )
         return "\n".join(rows)

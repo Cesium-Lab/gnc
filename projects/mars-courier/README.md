@@ -33,6 +33,10 @@ Each stage writes `trajectories/<stage>-<mission>.mission` (NumPy NPZ), where `<
 uses underscores, e.g. `departure-birthday_christmas_earlier.mission`. Naming and I/O live
 in `mission_io.py` (`mission_path`, `save_mission`, `load_mission`).
 
+To regenerate every archive and figure headless (about 1 min), run `python mission_io.py`
+from this folder, or set `RERUN_STAGES = True` in `summary.ipynb`. Add `--interplanetary`
+(or `RERUN_INTERPLANETARY = True`) to redo the slow porkchop stage too.
+
 1. `interplanetary.ipynb`
    1. Saves `interplanetary-<mission>`: Lambert epochs and HCI Earth/Mars/spacecraft states [km, km/s]
 2. `departure.ipynb`
@@ -51,6 +55,32 @@ in `mission_io.py` (`mission_path`, `save_mission`, `load_mission`).
    1. Loads all four stages: mission timeline and full Δv budget
 7. `descent.ipynb`
    1. Descending to landing site
+
+## TODO
+- [ ] All
+  - [ ] Dispersions
+  - [ ] - [ ] FULL controls (probably MPC)
+  - [ ] FULL navigation
+- [ ] Interplanetary
+  - [ ] Mid-trajectory correction burns for the interplanetary segment
+- [ ] Departure
+  - [ ] Stitch launch site dates
+  - [ ] Descent with atmospheric approximation based on density and velocity
+- [ ] Arrival
+  - [ ] high-ellipse capture with the plane change near apoapsis
+  - [ ] Ascent with atmospheric approximation based on density and velocity
+- [ ] Ground Segment
+  - [ ] Link budget
+
+
+### Open issues from review
+- [ ] Departure
+  - [ ] Range safety for Cape Canaveral (131.8° launch azimuth)
+- [ ] Arrival
+  - [ ] high-ellipse capture with the plane change near apoapsis
+- [ ] RPO
+  - [ ] Hand off happens outside the 15 km linear region (`TARGET_TA_DEG` chosen a little better? but can't really be picky and `k_phase` could be adapted for max d_ta per period)
+  - [ ] 200 m keep-out (target a hold point, then a final approach)
 
 ## Approximations
 - TDB ≈ TT

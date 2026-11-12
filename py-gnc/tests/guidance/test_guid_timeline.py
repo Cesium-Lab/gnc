@@ -80,3 +80,12 @@ def test_invalid_inputs():
         make_timeline(j2=1e-3)
     with pytest.raises(ValueError):
         make_timeline().coast(-1.0)
+
+
+def test_burn_table_has_utc_column():
+    tl = make_timeline()
+    tl.burn([3.0, 4.0, 0.0], "first")
+    header, row = tl.burn_table().splitlines()[:2]
+    assert "UTC" in header
+    # epoch0 = 0 TDB s past J2000 -> 2000-01-01 12:00:00 TDB = 11:58:50.8 UTC (TT - UTC = 69.184 s), rounded
+    assert "2000-01-01 11:58:51" in row
