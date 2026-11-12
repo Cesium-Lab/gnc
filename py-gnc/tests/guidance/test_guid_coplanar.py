@@ -2,17 +2,20 @@ import numpy as np
 import pytest
 from numpy.linalg import norm
 
-from cesium.constants import DEG_TO_RAD, KM_TO_M
+from cesium.constants import DEG_TO_RAD, KM_TO_M, SEC_TO_MIN
 from cesium.guidance.coplanar import (
     circularize,
     guid_coaxial_hohmann,
     guid_hohmann,
     guid_one_tangent,
+    guid_phasing_same_orbit,
+    guid_phasing_different_orbits,
 )
 from cesium.math.base import unit
 from cesium.orbital.coes import sma_from_rv
 from cesium.physics.dynamics import propagate_two_body
 from cesium.world import MU_EARTH
+from cesium.math.rotations import wrap_to_2pi
 
 R_LEO = 7000 * KM_TO_M
 R_MEO = 12000 * KM_TO_M
@@ -163,3 +166,65 @@ class Test_guid_one_tangent:
         assert np.arctan2(r1[1], r1[0]) == pytest.approx(ta_b, abs=1e-8)
         v_circ = np.sqrt(MU_EARTH / R_MEO) * unit(np.cross([0, 0, 1], r1))
         assert norm(v_circ - v1) == pytest.approx(dv_b, rel=1e-8)
+
+
+class Test_guid_phasing:
+
+    def test_same_orbit_no_change(self):
+        """Period depends on target orbit"""
+        a = 12756.274 * KM_TO_M
+        period_expected = 2*np.pi*np.sqrt(a**3/MU_EARTH)
+
+        dv, t_phase, a_phase = guid_phasing_same_orbit(a, 0, MU_EARTH, k_target=1, k_chaser=1, deg=True)
+        assert dv == pytest.approx(0, abs=1e-3)  # retrograde
+        assert t_phase == pytest.approx(period_expected, abs=1e-3)
+        assert a_phase == pytest.approx(a, abs=1e-1)
+
+        dv, t_phase, a_phase = guid_phasing_same_orbit(a, 0, MU_EARTH, k_target=2, k_chaser=2, deg=True)
+        assert dv == pytest.approx(0, abs=1e-3)  # retrograde
+        assert t_phase == pytest.approx(2*period_expected, abs=1e-3)
+        assert a_phase == pytest.approx(a, abs=1e-1)
+
+        dv, t_phase, a_phase = guid_phasing_same_orbit(a, 0, MU_EARTH, k_target=3, k_chaser=2, deg=True)
+        assert t_phase == pytest.approx(3*period_expected, abs=1e-3)
+
+        dv, t_phase, a_phase = guid_phasing_same_orbit(a, 0, MU_EARTH, k_target=4, k_chaser=2, deg=True)
+        assert t_phase == pytest.approx(4*period_expected, abs=1e-3)
+
+    def test_same_orbit_vallado_example_6_8(self):
+        a = 12756.274 * KM_TO_M
+        d_ta = -20
+
+        dv, t_phase, a_phase = guid_phasing_same_orbit(a, d_ta, MU_EARTH, k_target=1, k_chaser=1, deg=True)
+        assert dv == pytest.approx(-219.268, abs=1e-3)  # retrograde
+        assert t_phase * SEC_TO_MIN == pytest.approx(225.6950, abs=1e-3)
+        assert a_phase == pytest.approx(12279333.2, abs=1e-1)
+
+        dv, t_phase, a_phase = guid_phasing_same_orbit(a, d_ta, MU_EARTH, k_target=2, k_chaser=1, deg=True)
+        assert t_phase * SEC_TO_MIN == pytest.approx(464.6661, abs=1e-4)
+
+        dv, t_phase, a_phase = guid_phasing_same_orbit(a, d_ta, MU_EARTH, k_target=2, k_chaser=2, deg=True)
+        assert dv == pytest.approx(-106.481, abs=1e-3)
+        assert t_phase * SEC_TO_MIN == pytest.approx(464.6661, abs=1e-4)  # lots of minutes
+        assert a_phase == pytest.approx(12518939.3, abs=1e-1)
+
+    def test_same_orbit_vallado_example_6_9(self):
+        """Period depends on target orbit"""
+        a_chaser = 12756.274 * KM_TO_M
+        a_target = 42159.48 * KM_TO_M
+        d_ta = -20
+        dv, t_trans, t_wait, a_trans = guid_phasing_different_orbits(a_chaser, a_target, d_ta, mu=MU_EARTH, k=1, deg=True)
+        assert dv == pytest.approx(2315.71, abs=1e-3)
+        assert t_trans * SEC_TO_MIN == pytest.approx(377.9537, abs=1.0)
+        # assert t_wait * SEC_TO_MIN == pytest.approx(377.9537, abs=1.0)  # book value is wrong
+        assert a_trans == pytest.approx(27457877, abs=1)
+
+
+        # physical check
+        w_c, w_t = np.sqrt(MU_EARTH / a_chaser**3), np.sqrt(MU_EARTH / a_target**3)
+        chaser_angle = w_c * t_wait + np.pi
+
+        target_angle = -d_ta * DEG_TO_RAD + w_t * (t_wait + t_trans)
+        miss = wrap_to_2pi(target_angle - chaser_angle)
+        assert miss == pytest.approx(0.0, abs=1e-12)
+        assert t_wait * SEC_TO_MIN == pytest.approx(234.6110, abs=1e-4)
