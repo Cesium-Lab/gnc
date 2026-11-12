@@ -22,6 +22,7 @@ def launch_azimuth(lat: float, inc: float, ascending: bool = True) -> float:
     az = np.arcsin(s)
     return az if ascending else np.pi - az
 
+
 # TODO: verify
 def ideal_ascent_dv(
     r_site: float, r_orbit: float, v_east: float, azimuth: float, mu: float
@@ -68,6 +69,7 @@ def ideal_ascent_dv(
         "t_coast": t_trans,
         "v_periapsis": v_peri,
     }
+
 
 # TODO: verify
 def azimuth_from_plane(r_site_inertial: np.ndarray, h_hat: np.ndarray) -> float:

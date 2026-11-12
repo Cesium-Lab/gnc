@@ -2,7 +2,14 @@ from datetime import datetime, timedelta
 
 import numpy as np
 
-from ..constants import DAY_TO_SEC, J2000_JD, JD_CENTURY_TO_DAY, SEC_TO_DAY
+from ..constants import (
+    DAY_TO_SEC,
+    J2000_JD,
+    JD_CENTURY_TO_DAY,
+    SEC_TO_DAY,
+    TAI_TO_TT,
+    UTC_TO_TAI,
+)
 
 LMonth = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 """List of month lengths as discussed in Vallado 3.6.4"""
@@ -371,15 +378,7 @@ def sec_j2000_to_jd(sec_j2000: float):
     return J2000_JD + sec_j2000 * SEC_TO_DAY
 
 
-TT_MINUS_TAI_S = 32.184
-"""TT - TAI [s], exact by definition."""
-
-TAI_MINUS_UTC_S = 37.0
-"""TAI - UTC (leap seconds, Delta AT) [s], in effect since 2017-01-01. No later leap
-second has been announced, so this value is also used for future epochs."""
-
-
-def jd_tt_to_utc(jd_tt: float, tai_minus_utc_s: float = TAI_MINUS_UTC_S):
+def jd_tt_to_utc(jd_tt: float, tai_minus_utc_s: float = UTC_TO_TAI):
     """Convert a TT Julian date to UTC.
 
     UTC = TT - (TT - TAI) - (TAI - UTC). For a TDB epoch, pass `jd_tdb_to_tt(jd)`
@@ -390,14 +389,14 @@ def jd_tt_to_utc(jd_tt: float, tai_minus_utc_s: float = TAI_MINUS_UTC_S):
     jd_tt : float
         Julian date in TT.
     tai_minus_utc_s : float, optional
-        Accumulated leap seconds, Delta AT [s]. Default `TAI_MINUS_UTC_S` (37 s).
+        Accumulated leap seconds, Delta AT [s]. Default `UTC_TO_TAI` (37 s).
 
     Returns
     -------
     jd_utc : float
         Julian date in UTC.
     """
-    return jd_tt - (TT_MINUS_TAI_S + tai_minus_utc_s) * SEC_TO_DAY
+    return jd_tt - (TAI_TO_TT + tai_minus_utc_s) * SEC_TO_DAY
 
 
 def jd_to_greg_str(jd: float, decimals: int = 0, suffix: str = "") -> str:

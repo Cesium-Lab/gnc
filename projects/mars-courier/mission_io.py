@@ -74,6 +74,25 @@ import plotly.graph_objects as _go; _go.Figure.show = lambda self, *a, **k: None
 """
 
 
+FIGURE_DIR = PROJECT_DIR / "figures"
+
+
+def export_fig(
+    fig, stage: str, name: str, width: int = 1600, height: int | None = None
+):
+    """Save a plotly or matplotlib figure to figures/<stage>/<name>.png for slides."""
+    out = FIGURE_DIR / stage / f"{name}.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if hasattr(fig, "write_image"):  # plotly
+        fig.write_image(
+            out, width=width, height=height or fig.layout.height or 800, scale=2
+        )
+    else:  # matplotlib
+        fig.savefig(out, dpi=200, bbox_inches="tight")
+    print(f"wrote {out.relative_to(PROJECT_DIR)}")
+    return out
+
+
 def notebook_script(name: str) -> str:
     """A notebook's code cells as one script: IPython magics dropped, figures not shown."""
     nb = json.loads((PROJECT_DIR / f"{name}.ipynb").read_text())

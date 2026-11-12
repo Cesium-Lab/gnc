@@ -86,10 +86,14 @@ UTC_TO_GPS = 18
 """GPS minus UTC [s]. Valid for the current leap-second regime, not historical dates."""
 
 TAI_TO_TT = 32.184
-"""TAI minus TT [s]. Add to TAI to make TT """
+"""TT minus TAI [s]. Add to TAI to make TT """
 
 GPS_TO_UTC = -UTC_TO_GPS
 """UTC minus GPS [s]. Valid for the current leap-second regime, not historical dates."""
+
+UTC_TO_TAI = 37.0
+"""TAI minus UTC, accumulated leap seconds (Delta AT) [s]; = UTC_TO_GPS + 19. In effect since
+2017-01-01 and assumed for future epochs (no later leap second announced). Not historical."""
 
 
 # ==================================================
