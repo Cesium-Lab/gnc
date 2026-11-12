@@ -296,21 +296,32 @@ def guid_coaxial_hohmann(
 
     return a_trans, t_trans, dv_a, dv_b
 
-def guid_phasing_same_orbit(a_target: float, d_ta: float, mu = MU_EARTH, k_target: int = 1, k_chaser: int = 1, deg=True):
+
+def guid_phasing_same_orbit(
+    a_target: float,
+    d_ta: float,
+    mu=MU_EARTH,
+    k_target: int = 1,
+    k_chaser: int = 1,
+    deg=True,
+):
     """Vallado Algorithm 44. Negative dv means retrograde"""
     w_target = np.sqrt(mu / a_target**3)
     if deg:
         d_ta *= DEG_TO_RAD
 
-    t_phase = (2*np.pi*k_target + d_ta) / w_target
+    t_phase = (2 * np.pi * k_target + d_ta) / w_target
 
-    a_phase = np.cbrt(mu * (t_phase / (2*np.pi*k_chaser))**2)
+    a_phase = np.cbrt(mu * (t_phase / (2 * np.pi * k_chaser)) ** 2)
 
-    dv = 2*(np.sqrt(2*mu/a_target - mu/a_phase) - np.sqrt(mu/a_target))
+    dv = 2 * (np.sqrt(2 * mu / a_target - mu / a_phase) - np.sqrt(mu / a_target))
 
     return dv, t_phase, a_phase
 
-def guid_phasing_different_orbits(a_chaser: float, a_target: float, d_ta: float, mu = MU_EARTH, k: int = 1, deg=True):
+
+def guid_phasing_different_orbits(
+    a_chaser: float, a_target: float, d_ta: float, mu=MU_EARTH, k: int = 1, deg=True
+):
     """Vallado Algorithm 45."""
     w_target = np.sqrt(mu / a_target**3)
     w_chaser = np.sqrt(mu / a_chaser**3)
@@ -321,12 +332,12 @@ def guid_phasing_different_orbits(a_chaser: float, a_target: float, d_ta: float,
     if deg:
         d_ta *= DEG_TO_RAD
 
-    alpha_L = w_target*t_trans
+    alpha_L = w_target * t_trans
     ta = alpha_L - np.pi
-    t_wait = (ta - d_ta + 2*np.pi*k) / (w_chaser - w_target)
+    t_wait = (ta - d_ta + 2 * np.pi * k) / (w_chaser - w_target)
 
-    dv = (np.abs(np.sqrt(2*mu/a_chaser - mu/a_trans) - np.sqrt(mu/a_chaser)) + 
-          np.abs(np.sqrt(2*mu/a_target - mu/a_trans) - np.sqrt(mu/a_target)))
-
+    dv = np.abs(
+        np.sqrt(2 * mu / a_chaser - mu / a_trans) - np.sqrt(mu / a_chaser)
+    ) + np.abs(np.sqrt(2 * mu / a_target - mu / a_trans) - np.sqrt(mu / a_target))
 
     return dv, t_trans, t_wait, a_trans

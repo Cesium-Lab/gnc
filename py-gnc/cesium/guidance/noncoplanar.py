@@ -49,9 +49,12 @@ def guid_combined_i_raan_change(i_i: float, i_f: float, draan: float, v_i: float
     ----------
     Vallado 4e, Algorithm 41 (Combined Changes to i and Ω—Circular), p. 347.
     """
-    ta = np.arccos(np.cos(i_i)*np.cos(i_f) + np.sin(i_i)*np.sin(i_f) * np.cos(draan))
+    ta = np.arccos(
+        np.cos(i_i) * np.cos(i_f) + np.sin(i_i) * np.sin(i_f) * np.cos(draan)
+    )
     dv = 2 * v_i * np.sin(ta / 2)
     return dv
+
 
 # TODO: Example 6-5 p. 347
 def guid_raan_change_circular(draan: float, i: float, v_i: float):

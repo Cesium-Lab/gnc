@@ -246,12 +246,13 @@ class TestRoundTrip:
             assert np.allclose(v0, v1, rtol=1e-10, atol=1e-9)
 
 
-
 class Test_vis_viva:
     R = 7000 * KM_TO_M
 
     def test_circular_speed(self):
-        assert vis_viva(self.R, self.R, MU_EARTH) == pytest.approx(np.sqrt(MU_EARTH / self.R))
+        assert vis_viva(self.R, self.R, MU_EARTH) == pytest.approx(
+            np.sqrt(MU_EARTH / self.R)
+        )
 
     def test_hyperbolic_periapsis_speed(self):
         """a = -mu / v_inf^2 gives v^2 = v_inf^2 + 2 mu / r."""
@@ -278,7 +279,6 @@ class Test_vis_viva:
         assert np.linalg.norm(v) == pytest.approx(
             vis_viva(np.linalg.norm(r), 9000e3, MU_EARTH), rel=1e-12
         )
-
 
 
 class Test_COES:
@@ -309,6 +309,7 @@ class Test_COES:
         assert coes.ta == 1.1  # original unchanged (frozen)
         with pytest.raises(AttributeError):
             coes.ta = 0.0
+
     def test_delta_wraps_angles(self):
         before = COES(7000e3, 0.01, 0.5, 6.2, 0.1, 6.25)
         after = COES(7005e3, 0.02, 0.6, 0.1, 6.2, 0.05)
@@ -316,6 +317,8 @@ class Test_COES:
         assert d.a == pytest.approx(5e3)
         assert d.e == pytest.approx(0.01)
         assert d.i == pytest.approx(0.1)
-        assert d.raan == pytest.approx(0.1 - 6.2 + 2 * np.pi)  # small positive, not ~-6.1
+        assert d.raan == pytest.approx(
+            0.1 - 6.2 + 2 * np.pi
+        )  # small positive, not ~-6.1
         assert d.aop == pytest.approx(6.2 - 0.1 - 2 * np.pi)  # small negative
         assert d.ta == pytest.approx(0.05 - 6.25 + 2 * np.pi)
