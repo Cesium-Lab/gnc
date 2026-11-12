@@ -294,7 +294,7 @@ def guid_coaxial_hohmann(
     dv_b = vis_viva(r_2, a_2, mu) - vis_viva(r_2, a_trans, mu)
     t_trans = np.pi * np.sqrt(a_trans**3 / mu)
 
-    return a_trans, t_trans, dv_a, dv_b
+    return float(a_trans), float(t_trans), float(dv_a), float(dv_b)
 
 
 def guid_phasing_same_orbit(
@@ -316,7 +316,7 @@ def guid_phasing_same_orbit(
 
     dv = 2 * (np.sqrt(2 * mu / a_target - mu / a_phase) - np.sqrt(mu / a_target))
 
-    return dv, t_phase, a_phase
+    return float(dv), float(t_phase), float(a_phase)
 
 
 def guid_phasing_different_orbits(
@@ -340,4 +340,4 @@ def guid_phasing_different_orbits(
         np.sqrt(2 * mu / a_chaser - mu / a_trans) - np.sqrt(mu / a_chaser)
     ) + np.abs(np.sqrt(2 * mu / a_target - mu / a_trans) - np.sqrt(mu / a_target))
 
-    return dv, t_trans, t_wait, a_trans
+    return float(dv), float(t_trans), float(t_wait), float(a_trans)

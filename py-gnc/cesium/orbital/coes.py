@@ -518,6 +518,10 @@ class COES:
         """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
         return coes_to_rv(*self.elements(), mu=mu)
 
+    def n(self, mu: float = MU_EARTH) -> tuple[np.ndarray, np.ndarray]:
+        """Mean motion [1/s]."""
+        return np.sqrt(mu / self.a**3)
+
     def with_ta(self, ta: float) -> COES:
         """Same orbit at a different true anomaly [rad]."""
         return replace(self, ta=float(ta))
