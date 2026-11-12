@@ -3,6 +3,7 @@ import pytest
 
 from cesium.constants import DEG_TO_RAD, KM_TO_M, MIN_TO_SEC, RAD_TO_DEG
 from cesium.orbital.coes import (
+    COES,
     E_from_ta,
     coes_to_rv,
     kepler_eq,
@@ -277,3 +278,44 @@ class Test_vis_viva:
         assert np.linalg.norm(v) == pytest.approx(
             vis_viva(np.linalg.norm(r), 9000e3, MU_EARTH), rel=1e-12
         )
+
+
+
+class Test_COES:
+    ELEMENTS = np.array([9000e3, 0.2, 0.3, 0.4, 0.5, 1.1])
+
+    def test_elements_and_unpack_round_trip(self):
+        coes = COES.from_array(self.ELEMENTS)
+        assert np.array_equal(coes.elements(), self.ELEMENTS)
+        a, e, i, raan, aop, ta = coes
+        assert (a, e, i, raan, aop, ta) == tuple(self.ELEMENTS)
+
+    def test_to_rv_matches_coes_to_rv(self):
+        coes = COES.from_array(self.ELEMENTS)
+        r, v = coes.to_rv(MU_EARTH)
+        r_ref, v_ref = coes_to_rv(*self.ELEMENTS, mu=MU_EARTH)
+        assert np.array_equal(r, r_ref) and np.array_equal(v, v_ref)
+
+    def test_from_rv_round_trip(self):
+        r, v = coes_to_rv(*self.ELEMENTS, mu=MU_EARTH)
+        coes = COES.from_rv(r, v, MU_EARTH)
+        assert coes.elements() == pytest.approx(self.ELEMENTS, rel=1e-9)
+
+    def test_with_ta_changes_only_true_anomaly(self):
+        coes = COES.from_array(self.ELEMENTS)
+        moved = coes.with_ta(2.5)
+        assert moved.ta == 2.5
+        assert moved.elements()[:5] == pytest.approx(coes.elements()[:5])
+        assert coes.ta == 1.1  # original unchanged (frozen)
+        with pytest.raises(AttributeError):
+            coes.ta = 0.0
+    def test_delta_wraps_angles(self):
+        before = COES(7000e3, 0.01, 0.5, 6.2, 0.1, 6.25)
+        after = COES(7005e3, 0.02, 0.6, 0.1, 6.2, 0.05)
+        d = after.delta(before)
+        assert d.a == pytest.approx(5e3)
+        assert d.e == pytest.approx(0.01)
+        assert d.i == pytest.approx(0.1)
+        assert d.raan == pytest.approx(0.1 - 6.2 + 2 * np.pi)  # small positive, not ~-6.1
+        assert d.aop == pytest.approx(6.2 - 0.1 - 2 * np.pi)  # small negative
+        assert d.ta == pytest.approx(0.05 - 6.25 + 2 * np.pi)

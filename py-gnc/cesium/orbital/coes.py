@@ -1,10 +1,15 @@
 """COES"""
 
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+
 import numpy as np
 from numpy.linalg import norm
 
+from ..constants import M_TO_KM, RAD_TO_DEG
 from ..math.quaternion import unit
-from ..math.rotations import dcm_x, dcm_z
+from ..math.rotations import dcm_x, dcm_z, wrap_to_pi
 from ..world import J2_EARTH, R_EARTH
 from ..world.constants import MU_EARTH
 
@@ -463,3 +468,73 @@ def coes_to_rv(
 ################################################################################
 
 # TODO: TLEs
+
+
+####################################################################################################
+#               COES container
+####################################################################################################
+
+
+@dataclass(frozen=True)
+class COES:
+    """Classical orbital elements. Distances in [m], angles in [rad].
+
+    Unpacks in the standard order, so `a, e, i, raan, aop, ta = coes` and
+    `coes_to_rv(*coes, mu=mu)` both work.
+    """
+
+    a: float
+    """Semi-major axis [m]."""
+    e: float
+    """Eccentricity."""
+    i: float
+    """Inclination [rad]."""
+    raan: float
+    """Right ascension of the ascending node [rad]."""
+    aop: float
+    """Argument of periapsis [rad]."""
+    ta: float
+    """True anomaly [rad]."""
+
+    @classmethod
+    def from_array(cls, coes: np.ndarray) -> COES:
+        """Build from `[a, e, i, raan, aop, ta]`."""
+        a, e, i, raan, aop, ta = np.asarray(coes, dtype=float)
+        return cls(float(a), float(e), float(i), float(raan), float(aop), float(ta))
+
+    @classmethod
+    def from_rv(cls, r_I: np.ndarray, v_I: np.ndarray, mu: float = MU_EARTH) -> COES:
+        """Build from an inertial state with `rv_to_coes`."""
+        return cls.from_array(rv_to_coes(r_I, v_I, mu))
+
+    def elements(self) -> np.ndarray:
+        """`[a, e, i, raan, aop, ta]` as a (6,) array."""
+        return np.array([self.a, self.e, self.i, self.raan, self.aop, self.ta])
+
+    def __iter__(self):
+        return iter(self.elements())
+
+    def to_rv(self, mu: float = MU_EARTH) -> tuple[np.ndarray, np.ndarray]:
+        """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
+        return coes_to_rv(*self.elements(), mu=mu)
+
+    def with_ta(self, ta: float) -> COES:
+        """Same orbit at a different true anomaly [rad]."""
+        return replace(self, ta=float(ta))
+
+    def delta(self, other: COES) -> COES:
+        """Element change `self - other`; angles wrapped to [-pi, pi)."""
+        d = self.elements() - other.elements()
+        d[2:] = wrap_to_pi(d[2:])
+        return COES.from_array(d)
+
+    def __str__(self) -> str:
+        return (
+            f"a = {self.a * M_TO_KM:.3f} km, e = {self.e:.5f}, "
+            f"i = {self.i * RAD_TO_DEG:.3f} deg, raan = {self.raan * RAD_TO_DEG:.3f} deg, "
+            f"aop = {self.aop * RAD_TO_DEG:.3f} deg, ta = {self.ta * RAD_TO_DEG:.3f} deg"
+        )
+
+    def print(self, name: str = "") -> None:
+        """Print the elements in km and deg, optionally prefixed with `name`."""
+        print(f"{name}: {self}" if name else str(self))
