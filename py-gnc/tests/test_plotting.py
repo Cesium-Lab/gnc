@@ -11,7 +11,7 @@ import pytest
 go = pytest.importorskip("plotly.graph_objects")
 pytest.importorskip("matplotlib")
 
-from cesium.plotting import plot_3d, plot_rsw, plot_sky
+from cesium.plotting import plot_3d, plot_rsw, plot_separation, plot_sky
 
 
 def test_vector_only_geometry_and_shared_legend():
@@ -227,3 +227,38 @@ def test_rsw_plot_axes_and_burn_markers():
 def test_rsw_plot_without_burns():
     fig = plot_rsw([0.0, 1.0], np.zeros((2, 3)), show=False)
     assert len(fig.data) == 2  # path + target
+
+
+def test_separation_plot_units_and_burn_lines():
+    ts = np.array([0.0, 60.0, 120.0])
+    r_c = np.array([[3000.0, 4000.0, 0.0]] * 3)
+    r_t = np.zeros((3, 6))
+
+    fig_km = plot_separation(ts, r_c, r_t, burns=[(60.0, "b")], show=False)
+    fig_m = plot_separation(ts, r_c, r_t, units="m", show=False)
+
+    assert fig_km.data[0].x == pytest.approx([0.0, 1.0, 2.0])  # minutes
+    assert fig_km.data[0].y == pytest.approx([5.0] * 3)
+    assert fig_m.data[0].y == pytest.approx([5000.0] * 3)
+    assert fig_m.layout.yaxis.title.text == "Separation [m]"
+    assert fig_km.layout.shapes[0].x0 == 1.0
+
+
+@pytest.mark.parametrize(
+    "kwargs, x_axis, y_axis",
+    [
+        ({}, (None, True), (None, True)),
+        ({"top": 50}, (None, True), ((None, 50), "min")),
+        ({"xlim": (0, 5), "right": 8}, ((0, 8), False), (None, True)),
+        ({"ylim": (1, None), "left": 2}, ((2, None), "max"), ((1, None), "max")),
+    ],
+)
+def test_separation_plot_one_sided_limits(kwargs, x_axis, y_axis):
+    fig = plot_separation([0.0, 1.0], np.zeros((2, 3)), np.ones((2, 3)), show=False, **kwargs)
+    for axis, (rng, auto) in ((fig.layout.xaxis, x_axis), (fig.layout.yaxis, y_axis)):
+        assert axis.range == rng and axis.autorange == auto
+
+
+def test_separation_plot_rejects_unknown_units():
+    with pytest.raises(ValueError, match="units"):
+        plot_separation([0.0], np.zeros((1, 3)), np.zeros((1, 3)), units="au", show=False)

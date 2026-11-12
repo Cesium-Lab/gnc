@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from plotly.colors import qualitative
 from scipy.interpolate import CubicSpline
 
-from .constants import AU_TO_KM
+from .constants import AU_TO_KM, M_TO_KM, SEC_TO_MIN
 from .orbital.interplanetary import OrbitalFlyby
 
 
@@ -223,6 +223,111 @@ def plot_rsw(
     fig.update_layout(
         title=title, template="plotly_white", showlegend=False, height=height
     )
+    if show:
+        fig.show()
+    return fig
+
+
+def _axis_range(lim):
+    """Plotly axis kwargs for (lo, hi); a None side autoranges only that side."""
+    lo, hi = lim if lim is not None else (None, None)
+    if lo is None and hi is None:
+        return {"autorange": True}
+    auto = {(True, False): "min", (False, True): "max", (False, False): False}[
+        (lo is None, hi is None)
+    ]
+    return {"range": [lo, hi], "autorange": auto}
+
+
+def _merge_lim(lim, lo, hi):
+    """Override the sides of `lim` with `lo`/`hi` where they are not None."""
+    lim_lo, lim_hi = lim if lim is not None else (None, None)
+    return (lo if lo is not None else lim_lo, hi if hi is not None else lim_hi)
+
+
+def plot_separation(
+    ts,
+    rv_chaser,
+    rv_target,
+    burns=None,
+    *,
+    units="km",
+    xlim=None,
+    ylim=None,
+    left=None,
+    right=None,
+    bottom=None,
+    top=None,
+    title="Chaser-to-target separation",
+    color="#2a78d6",
+    height=420,
+    show=True,
+) -> go.Figure:
+    """Plot chaser-to-target separation against time.
+
+    Parameters
+    ----------
+    ts : array_like, shape (N,)
+        Sample times [s]; plotted in minutes.
+    rv_chaser, rv_target : array_like, shape (N, 3) or (N, 6)
+        Chaser and target positions (and velocities) in one frame [m]. Only the
+        position columns are used. Pass relative positions with zeros for the
+        target to plot a relative range.
+    burns : sequence of (t [s], name), optional
+        Burns to mark with labeled vertical lines.
+    units : {"km", "m"}
+        Separation units for the y axis, hover, and `ylim`/`bottom`/`top`.
+    xlim, ylim : (lo, hi), optional
+        Axis limits; x in minutes, y in `units`. Either side may be None to
+        autorange only that side, e.g. ylim=(None, 50).
+    left, right, bottom, top : float, optional
+        Pyplot-style single-side limits; each overrides the matching side of
+        `xlim`/`ylim`. An autoranged bottom starts at zero.
+    title, color, height : optional
+        Figure title, line color, and figure height [px].
+    show : bool, optional
+        Call `fig.show()` (default True).
+
+    Returns
+    -------
+    go.Figure
+    """
+    to_units = {"km": M_TO_KM, "m": 1.0}
+    if units not in to_units:
+        raise ValueError(f"units must be one of {list(to_units)}")
+    ts = np.asarray(ts, dtype=float)
+    r_c = np.asarray(rv_chaser, dtype=float)[:, 0:3]
+    r_t = np.asarray(rv_target, dtype=float)[:, 0:3]
+    separation = np.linalg.norm(r_c - r_t, axis=1) * to_units[units]
+
+    fig = go.Figure(
+        go.Scatter(
+            x=ts * SEC_TO_MIN,
+            y=separation,
+            mode="lines",
+            line={"color": color, "width": 2},
+            hovertemplate=f"t = %{{x:.1f}} min<br>separation = %{{y:.1f}} {units}<extra></extra>",
+        )
+    )
+    for t_burn, name in burns or []:
+        fig.add_vline(
+            x=t_burn * SEC_TO_MIN,
+            line={"color": "#898781", "width": 1, "dash": "dot"},
+            annotation_text=name,
+            annotation_position="top",
+            annotation_font={"color": "#52514e", "size": 11},
+        )
+    fig.update_layout(
+        title=title,
+        xaxis_title="Time [min]",
+        yaxis_title=f"Separation [{units}]",
+        template="plotly_white",
+        showlegend=False,
+        height=height,
+        margin={"t": 70},
+    )
+    fig.update_xaxes(**_axis_range(_merge_lim(xlim, left, right)))
+    fig.update_yaxes(rangemode="tozero", **_axis_range(_merge_lim(ylim, bottom, top)))
     if show:
         fig.show()
     return fig

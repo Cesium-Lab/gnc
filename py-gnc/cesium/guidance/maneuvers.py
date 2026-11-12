@@ -23,6 +23,8 @@ class Burn:
     """(3,) Delta-v vector [m/s]."""
     frame: str = "PCI"
     """Axes of `r` and `dv`, e.g. "MCI", "ECI", "RSW"."""
+    name: str = ""
+    """Label for tables and plots, e.g. "Burn 1 (plane)"."""
 
     @property
     def dv_mag(self) -> float:

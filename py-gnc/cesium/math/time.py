@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..constants import J2000_JD, JD_CENTURY_TO_DAY, SEC_TO_DAY
+from ..constants import DAY_TO_SEC, J2000_JD, JD_CENTURY_TO_DAY, SEC_TO_DAY
 
 LMonth = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 """List of month lengths as discussed in Vallado 3.6.4"""
@@ -330,3 +330,40 @@ def jd_tdb_to_tt(jd_tdb: float):
     Vallado 4e, Equation 3-53.
     """
     return jd_tdb - tdb_minus_tt_s(jd_tdb) * SEC_TO_DAY
+
+
+def jd_to_sec_j2000(jd: float):
+    """Convert a Julian date to seconds since the J2000 epoch.
+
+    The time standard is unchanged, so a TDB Julian date gives TDB seconds
+    past J2000 (the epoch convention used by `RpoTimeline`).
+
+    Parameters
+    ----------
+    jd : float
+        Julian date (any time standard).
+
+    Returns
+    -------
+    sec_j2000 : float
+        Seconds since J2000 (JD 2451545.0) in the same time standard [s].
+    """
+    return (jd - J2000_JD) * DAY_TO_SEC
+
+
+def sec_j2000_to_jd(sec_j2000: float):
+    """Convert seconds since the J2000 epoch to a Julian date.
+
+    Inverse of `jd_to_sec_j2000`; the time standard is unchanged.
+
+    Parameters
+    ----------
+    sec_j2000 : float
+        Seconds since J2000 (JD 2451545.0) [s].
+
+    Returns
+    -------
+    jd : float
+        Julian date in the same time standard.
+    """
+    return J2000_JD + sec_j2000 * SEC_TO_DAY
