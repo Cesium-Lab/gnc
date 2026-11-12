@@ -1,7 +1,9 @@
+from dataclasses import dataclass
+
 import numpy as np
 from numpy.linalg import norm
 
-from ..constants import DAY_TO_SEC, M_TO_KM, RAD_TO_DEG
+from ..constants import DAY_TO_SEC, M_TO_KM, RAD_TO_DEG, SEC_TO_HOUR
 from ..math.base import unit
 from ..math.rotations import wrap_to_2pi, wrap_to_pi
 from ..orbital.coes import COES, orbit_sweep
@@ -233,7 +235,8 @@ def hcw_rendezvous(
 
         # Apply
         rv_rsw[3:6] += dv1_rsw
-        tl.burn(tl.from_rsw(rv_rsw)[3:6] - tl.chaser[3:6], f"HCW {k}A")
+        name = "HCW start" if k == 0 else f"HCW retarget {k}"
+        tl.burn(tl.from_rsw(rv_rsw)[3:6] - tl.chaser[3:6], name)
         tl.coast(t_transfer)
 
         # Stop condition
@@ -243,7 +246,7 @@ def hcw_rendezvous(
     # applies burn-to-go
     rv_rsw = tl.to_rsw()
     rv_rsw[3:6] += dv2_rsw
-    tl.burn(tl.from_rsw(rv_rsw)[3:6] - tl.chaser[3:6], f"HCW {k}B")
+    tl.burn(tl.from_rsw(rv_rsw)[3:6] - tl.chaser[3:6], "HCW stop")
     return k + 1
 
 
@@ -253,33 +256,59 @@ def hcw_rendezvous(
 
 
 # TODO: test
+@dataclass(frozen=True, kw_only=True)
+class RpoConfig:
+    """Scenario settings for `run_rpo`: central body, timeline, and maneuver tuning."""
+
+    # Central body
+    mu: float
+    """Gravitational parameter [m^3/s^2]."""
+    j2: float | None = None
+    """J2 coefficient; None for two-body truth."""
+    r_cb: float | None = None
+    """Equatorial radius [m]; required when `j2` is set."""
+    frame: str = "MCI"
+    """Inertial axes name, for burn labels."""
+
+    # Timeline
+    epoch0_tdb_s: float = 0.0
+    """Absolute epoch of t = 0 [TDB s past J2000]."""
+    t_final_coast: float = 1 * DAY_TO_SEC
+    """Coast after docking, for plots [s]."""
+
+    # Phasing
+    k_phase: int
+    """Phasing revolutions."""
+    hcw_thresh: float
+    """Separation that ends phasing and hands off to HCW [m]."""
+
+    # HCW terminal
+    t_rendezvous: float
+    """HCW two-impulse transfer time [s]."""
+    dock_thresh: float
+    """Miss distance that ends HCW re-targeting [m]."""
+    hcw_iter: int = 3
+    """Maximum HCW passes."""
+
+
+# TODO: test
 def run_rpo(
     chaser0: COES,
     target0: COES,
-    mu: float,
-    k_phase: int,
-    hcw_thresh: float,
-    dock_thresh: float,
-    t_rendezvous: float,
+    cfg: RpoConfig,
     *,
-    hcw_iter: int = 3,
     raan_bias: float = 0.0,
-    epoch0_tdb_s: float = 0.0,
-    j2: float | None = None,
-    r_cb: float | None = None,
-    frame: str = "MCI",
-    t_final_coast: float = 1 * DAY_TO_SEC,
     verbose: bool = False,
 ) -> tuple[RpoTimeline, dict]:
     """Full RPO timeline. `raan_bias` [rad] pre-biases the Burn 1 plane against J2 nodal drift."""
     tl = RpoTimeline(
-        chaser0.to_rv(mu),
-        target0.to_rv(mu),
-        mu,
-        j2=j2,
-        r_cb=r_cb,
-        epoch0_tdb_s=epoch0_tdb_s,
-        frame=frame,
+        chaser0.to_rv(cfg.mu),
+        target0.to_rv(cfg.mu),
+        cfg.mu,
+        j2=cfg.j2,
+        r_cb=cfg.r_cb,
+        epoch0_tdb_s=cfg.epoch0_tdb_s,
+        frame=cfg.frame,
     )
     # Burn 1
     info = {"n_hat": plane_change_at_node(tl, raan_bias)}
@@ -288,18 +317,20 @@ def run_rpo(
     dv_circ = hohmann_to_target_radius(tl)
 
     # Burns 3 and 4.#
-    info |= enter_phasing(tl, k_phase, dv_circ)
-    info["phases_remaining"] = closed_loop_phasing(tl, k_phase, hcw_thresh)
+    info |= enter_phasing(tl, cfg.k_phase, dv_circ)
+    info["phases_remaining"] = closed_loop_phasing(tl, cfg.k_phase, cfg.hcw_thresh)
     handoff = relative_summary(tl)
 
     # Burn 5
     phase_exit(tl)
 
     # Burn 6+
-    info["hcw_passes"] = hcw_rendezvous(tl, t_rendezvous, dock_thresh, hcw_iter)
+    info["hcw_passes"] = hcw_rendezvous(
+        tl, cfg.t_rendezvous, cfg.dock_thresh, cfg.hcw_iter
+    )
     dock = relative_summary(tl)
 
-    tl.coast(t_final_coast)
+    tl.coast(cfg.t_final_coast)
 
     # Verbose
     if verbose:
@@ -319,6 +350,64 @@ def run_rpo(
 ################################################################################
 #               Helpers
 ################################################################################
+
+
+RPO_PHASES = (
+    ("Plane change", ("Burn 1 ",)),
+    ("Hohmann + phase entry", ("Burn 2 ", "Burn 3 ")),
+    ("Phasing", ("Burn 4.",)),
+    ("Phase exit", ("Burn 5 ",)),
+    ("HCW terminal", ("HCW",)),
+)
+"""(phase label, burn-name prefixes) in mission order, matching `run_rpo`'s burn names."""
+
+
+def dv_breakdown(tl: RpoTimeline, phases=RPO_PHASES) -> list[dict]:
+    """Group a timeline's burns by phase.
+
+    Returns one dict per phase that has burns: phase, n_burns, dv [m/s], frac of total,
+    t_start and t_end [s since the timeline epoch], first_burn and last_burn names.
+    Burns matching no phase go in "Other".
+    """
+    groups = {label: [] for label, _ in phases}
+    groups["Other"] = []
+    for b in tl.burns:
+        label = next(
+            (lab for lab, prefixes in phases if b.name.startswith(prefixes)), "Other"
+        )
+        groups[label].append(b)
+    total = tl.dv_total
+    return [
+        {
+            "phase": label,
+            "n_burns": len(bs),
+            "dv": sum(b.dv_mag for b in bs),
+            "frac": sum(b.dv_mag for b in bs) / total if total else 0.0,
+            "t_start": bs[0].t_s,
+            "t_end": bs[-1].t_s,
+            "first_burn": bs[0].name,
+            "last_burn": bs[-1].name,
+        }
+        for label, bs in groups.items()
+        if bs
+    ]
+
+
+def dv_breakdown_table(tl: RpoTimeline, phases=RPO_PHASES) -> str:
+    """`dv_breakdown` as a fixed-width text table."""
+    rows = dv_breakdown(tl, phases)
+    lines = [
+        f"{'phase':<24}{'burns':>6}{'t [hr]':>16}{'dv [m/s]':>11}{'share':>8}",
+        "-" * 65,
+    ]
+    for r in rows:
+        t = f"{r['t_start'] * SEC_TO_HOUR:.1f}-{r['t_end'] * SEC_TO_HOUR:.1f}"
+        lines.append(
+            f"{r['phase']:<24}{r['n_burns']:>6}{t:>16}{r['dv']:>11.2f}{r['frac']:>8.1%}"
+        )
+    lines.append("-" * 65)
+    lines.append(f"{'total':<24}{len(tl.burns):>6}{'':>16}{tl.dv_total:>11.2f}{'':>8}")
+    return "\n".join(lines)
 
 
 def relative_summary(tl: RpoTimeline) -> dict:

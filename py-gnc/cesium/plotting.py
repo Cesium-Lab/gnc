@@ -132,16 +132,25 @@ def plot_rsw(
     rv_rel_rsw,
     burns=None,
     *,
-    title="Chaser relative to target, in-plane (HCW view)",
+    title="Chaser relative to target, in-plane (Linearized RSW view)",
     color="#2a78d6",
     height=550,
     show=True,
+    rho=None,
+    r_body=None,
+    body_color="#c1440e",
+    circles=None,
 ) -> go.Figure:
     """Plot relative motion in the target's RSW frame (HCW view).
 
     Along-track S is horizontal with +S (V-bar, direction of motion) to the
     left, radial R (R-bar, away from the planet) is up, and both axes share one
     km scale. The target sits at the origin.
+
+    With `rho` and `r_body`, the central body is drawn as the circle
+    (R + rho)^2 + S^2 = r_body^2: its center sits at R = -rho below the target.
+    This treats the target's orbital radius as constant, so it is approximate
+    for eccentric or J2-perturbed targets.
 
     Parameters
     ----------
@@ -156,6 +165,17 @@ def plot_rsw(
         Figure title, path color, and figure height [px].
     show : bool, optional
         Call `fig.show()` (default True).
+    rho : float, optional
+        Approximate target orbital radius (distance from the body center) [m].
+        Required with `r_body`.
+    r_body : float, optional
+        Central body radius [m]. Draws the body surface when given with `rho`.
+    body_color : str, optional
+        Fill color of the body.
+    circles : dict or sequence of dict, optional
+        Circles around the target, e.g. the HCW linearization region or a
+        keep-out zone. Keys: radius [m] (required), name, color, dash
+        (plotly dash style, default "dash").
 
     Returns
     -------
@@ -166,7 +186,60 @@ def plot_rsw(
     r_km = rv_rel_rsw[:, 0] / 1000.0
     s_km = rv_rel_rsw[:, 1] / 1000.0
 
+    if (rho is None) != (r_body is None):
+        raise ValueError("rho and r_body must be given together")
+
     fig = go.Figure()
+    if r_body is not None:
+        if not (np.isfinite(rho) and np.isfinite(r_body) and 0 < r_body < rho):
+            raise ValueError("need finite 0 < r_body < rho")
+        theta = np.linspace(0, 2 * np.pi, 721)
+        fig.add_trace(
+            go.Scatter(
+                x=r_body / 1000.0 * np.sin(theta),
+                y=-rho / 1000.0 + r_body / 1000.0 * np.cos(theta),
+                mode="lines",
+                fill="toself",
+                fillcolor=body_color,
+                opacity=0.35,
+                line={"color": body_color, "width": 1},
+                name="Surface",
+                hovertemplate="surface<extra></extra>",
+            )
+        )
+        # Frame the chaser path plus the surface directly below the target.
+        r_lo = min(r_km.min(), (r_body - rho) / 1000.0, 0.0)
+        r_hi = max(r_km.max(), 0.0)
+        s_lo, s_hi = min(s_km.min(), 0.0), max(s_km.max(), 0.0)
+        pad_r, pad_s = 0.05 * (r_hi - r_lo or 1.0), 0.05 * (s_hi - s_lo or 1.0)
+        y_range = [r_lo - pad_r, r_hi + pad_r]
+        x_range = [s_hi + pad_s, s_lo - pad_s]  # reversed: +S to the left
+    circles = [circles] if isinstance(circles, dict) else list(circles or [])
+    phi = np.linspace(0, 2 * np.pi, 361)
+    for idx, circle in enumerate(circles):
+        radius = float(circle["radius"])
+        if not (np.isfinite(radius) and radius > 0):
+            raise ValueError("circle radius must be positive and finite")
+        r_c = radius / 1000.0
+        name = circle.get("name", f"{r_c:g} km")
+        fig.add_trace(
+            go.Scatter(
+                x=r_c * np.sin(phi),
+                y=r_c * np.cos(phi),
+                mode="lines",
+                name=name,
+                line={
+                    "color": circle.get("color", qualitative.Plotly[idx % 10]),
+                    "width": 1.5,
+                    "dash": circle.get("dash", "dash"),
+                },
+                hovertemplate=f"{name}<extra></extra>",
+            )
+        )
+        if r_body is not None:
+            # Make sure the whole circle stays in frame.
+            y_range = [min(y_range[0], -1.05 * r_c), max(y_range[1], 1.05 * r_c)]
+            x_range = [max(x_range[0], 1.05 * r_c), min(x_range[1], -1.05 * r_c)]
     fig.add_trace(
         go.Scattergl(
             x=s_km,
@@ -220,6 +293,10 @@ def plot_rsw(
         zeroline=True,
         zerolinecolor="#c3c2b7",
     )
+    if r_body is not None:
+        # Explicit ranges so the full body circle doesn't drive autorange.
+        fig.update_xaxes(range=x_range, autorange=False)
+        fig.update_yaxes(range=y_range, autorange=False)
     fig.update_layout(
         title=title, template="plotly_white", showlegend=False, height=height
     )
