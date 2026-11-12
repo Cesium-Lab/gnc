@@ -544,6 +544,10 @@ class COES:
         """Argument of latitude"""
         return self.aop + self.ta
 
+    def h(self, mu: float):
+        rv = self.to_rv(mu)
+        return np.cross(rv[0:3],rv[3:6])
+
     def E_sp(self, mu: float):
         return -mu / 2 / self.a
 
@@ -572,6 +576,6 @@ class COES:
     def print(self, name: str, mu: float = None) -> None:
         """Print the elements in km and deg, optionally prefixed with `name`."""
         ret = f"{name}: {self}"
-        if mu is not None and abs(self.a) > 1e-1:
+        if mu is not None and abs(self.a) > 1: # m
             ret += f" (E_sp = {self.E_sp(mu)* M_TO_KM**2:.3f} km2/s2)"
         print(ret)
