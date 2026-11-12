@@ -1,5 +1,36 @@
 import numpy as np
 
+from ..math.base import angle_between, unit
+from ..math.rotations import wrap_to_2pi
+
+
+def node_line_finder(rv_chaser: np.ndarray, rv_target: np.ndarray):
+    """Line of nodes between two orbit planes, and how far the chaser is from it.
+
+    Parameters
+    ----------
+    rv_chaser, rv_target : np.ndarray (6,)
+        Chaser and target states in one inertial frame [m, m/s].
+
+    Returns
+    -------
+    n_hat : np.ndarray (3,)
+        Unit vector along `h_chaser x h_target`.
+    d_ta : float
+        True-anomaly sweep from the chaser to `n_hat`, in `[0, 2*pi)` [rad].
+    h_chaser, h_target : np.ndarray (3,)
+        Specific angular momenta [m2/s].
+    """
+    r_c, v_c = rv_chaser[0:3], rv_chaser[3:6]
+    h_chaser = np.cross(r_c, v_c)
+    h_target = np.cross(rv_target[0:3], rv_target[3:6])
+    n_hat = unit(np.cross(h_chaser, h_target))
+
+    # Negative if the chaser has already passed n_hat this revolution
+    d_ta = wrap_to_2pi(angle_between(r_c, n_hat) * np.sign(np.dot(v_c, n_hat)))
+
+    return n_hat, d_ta, h_chaser, h_target
+
 
 # TODO: Example 6-4 p. 344
 def guid_i_change(di: float, phi_fpa: float, v_i: float):

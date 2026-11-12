@@ -5,12 +5,15 @@ from cesium.constants import DEG_TO_RAD, KM_TO_M, MIN_TO_SEC, RAD_TO_DEG
 from cesium.orbital.coes import (
     COES,
     E_from_ta,
+    M_from_ta,
     coes_to_rv,
     kepler_eq,
     kepler_eq_h,
     kepler_eq_p,
+    orbit_sweep,
     rv_to_coes,
     sma_from_rv,
+    ta_from_M,
     vis_viva,
 )
 from cesium.world import MU_EARTH, MU_EARTH_KM
@@ -331,3 +334,37 @@ class Test_COES:
         assert coes.r_p == pytest.approx(7200e3)
         assert coes.r_a == pytest.approx(8800e3)
         assert coes.n(MU_EARTH) == pytest.approx(np.sqrt(MU_EARTH / 8000e3**3))
+
+
+@pytest.mark.parametrize("e", [0.0, 0.1, 0.7])
+@pytest.mark.parametrize("ta", [0.0, 0.5, 2.0, 3.5, 6.0])
+def test_mean_anomaly_round_trip(ta, e):
+    assert ta_from_M(M_from_ta(ta, e), e) == pytest.approx(ta, abs=1e-9)
+
+
+class Test_orbit_sweep:
+    COES0 = COES(8000e3, 0.2, 0.3, 0.4, 0.5, 0.1)
+
+    def test_half_orbit_from_periapsis_is_half_period(self):
+        start = self.COES0.with_ta(0.0)
+        moved, dt = orbit_sweep(start, np.pi, MU_EARTH)
+        assert moved.ta == pytest.approx(np.pi)
+        assert dt == pytest.approx(start.period(MU_EARTH) / 2)
+
+    def test_matches_mean_motion_and_wraps_forward(self):
+        _, dt = orbit_sweep(self.COES0, 1.0, MU_EARTH)
+        dM = M_from_ta(self.COES0.ta + 1.0, 0.2) - M_from_ta(self.COES0.ta, 0.2)
+        assert dt == pytest.approx(dM / self.COES0.n(MU_EARTH))
+        _, dt_back = orbit_sweep(self.COES0, -1.0, MU_EARTH)
+        assert 0 < dt_back < self.COES0.period(MU_EARTH)
+
+
+def test_with_dv_prograde_raises_apoapsis_from_periapsis():
+    coes = COES(7000e3, 0.01, 0.2, 0.3, 0.4, 0.0)
+    v_hat = coes.to_rv(MU_EARTH)[3:6] / np.linalg.norm(coes.to_rv(MU_EARTH)[3:6])
+    after = coes.with_dv(10.0 * v_hat, MU_EARTH)
+    assert after.r_p == pytest.approx(coes.r_p, rel=1e-9)
+    assert after.r_a > coes.r_a
+    assert after.i == pytest.approx(coes.i) and after.raan == pytest.approx(coes.raan)
+    unchanged = coes.with_dv(np.zeros(3), MU_EARTH).delta(coes)  # wraps ta = 0 vs 2pi
+    assert unchanged.elements() == pytest.approx(np.zeros(6), abs=1e-6)

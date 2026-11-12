@@ -9,7 +9,7 @@ from numpy.linalg import norm
 
 from ..constants import M_TO_KM, RAD_TO_DEG
 from ..math.quaternion import unit
-from ..math.rotations import dcm_x, dcm_z, wrap_to_pi
+from ..math.rotations import dcm_x, dcm_z, wrap_to_2pi, wrap_to_pi
 from ..world import J2_EARTH, R_EARTH
 from ..world.constants import MU_EARTH
 
@@ -175,6 +175,74 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
         E_n = E_guess
 
     raise ValueError(f"Did not converge for {M=}, {e=}")
+
+
+def M_from_ta(ta: float, e: float):
+    """Convert true anomaly to mean anomaly for an elliptical orbit.
+
+    Parameters
+    ----------
+    ta : float
+        True anomaly [rad].
+    e : float
+        Eccentricity, `0 <= e < 1`.
+
+    Returns
+    -------
+    M : float
+        Mean anomaly [rad], in `[-e, 2*pi + e)` (not wrapped).
+
+    References
+    ----------
+    Vallado 4e, Equations 2-14 and 2-4, pp. 48 and 45.
+    """
+    E = E_from_ta(ta, e)
+    return E - e * np.sin(E)
+
+
+def ta_from_M(M: float, e: float):
+    """Convert mean anomaly to true anomaly for an elliptical orbit.
+
+    Solves Kepler's equation with `kepler_eq`.
+
+    Parameters
+    ----------
+    M : float
+        Mean anomaly [rad].
+    e : float
+        Eccentricity, `0 <= e < 1`.
+
+    Returns
+    -------
+    ta : float
+        True anomaly, wrapped to `[0, 2*pi)` [rad].
+    """
+    return ta_from_E(kepler_eq(M, e), e)
+
+
+def orbit_sweep(coes: COES, d_ta: float, mu: float = MU_EARTH) -> tuple[COES, float]:
+    """Coast along a two-body ellipse through a change in true anomaly.
+
+    Parameters
+    ----------
+    coes : COES
+        Starting orbit and true anomaly (elliptical).
+    d_ta : float
+        Change in true anomaly to sweep [rad]; wrapped so the coast is forward
+        and shorter than one period.
+    mu : float, optional
+        Gravitational parameter of the central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    coes_new : COES
+        Same orbit at true anomaly `coes.ta + d_ta`.
+    dt : float
+        Coast time, in `[0, period)` [s].
+    """
+    ta_new = coes.ta + d_ta
+    dM = wrap_to_2pi(M_from_ta(ta_new, coes.e) - M_from_ta(coes.ta, coes.e))
+    return coes.with_ta(ta_new), dM / coes.n(mu)
 
 
 # TODO: test
@@ -562,6 +630,12 @@ class COES:
     def with_ta(self, ta: float) -> COES:
         """Same orbit at a different true anomaly [rad]."""
         return replace(self, ta=float(ta))
+
+    def with_dv(self, dv: np.ndarray, mu: float) -> COES:
+        """Orbit after an impulsive delta-v [m/s], in the same inertial frame as `to_rv`."""
+        rv = self.to_rv(mu)
+        rv[3:6] += dv
+        return COES.from_rv(rv, mu)
 
     def delta(self, other: COES) -> COES:
         """Element change `self - other`; angles wrapped to [-pi, pi)."""
