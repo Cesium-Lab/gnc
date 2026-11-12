@@ -299,7 +299,9 @@ class Test_COES:
 
     def test_from_rv_round_trip(self):
         r, v = coes_to_rv(*self.ELEMENTS, mu=MU_EARTH)
-        coes = COES.from_rv(r, v, MU_EARTH)
+        coes = COES.from_r_and_v(r, v, MU_EARTH)
+        assert coes.elements() == pytest.approx(self.ELEMENTS, rel=1e-9)
+        coes = COES.from_rv(np.concatenate((r, v)), MU_EARTH)
         assert coes.elements() == pytest.approx(self.ELEMENTS, rel=1e-9)
 
     def test_with_ta_changes_only_true_anomaly(self):

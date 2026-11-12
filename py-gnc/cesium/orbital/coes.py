@@ -503,9 +503,14 @@ class COES:
         return cls(float(a), float(e), float(i), float(raan), float(aop), float(ta))
 
     @classmethod
-    def from_rv(cls, r_I: np.ndarray, v_I: np.ndarray, mu: float) -> COES:
+    def from_r_and_v(cls, r_I: np.ndarray, v_I: np.ndarray, mu: float) -> COES:
         """Build from an inertial state with `rv_to_coes`."""
         return cls.from_array(rv_to_coes(r_I, v_I, mu))
+
+    @classmethod
+    def from_rv(cls, rv_I: np.ndarray, mu: float) -> COES:
+        """Build from an inertial state with `rv_to_coes`."""
+        return cls.from_array(rv_to_coes(rv_I[0:3], rv_I[3:6], mu))
 
     def elements(self) -> np.ndarray:
         """`[a, e, i, raan, aop, ta]` as a (6,) array."""
@@ -517,6 +522,10 @@ class COES:
     def to_rv(self, mu: float) -> tuple[np.ndarray, np.ndarray]:
         """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
         return np.concatenate(coes_to_rv(*self.elements(), mu=mu))
+    
+    def to_r_and_v(self, mu: float) -> tuple[np.ndarray, np.ndarray]:
+        """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
+        return coes_to_rv(*self.elements(), mu=mu)
 
     def n(self, mu: float) -> float:
         """Mean motion [1/s]."""
