@@ -149,7 +149,7 @@ class EarthDepartureTrajectory:
         if verbose:
             print("midcourse_correction()")
             print(
-                f"  losest Lambert sample: {closest_lambert_i}; date: {jd_to_greg(self.closest_lambert_jd)}"
+                f"  closest Lambert sample: {closest_lambert_i}; date: {jd_to_greg(self.closest_lambert_jd)}"
             )
             print(
                 f"  Earth-relative position separation: {lambert_distances_km[closest_lambert_i]:.3f} km"

@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.linalg import norm
 
 from ..math.base import angle_between, unit
 from ..math.rotations import wrap_to_2pi
@@ -56,6 +57,17 @@ def guid_i_change(di: float, phi_fpa: float, v_i: float):
     """
     dv = 2 * v_i * np.cos(phi_fpa) * np.sin(di / 2.0)
     return dv
+
+# TODO: test with vallado above
+def guid_plane_change_3d(rv_chaser: np.ndarray, h_target: np.ndarray):
+    """Keep radial speed but just change the direction of planar speed"""
+    h_hat = unit(h_target)
+    r_hat = unit(rv_chaser[0:3])
+    v = rv_chaser[3:6]
+    v_radial = np.dot(v,r_hat) * r_hat
+    v_planar = v - v_radial
+    v_new = v_radial + unit(np.cross(h_hat, r_hat)) * norm(v_planar)
+    return v_new - v
 
 
 # TODO: Example 6-6 p. 349

@@ -630,6 +630,10 @@ class COES:
         """Same orbit at a different true anomaly [rad]."""
         return replace(self, ta=float(ta))
 
+    def bias_raan(self, d_raan: float) -> COES:
+        """Same orbit with RAAN offset by `d_raan` [rad]."""
+        return replace(self, raan=float(self.raan + d_raan))
+
     def with_dv(self, dv: np.ndarray, mu: float) -> COES:
         """Orbit after an impulsive delta-v [m/s], in the same inertial frame as `to_rv`."""
         rv = self.to_rv(mu)

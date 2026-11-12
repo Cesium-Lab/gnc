@@ -81,10 +81,20 @@ class RpoTimeline:
         """Current chaser state (copy) [m, m/s]."""
         return self._rv_c[-1][-1].copy()
 
+    # @property
+    # def chaser_coes(self) -> COES:
+    #     """Current chaser state (copy) coes."""
+    #     return COES.from_rv(self.chaser, self.mu)
+
     @property
     def target(self) -> np.ndarray:
         """Current target state (copy) [m, m/s]."""
         return self._rv_t[-1][-1].copy()
+
+    # @property
+    # def target_coes(self) -> COES:
+    #     """Current target state (copy) coes."""
+    #     return COES.from_rv(self.target, self.mu)
 
     def coes(self) -> tuple[COES, COES]:
         """(chaser, target) COES of the current propagated states."""
@@ -144,6 +154,7 @@ class RpoTimeline:
             np.concatenate(self._rv_c),
             np.concatenate(self._rv_t),
         )
+    
 
     def epochs_tdb_s(self) -> np.ndarray:
         """Absolute epochs of every sample in `arrays()` [TDB s past J2000]."""
@@ -161,6 +172,12 @@ class RpoTimeline:
 
             pairs = tqdm(pairs, total=len(ts))
         return ts, np.array([hcw_pci_to_rsw(t_, c_) for t_, c_ in pairs])
+
+    def rel_at(self, t):
+        """Chaser RSW state relative to the target at the sample nearest t [m, m/s]."""
+        ts, rv_c, rv_t = self.arrays()
+        k = min(np.searchsorted(ts, t), len(ts) - 1)
+        return hcw_pci_to_rsw(rv_t[k], rv_c[k])
 
     @property
     def dv_total(self) -> float:
