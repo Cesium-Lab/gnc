@@ -4,7 +4,7 @@ from numpy.linalg import norm
 
 from cesium.constants import DAY_TO_SEC, DEG_TO_RAD, RAD_TO_DEG
 from cesium.guidance.arrival import b_plane_flyby, b_plane_frame, plan_direct_injection
-from cesium.math.base import unit
+from cesium.math.base import angle_between, unit
 from cesium.orbital.coes import rv_to_coes
 from cesium.physics.dynamics import propagate_two_body
 from cesium.world.constants import MU_MARS, R_MARS
@@ -176,9 +176,7 @@ class Test_plan_direct_injection:
             atol=1e-6,
         )[-1]
 
-        angle_deg = (
-            np.arccos(np.dot(unit(rv_far[3:]), unit(self.V_INF_MCI))) * RAD_TO_DEG
-        )
+        angle_deg = angle_between(rv_far[3:], self.V_INF_MCI) * RAD_TO_DEG
         assert angle_deg < 0.05
         assert norm(rv_far[3:]) == pytest.approx(EXAMPLE_V_INF, rel=1e-3)
 
