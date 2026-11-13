@@ -10,6 +10,9 @@
 extras/open-street-maps/cache/
 extras/open-street-maps/data/
 
+projects/mars-courier/presentation/*
+!projects/mars-courier/presentation/*.py
+
 
 ##################################################################
 #                   From before
