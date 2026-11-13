@@ -6,10 +6,12 @@ from cesium.physics.energy import (
     calc_jacobi_constant,
     calc_kinetic_energy,
     calc_potential_energy,
+    calc_specific_energy,
     calc_total_energy,
 )
+from cesium.physics.gravity import grav_accel
 from cesium.world import MU_EARTH
-from cesium.world.constants import A_MOON, MU_MOON
+from cesium.world.constants import A_MOON, J2_EARTH, MU_MOON, R_EARTH
 
 
 def test_PE_values_of_0():
@@ -132,3 +134,35 @@ class Test_calc_jacobi_constant:
         h_z = np.cross(r, v_I)[2]
         c = calc_jacobi_constant(rv_S, MU_EARTH, 0.0, 0.0, self.L, w_s)
         assert c == pytest.approx(-2 * (energy - w_s * h_z), rel=1e-12)
+
+
+class Test_calc_specific_energy:
+    def test_circular_orbit_is_minus_half_mu_over_r(self):
+        """Hand calc: v^2 = mu / r on a circle, so E = mu/(2r) - mu/r = -mu / (2r)."""
+        r = 7000e3
+        rv = np.array([r, 0.0, 0.0, 0.0, np.sqrt(MU_EARTH / r), 0.0])
+        assert calc_specific_energy(rv, MU_EARTH) == pytest.approx(-MU_EARTH / (2 * r))
+
+    def test_j2_term_is_potential_of_grav_accel(self):
+        """Independent of both formulas' algebra: a = -grad(U), by central differences."""
+        r0 = np.array([4.1e6, -3.3e6, 4.6e6])
+
+        def potential(r):  # energy at rest is the potential
+            return calc_specific_energy(
+                np.concatenate((r, np.zeros(3))), MU_EARTH, J2_EARTH, R_EARTH
+            )
+
+        h = 1.0  # m
+        grad = np.array(
+            [
+                (potential(r0 + h * e) - potential(r0 - h * e)) / (2 * h)
+                for e in np.eye(3)
+            ]
+        )
+        a = grav_accel(r0, MU_EARTH, J2_EARTH, R_EARTH)
+        assert -grad == pytest.approx(a, rel=1e-6)
+
+    def test_batched_states(self):
+        rv = np.array([[7000e3, 0, 0, 0, 7500.0, 0], [0, 8000e3, 0, -7000.0, 0, 0]])
+        expected = [calc_specific_energy(row, MU_EARTH) for row in rv]
+        assert calc_specific_energy(rv, MU_EARTH) == pytest.approx(expected)

@@ -1,6 +1,6 @@
 import numpy as np
-from numpy.linalg import norm
 import pytest
+from numpy.linalg import norm
 
 from cesium.constants import DEG_TO_RAD, KM_TO_M, MIN_TO_SEC, RAD_TO_DEG
 from cesium.math.rotations import wrap_to_pi

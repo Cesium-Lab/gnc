@@ -7,6 +7,8 @@ Two kinds of checks:
   pure guidance functions can't silently change the result.
 """
 
+from itertools import pairwise
+
 import numpy as np
 import pytest
 from numpy.linalg import norm
@@ -14,6 +16,7 @@ from numpy.linalg import norm
 from cesium.constants import KM_TO_M, MIN_TO_SEC
 from cesium.guidance.hcw import RpoConfig, dv_breakdown, run_rpo
 from cesium.orbital.coes import COES
+from cesium.physics.energy import calc_specific_energy
 from cesium.world.constants import J2_MARS, MU_MARS, R_MARS
 
 
@@ -160,6 +163,35 @@ class Test_run_rpo:
         assert case["tl"].dv_total == pytest.approx(
             DV_TOTAL_PIN[case["name"]], rel=1e-4
         )
+
+    def test_target_conserves_j2_energy_and_h_z(self, case):
+        """Independent check of the J2 truth propagation: the target never burns, and
+        the axisymmetric J2 field conserves both E (with J2 potential) and h_z.
+
+        Without the J2 potential term, E drifts ~2.5e-3 here, so this discriminates.
+
+        HMMM
+        """
+        _, _, rv_t = case["tl"].arrays()
+        energy = calc_specific_energy(rv_t, CFG.mu, CFG.j2, CFG.r_cb)
+        h_z = np.cross(rv_t[:, 0:3], rv_t[:, 3:6])[:, 2]
+        assert energy == pytest.approx(energy[0], rel=1e-6)
+        assert h_z == pytest.approx(h_z[0], rel=1e-6)
+
+    def test_chaser_conserves_j2_energy_between_burns(self, case):
+        """Energy is piecewise constant: flat on every coast, jumping only at burns."""
+        tl = case["tl"]
+        ts, rv_c, _ = tl.arrays()
+        energy = calc_specific_energy(rv_c, CFG.mu, CFG.j2, CFG.r_cb)
+
+        # Each burn overwrites the last sample of its coast with the post-burn state
+        burn_idx = sorted({int(np.flatnonzero(ts == b.t_s)[-1]) for b in tl.burns})
+        edges = [0, *burn_idx, len(ts)]
+        coasts = [(a, b) for a, b in pairwise(edges) if b - a > 1]
+        assert len(coasts) >= len(burn_idx)  # every burn is followed by a coast
+
+        for a, b in coasts:
+            assert energy[a:b] == pytest.approx(energy[a], rel=1e-6)
 
     def test_handoff_inside_hcw_thresh(self, case, request: pytest.MarkGenerator):
         if case["name"] == "nominal":
