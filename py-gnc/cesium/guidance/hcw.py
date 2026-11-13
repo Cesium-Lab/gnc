@@ -7,7 +7,7 @@ from ..constants import DAY_TO_SEC, M_TO_KM, RAD_TO_DEG, SEC_TO_HOUR
 from ..math.base import unit
 from ..math.rotations import wrap_to_2pi, wrap_to_pi
 from ..orbital.coes import COES, orbit_sweep, vis_viva
-from ..orbital.hcw import calc_Phi, hcw_pci_to_rsw
+from ..orbital.hcw import calc_Phi
 from .coplanar import guid_coaxial_hohmann, guid_phasing_same_orbit
 from .maneuvers import Burn
 from .noncoplanar import guid_plane_change_3d, node_line_finder
@@ -62,11 +62,9 @@ def plan_hcw_two_impulse(
 ####################################################################################################
 
 ################################################################################
-#               Plane-changing
+#               Tolerances
 ################################################################################
 
-
-# TODO: test
 PLANE_TOL_RAD = 1e-6
 """Plane angle below which Burn 1 is skipped (the node line is undefined for coplanar orbits)."""
 
@@ -74,110 +72,99 @@ SHAPE_TOL_M = 1.0
 """Apsis-radius error below which Burn 2 is skipped."""
 
 
-def plane_change_at_node(tl: RpoTimeline, raan_bias: float = 0.0) -> np.ndarray | None:
-    """Burn 1: coast to the node with the target plane (RAAN offset by `raan_bias` [rad]) and rotate into it.
+################################################################################
+#               Pure planners: state / elements in, numbers out (no timeline)
+################################################################################
 
-    Returns the node-line unit vector, or None (no burn) when the planes already
-    agree to within `PLANE_TOL_RAD`.
+
+def shape_matches(chaser: COES, a_target: float, tol: float = SHAPE_TOL_M) -> bool:
+    """True if both chaser apses are within `tol` [m] of `a_target` (no Hohmann needed)."""
+    return max(abs(chaser.r_p - a_target), abs(chaser.r_a - a_target)) < tol
+
+
+def plan_plane_change(
+    rv_chaser: np.ndarray,
+    target: COES,
+    mu: float,
+    raan_bias: float = 0.0,
+    tol: float = PLANE_TOL_RAD,
+) -> tuple[np.ndarray, float] | None:
+    """Node line with the target plane (RAAN offset by `raan_bias` [rad]) and the
+    chaser's true-anomaly sweep to it.
+
+    Returns (node-line unit vector, sweep in `[0, 2*pi)` [rad]), or None if the planes
+    already agree to within `tol` [rad] (the node line is then undefined).
     """
-    # Node
-    c, t = tl.coes()
-    rv_target_biased = t.bias_raan(raan_bias).to_rv(tl.mu)
-    n_hat, d_node, h_c, h_t = node_line_finder(tl.chaser, rv_target_biased)
-    if norm(np.cross(unit(h_c), unit(h_t))) < PLANE_TOL_RAD:
+    rv_target_biased = target.bias_raan(raan_bias).to_rv(mu)
+
+    # Check before node_line_finder, which can't normalize a zero node vector
+    h_c = np.cross(rv_chaser[0:3], rv_chaser[3:6])
+    h_t = np.cross(rv_target_biased[0:3], rv_target_biased[3:6])
+    if norm(np.cross(unit(h_c), unit(h_t))) < tol:
         return None
+    n_hat, d_ta, _, _ = node_line_finder(rv_chaser, rv_target_biased)
+    return n_hat, d_ta
 
-    # Sweep until node
-    _, dt_coast = orbit_sweep(c, d_node, tl.mu)
-    tl.coast(dt_coast)
 
-    # Actual burn
-    _, t = tl.coes()
-    tl.burn(
-        guid_plane_change_3d(tl.chaser, t.bias_raan(raan_bias).h(tl.mu)),
-        "Burn 1 (plane)",
+def plan_coast_to_nearer_apsis(chaser: COES, mu: float) -> tuple[float, bool]:
+    """(coast time [s], )."""
+    closer_to_periapsis = chaser.ta > np.pi
+    sweep = (
+        (2 * np.pi - chaser.ta)
+        if closer_to_periapsis
+        else wrap_to_2pi(np.pi - chaser.ta)
     )
-    return n_hat
+    _, dt = orbit_sweep(chaser, sweep, mu)
+    return dt, closer_to_periapsis
 
-
-################################################################################
-#               sma and eccentricity change
-################################################################################
 
 def plan_hohmann_from_apsis(
-    chaser: COES, target_a: float, at_periapsis: bool, mu: float
-) -> tuple[float, float, float] | None:
-    """(dv_a [m/s] along-track, transfer time [s], dv_b [m/s] along-track),
-    or None if both apses are already within SHAPE_TOL_M of target_a."""
+    chaser: COES, a_target: float, at_periapsis: bool, mu: float
+) -> tuple[float, float, float]:
+    """Hohmann from the chaser's current apsis to a circle of radius `a_target`.
 
-
-# # TODO: test
-# def coast_to_nearer_apsis(tl: RpoTimeline) -> bool:
-#     """Coast the chaser to its nearer apsis; returns True if that apsis is periapsis."""
-#     c, _ = tl.coes()
-#     periapsis_is_closer = c.ta > np.pi
-#     sweep = (2 * np.pi - c.ta) if periapsis_is_closer else wrap_to_2pi(np.pi - c.ta)
-#     tl.coast(orbit_sweep(c, sweep, tl.mu)[1])
-#     return periapsis_is_closer
-
-# TODO: test
-def plan_coast_to_nearer_apsis(chaser: COES, mu: float) -> tuple[float, bool]:
-    """(coast time [s], True if the nearer apsis is periapsis)."""
-    periapsis_is_closer = chaser.ta > np.pi
-    sweep = (2 * np.pi - chaser.ta) if periapsis_is_closer else wrap_to_2pi(np.pi - chaser.ta)
-    _, dt = orbit_sweep(chaser, sweep, mu)
-    return dt, periapsis_is_closer
-
-
-# TODO: test
-def hohmann_to_target_radius(tl: RpoTimeline) -> float:
-    """Burn 2: from the nearer closest apsis do Hohmann toward the target sma
-
-    Applies the first burn and coasts the transfer. Returns the (unapplied) second-burn
-    to-go to merge with the next maneuver. Skipped (returns 0) when both apses are
-    already within `SHAPE_TOL_M` of the target's semi-major axis.
+    Returns (dv_a [m/s], transfer time [s], dv_b [m/s]); both burns are along-track
+    (positive prograde), since velocity is purely along-track at an apsis.
     """
-    c, t = tl.coes()
-    if max(abs(c.r_p - t.a), abs(c.r_a - t.a)) < SHAPE_TOL_M:
-        return 0.0  # already on the target radius: no transfer needed
-    
-    dt, periapsis_is_closer = plan_coast_to_nearer_apsis(c, tl.mu)
-    tl.coast(dt)
-
-    c, t = tl.coes()
     _, dt_trans, dv_a, dv_b = guid_coaxial_hohmann(
-        c.r_p, c.r_a, t.a, t.a, depart_at_periapsis=periapsis_is_closer, mu=tl.mu
+        chaser.r_p,
+        chaser.r_a,
+        a_target,
+        a_target,
+        depart_at_periapsis=at_periapsis,
+        mu=mu,
     )
-    tl.burn(dv_a * unit(tl.chaser[3:6]), "Burn 2 (Hohmann)")
-    tl.coast(dt_trans)
-    return dv_b
+    return dv_a, dt_trans, dv_b
 
 
-################################################################################
-#               Phasing! !!!
-################################################################################
+def plan_along_track_to_sma(rv: np.ndarray, a: float, mu: float) -> np.ndarray:
+    """Along-track dv [m/s] that puts the orbit through `rv` onto semi-major axis `a` [m].
 
-# TODO: test
-def enter_phasing(
-    rv_c: np.ndarray,
+    Changes the speed to vis-viva at the current radius; direction is unchanged.
+    """
+    v_req = vis_viva(norm(rv[0:3]), a, mu)
+    return (v_req - norm(rv[3:6])) * unit(rv[3:6])
+
+
+def plan_enter_phasing(
+    rv_chaser: np.ndarray,
     target: COES,
     *,
     mu: float,
-    r_cb: float,
     k_phase: int,
     dv_circ: float = 0.0,
+    r_cb: float | None = None,
 ) -> tuple[np.ndarray, float, float]:
-    """Burn 3: circularize (`dv_circ` [m/s], along-track) and enter a `k_phase`-rev phasing orbit in one burn.
+    """Combine a "would-be-applied" circularization burn (`dv_circ` [m/s], along-track) and `k_phase` phasing-entry in one burn
 
-    Returns (Burn 3 dv vector [m/s], phasing semi-major axis [m], total phasing time [s]).
+    Returns (dv vector [m/s], phasing semi-major axis [m], total phasing time [s]).
     """
-    # Anomaly of chaser WITH the burn-to-go applied
-    v_hat = unit(rv_c[3:6])
-    rv_circ = rv_c.copy()
+    # Phase angle of the chaser WITH the circularization burn-to-go applied
+    v_hat = unit(rv_chaser[3:6])
+    rv_circ = rv_chaser.copy()
     rv_circ[3:6] += dv_circ * v_hat
     c_circ = COES.from_rv(rv_circ, mu)
 
-    # Phase velocity
     dv_ph, dt_ph, a_ph = guid_phasing_same_orbit(
         target.a,
         wrap_to_pi(c_circ.aol - target.aol),
@@ -187,11 +174,80 @@ def enter_phasing(
         deg=False,
         r_cb=r_cb,
     )
+    # dv_ph is the round trip (enter + exit); only the entry half is applied here
+    v_phase_enter = (dv_circ + dv_ph / 2) * v_hat
+    return v_phase_enter, a_ph, dt_ph
 
-    dv_enter = (dv_circ + dv_ph / 2) * v_hat
-    return dv_enter, a_ph, dt_ph
 
-# TODO: test
+################################################################################
+#               Wrappers that act on the RpoTimeline
+################################################################################
+
+
+def plane_change_at_node(tl: RpoTimeline, raan_bias: float = 0.0) -> np.ndarray | None:
+    """Burn 1: coast to the node with the target plane (RAAN offset by `raan_bias` [rad]) and rotate into it.
+
+    Returns the node-line unit vector, or None (no burn) when the planes already
+    agree to within `PLANE_TOL_RAD`.
+    """
+    c, t = tl.coes()
+    plan = plan_plane_change(tl.chaser, t, tl.mu, raan_bias)
+    if plan is None:
+        return None
+    n_hat, d_ta = plan
+
+    _, dt = orbit_sweep(c, d_ta, tl.mu)
+    tl.coast(dt)
+    _, t = tl.coes()  # re-observe: the target plane drifts under J2 during the coast
+    h_new_target = t.bias_raan(raan_bias).h(tl.mu)
+    tl.burn(
+        guid_plane_change_3d(tl.chaser, h_new_target),
+        "Burn 1 (plane)",
+    )
+    return n_hat
+
+
+def hohmann_to_target_radius(tl: RpoTimeline) -> float:
+    """Burn 2: from the nearer apsis, Hohmann toward the target's semi-major axis.
+
+    Applies the first burn and coasts the transfer. Returns the (unapplied) second-burn
+    to-go [m/s] to merge with the next maneuver. Skipped (returns 0) when both apses are
+    already within `SHAPE_TOL_M` of the target's semi-major axis.
+    """
+    c, t = tl.coes()
+    if shape_matches(c, t.a):
+        return 0.0
+
+    dt_coast, closer_to_periapsis = plan_coast_to_nearer_apsis(c, tl.mu)
+    tl.coast(dt_coast)
+
+    c, t = tl.coes()  # re-observe at the apsis
+    dv_a, dt_trans, dv_b = plan_hohmann_from_apsis(c, t.a, closer_to_periapsis, tl.mu)
+    tl.burn(dv_a * unit(tl.chaser[3:6]), "Burn 2 (Hohmann)")
+    tl.coast(dt_trans)
+    return dv_b
+
+
+def enter_phasing(tl: RpoTimeline, k_phase: int, dv_circ: float = 0.0) -> dict:
+    """Burn 3: circularize (merging Burn 2's to-go `dv_circ` [m/s]) and enter phasing.
+
+    Coasts the first phasing rev. Returns the plan: phasing semi-major axis and
+    duration, target a and i.
+    """
+    _, t = tl.coes()
+    dv_to_enter, a_full_ph, dt_full_ph = plan_enter_phasing(
+        tl.chaser, t, mu=tl.mu, k_phase=k_phase, dv_circ=dv_circ, r_cb=tl.r_cb
+    )
+    tl.burn(dv_to_enter, "Burn 3 (circularize + phase entry)")
+    tl.coast(dt_full_ph / k_phase)
+    return {
+        "a_phase": a_full_ph,
+        "t_phase": dt_full_ph,
+        "a_target": t.a,
+        "i_target": t.i,
+    }
+
+
 def closed_loop_phasing(tl: RpoTimeline, k_phase: int, stop_sep: float) -> int:
     """Burns 4.x: same-orbit phasing, re-planned every rev from the chaser's actual state.
 
@@ -199,10 +255,10 @@ def closed_loop_phasing(tl: RpoTimeline, k_phase: int, stop_sep: float) -> int:
     orbit for the remaining revs. Stops early once separation < `stop_sep` [m].
     Returns the number of phasing revs left unused.
     """
-    phases_remaining = k_phase  # Start at max
+    phases_remaining = k_phase
 
     while phases_remaining:
-        # sma of phasing orbit (USING ARGUMENT OF LATITUDE)
+        # Phasing orbit for the remaining revs (phase angle by argument of latitude)
         c, t = tl.coes()
         _, _, a_phase = guid_phasing_same_orbit(
             t.a,
@@ -213,44 +269,24 @@ def closed_loop_phasing(tl: RpoTimeline, k_phase: int, stop_sep: float) -> int:
             deg=False,
             r_cb=tl.r_cb,
         )
-
-        # Burn along chaser prograde
-        r_now = norm(tl.chaser[0:3])
-        v_req = vis_viva(r_now, a_phase, tl.mu)
         tl.burn(
-            (v_req - norm(tl.chaser[3:6])) * unit(tl.chaser[3:6]),
+            plan_along_track_to_sma(tl.chaser, a_phase, tl.mu),
             f"Burn 4.{k_phase - phases_remaining} (phasing)",
         )
         phases_remaining -= 1
 
-        # Coast and break condition
         c, _ = tl.coes()
         tl.coast(c.period(tl.mu))
-        # sep = c.to_r_and_v[0] - t.to_r_and_v[0]
         if norm(tl.to_rsw()[0:3]) < stop_sep:
             break
 
     return phases_remaining
 
 
-# TODO: test
-# def phase_exit(tl: RpoTimeline) -> None:
-#     """Burn 5: along-track burn to the target's semi-major axis."""
-#     # Duplicate of last part of closed-loop-phasing
-#     _, t = tl.coes()
-#     r_now = norm(tl.chaser[0:3])
-#     v_req = vis_viva(r_now, t.a, tl.mu)
-#     tl.burn(
-#         (v_req - norm(tl.chaser[3:6])) * unit(tl.chaser[3:6]), "Burn 5 (phase exit)"
-#     )
-
-def phase_exit(chaser_rv: np.ndarray, a_target: float, mu: float) -> np.ndarray:
-    """Burn 5: along-track burn to the target's semi-major axis."""
-    # Duplicate of last part of closed-loop-phasing
-    r_now = norm(chaser_rv[0:3])
-    v_req = vis_viva(r_now, a_target, mu)
-    v_burn = (v_req - norm(chaser_rv[3:6])) * unit(chaser_rv[3:6])
-    return v_burn
+def phase_exit(tl: RpoTimeline) -> None:
+    """Burn 5: along-track burn back onto the target's semi-major axis."""
+    _, t = tl.coes()
+    tl.burn(plan_along_track_to_sma(tl.chaser, t.a, tl.mu), "Burn 5 (phase exit)")
 
 
 # TODO: test
@@ -261,8 +297,12 @@ def hcw_rendezvous(
 
     Every pass applies the first impulse from the current relative state and coasts
     `t_transfer` [s]; only the final pass's second impulse is applied (earlier ones are
-    superseded by the next re-target). Returns the number of passes used.
+    superseded by the next re-target). Returns the number of passes used; with
+    `max_iter < 1` nothing is planned or applied and it returns 0.
     """
+    if max_iter < 1:
+        return 0
+
     for k in range(max_iter):
         # Guidance
         rv_rsw = tl.to_rsw()
@@ -292,7 +332,6 @@ def hcw_rendezvous(
 ################################################################################
 
 
-# TODO: test
 @dataclass(frozen=True, kw_only=True)
 class RpoConfig:
     """Scenario settings for `run_rpo`: central body, timeline, and maneuver tuning."""
@@ -328,7 +367,6 @@ class RpoConfig:
     """Maximum HCW passes."""
 
 
-# TODO: test
 def run_rpo(
     chaser0: COES,
     target0: COES,
@@ -348,34 +386,18 @@ def run_rpo(
         frame=cfg.frame,
     )
     # Burn 1
-    n_hat = plane_change_at_node(tl, raan_bias)
-    info = {"n_hat": n_hat}
+    info = {"n_hat": plane_change_at_node(tl, raan_bias)}
 
     # Burn 2
-    dv_circ = hohmann_to_target_radius(tl)
+    dv_to_circularize = hohmann_to_target_radius(tl)
 
-    # Burns 3 and 4.#
-    
-    
-    # Apply, considering burn-to-go from before
-    _, t = tl.coes()
-    dv_enter, a_ph, dt_ph = enter_phasing(
-        tl.chaser, t, mu=tl.mu, r_cb=tl.r_cb, k_phase=cfg.k_phase, dv_circ=dv_circ
-    )
-    tl.burn(dv_enter, "Burn 3 (circularize + phase entry)")
-    tl.coast(dt_ph / cfg.k_phase)
-    info |= {"a_phase": a_ph, "t_phase": dt_ph, "a_target": t.a, "i_target": t.i}
-
-
+    # Burns 3 and 4.x
+    info |= enter_phasing(tl, cfg.k_phase, dv_to_circularize)
     info["phases_remaining"] = closed_loop_phasing(tl, cfg.k_phase, cfg.hcw_thresh)
     handoff = relative_summary(tl)
 
     # Burn 5
-    _, t = tl.coes()
-    v_burn = phase_exit(tl.chaser, t.a, tl.mu)
-    tl.burn(v_burn, "Burn 5 (phase exit)")
-    
-    # phase_exit(tl)
+    phase_exit(tl)
 
     # Burn 6+
     info["hcw_passes"] = hcw_rendezvous(
