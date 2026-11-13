@@ -19,6 +19,9 @@ if command -v genhtml >/dev/null; then
     genhtml lcov.info --branch-coverage --quiet \
         --ignore-errors inconsistent,inconsistent,corrupt -o lcov-html
     echo "LCOV HTML:   $PWD/lcov-html/index.html"
+elif [[ -n "${CI:-}" ]]; then
+    echo "genhtml not found in CI (apt-get install lcov)" >&2
+    exit 1
 else
     echo "genhtml not found (brew install lcov); skipping lcov-html"
 fi

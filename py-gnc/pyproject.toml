@@ -42,9 +42,6 @@ show_missing = true
 skip_covered = true
 skip_empty = true
 
-[tool.coverage.html]
-directory = "htmlcov"
-
 [tool.coverage.lcov]
 output = "lcov.info"
 

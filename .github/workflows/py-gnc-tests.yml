@@ -30,10 +30,7 @@ jobs:
           python -m pytest py-gnc -v -o addopts= -m ""
 
   coverage:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: py-gnc
+    runs-on: ubuntu-24.04  # lcov 2.x: run_coverage.sh uses its --ignore-errors categories
 
     steps:
       - name: Checkout repository
@@ -48,23 +45,26 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update && sudo apt-get install -y lcov
           python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+          python -m pip install -e "./py-gnc[dev]"
 
       - name: Run tests with coverage
-        run: |
-          python -m pytest -q -o addopts= -m "" --cov --cov-report=term --cov-report=html
+        run: ./run_coverage.sh
 
       - name: Coverage summary
         if: always()
+        working-directory: py-gnc
         run: python -m coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload HTML report
+      - name: Upload LCOV report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-html
-          path: py-gnc/htmlcov
+          name: coverage-lcov
+          path: |
+            py-gnc/lcov-html
+            py-gnc/lcov.info
 
   lint-everything:
     runs-on: ubuntu-latest
