@@ -86,3 +86,46 @@ def test_tt_tdb_round_trip():
     jd_tt = T.greg_to_jd(2035, 12, 25, 0, 0, 0)
     jd_back = T.jd_tdb_to_tt(T.jd_tt_to_tdb(jd_tt))
     assert (jd_back - jd_tt) * 86400 == pytest.approx(0.0, abs=1e-6)
+
+
+def test_sec_j2000_round_trip():
+    assert T.jd_to_sec_j2000(2451545.0) == 0.0
+    assert T.jd_to_sec_j2000(2451546.0) == pytest.approx(86400.0)
+    assert T.sec_j2000_to_jd(T.jd_to_sec_j2000(2461000.25)) == pytest.approx(
+        2461000.25, abs=1e-9
+    )
+
+
+def test_jd_to_greg_str_formats_and_rounds():
+    assert T.jd_to_greg_str(2451545.0) == "2000-01-01 12:00:00"
+    assert T.jd_to_greg_str(2464686.5, suffix="UTC") == "2035-12-25 00:00:00 UTC"
+    assert (
+        T.jd_to_greg_str(2451545.0 + 1.5 / 86400, decimals=3)
+        == "2000-01-01 12:00:01.500"
+    )
+    # 59.9996 s rounds up and carries through minutes, hours, and the date
+    just_before_midnight = 2451545.5 - 0.0004 / 86400
+    assert T.jd_to_greg_str(just_before_midnight) == "2000-01-02 00:00:00"
+    assert (
+        T.jd_to_greg_str(just_before_midnight, decimals=4) == "2000-01-01 23:59:59.9996"
+    )
+    with pytest.raises(ValueError):
+        T.jd_to_greg_str(2451545.0, decimals=7)
+
+
+def test_jd_to_greg_str_matches_jd_to_greg():
+    jd = T.greg_to_jd(2035, 6, 14, 22, 4, 48)
+    y, mo, d, h, mi, s = T.jd_to_greg(jd)
+    assert (
+        T.jd_to_greg_str(jd)
+        == f"{y:04.0f}-{mo:02.0f}-{d:02.0f} {h:02.0f}:{mi:02.0f}:{round(s):02d}"
+    )
+
+
+def test_jd_tt_to_utc_offset():
+    # TT - UTC = 32.184 s + 37 leap seconds = 69.184 s
+    jd_tt = 2464686.5
+    assert (jd_tt - T.jd_tt_to_utc(jd_tt)) * 86400 == pytest.approx(69.184, abs=1e-4)
+    assert (
+        jd_tt - T.jd_tt_to_utc(jd_tt, tai_minus_utc_s=36.0)
+    ) * 86400 == pytest.approx(68.184, abs=1e-4)

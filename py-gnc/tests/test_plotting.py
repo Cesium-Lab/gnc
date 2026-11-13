@@ -11,7 +11,7 @@ import pytest
 go = pytest.importorskip("plotly.graph_objects")
 pytest.importorskip("matplotlib")
 
-from cesium.plotting import plot_3d, plot_sky
+from cesium.plotting import plot_3d, plot_rsw, plot_separation, plot_sky
 
 
 def test_vector_only_geometry_and_shared_legend():
@@ -203,3 +203,66 @@ def test_sky_plot_radians_and_empty_visibility():
 def test_invalid_options(options):
     with pytest.raises(ValueError):
         plot_3d(show=False, **options)
+
+
+def test_rsw_plot_axes_and_burn_markers():
+    ts = np.linspace(0.0, 3600.0, 10)
+    rv = np.zeros((10, 6))
+    rv[:, 0] = np.linspace(-1000.0, 1000.0, 10)  # R [m]
+    rv[:, 1] = np.linspace(5000.0, 0.0, 10)  # S [m]
+
+    fig = plot_rsw(ts, rv, burns=[(0.0, "start"), (3600.0, "end")], show=False)
+
+    path, burns, target = fig.data
+    assert np.allclose(path.x, rv[:, 1] / 1000.0) and np.allclose(
+        path.y, rv[:, 0] / 1000.0
+    )
+    assert list(burns.text) == ["start", "end"]
+    assert np.allclose(burns.x, [5.0, 0.0]) and np.allclose(burns.y, [-1.0, 1.0])
+    assert (target.x[0], target.y[0]) == (0.0, 0.0)
+    assert fig.layout.xaxis.autorange == "reversed"  # +S (V-bar) to the left
+    assert fig.layout.yaxis.scaleanchor == "x"  # equal km scaling
+
+
+def test_rsw_plot_without_burns():
+    fig = plot_rsw([0.0, 1.0], np.zeros((2, 3)), show=False)
+    assert len(fig.data) == 2  # path + target
+
+
+def test_separation_plot_units_and_burn_lines():
+    ts = np.array([0.0, 60.0, 120.0])
+    r_c = np.array([[3000.0, 4000.0, 0.0]] * 3)
+    r_t = np.zeros((3, 6))
+
+    fig_km = plot_separation(ts, r_c, r_t, burns=[(60.0, "b")], show=False)
+    fig_m = plot_separation(ts, r_c, r_t, units="m", show=False)
+
+    assert fig_km.data[0].x == pytest.approx([0.0, 1.0, 2.0])  # minutes
+    assert fig_km.data[0].y == pytest.approx([5.0] * 3)
+    assert fig_m.data[0].y == pytest.approx([5000.0] * 3)
+    assert fig_m.layout.yaxis.title.text == "Separation [m]"
+    assert fig_km.layout.shapes[0].x0 == 1.0
+
+
+@pytest.mark.parametrize(
+    "kwargs, x_axis, y_axis",
+    [
+        ({}, (None, True), (None, True)),
+        ({"top": 50}, (None, True), ((None, 50), "min")),
+        ({"xlim": (0, 5), "right": 8}, ((0, 8), False), (None, True)),
+        ({"ylim": (1, None), "left": 2}, ((2, None), "max"), ((1, None), "max")),
+    ],
+)
+def test_separation_plot_one_sided_limits(kwargs, x_axis, y_axis):
+    fig = plot_separation(
+        [0.0, 1.0], np.zeros((2, 3)), np.ones((2, 3)), show=False, **kwargs
+    )
+    for axis, (rng, auto) in ((fig.layout.xaxis, x_axis), (fig.layout.yaxis, y_axis)):
+        assert axis.range == rng and axis.autorange == auto
+
+
+def test_separation_plot_rejects_unknown_units():
+    with pytest.raises(ValueError, match="units"):
+        plot_separation(
+            [0.0], np.zeros((1, 3)), np.zeros((1, 3)), units="au", show=False
+        )

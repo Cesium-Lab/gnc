@@ -4,7 +4,15 @@ from tqdm import tqdm
 
 from cesium.constants import HOUR_TO_SEC, KM_TO_M, MIN_TO_SEC
 from cesium.math.integrators import rk4_func
-from cesium.orbital.hcw import hcw_dynamics, rv_hcw_3d
+from cesium.orbital.coes import coes_to_rv
+from cesium.orbital.hcw import (
+    calc_Phi,
+    hcw_dynamics,
+    hcw_pci_to_rsw,
+    hcw_rsw_to_pci,
+    rv_hcw_3d,
+)
+from cesium.physics.dynamics import propagate_two_body
 from cesium.world import MU_EARTH, R_EARTH, W_EARTH
 
 
@@ -48,7 +56,7 @@ def test_curtis_problem_7_11():
     """
     Spacecraft A and B are in the same circular earth orbit with a period of 2 hours. B
     is 6 km ahead of A. At t = 0, B applies an in-track delta-v (retrofire) of 3 m/s. Using
-    a Clohessy–Wiltshire frame attached to A, determine the distance between A and B at
+    a Clohessy-Wiltshire frame attached to A, determine the distance between A and B at
     t = 30 minutes and the velocity of B relative to A.
     {Ans.: r= 10.9 km, v= 10.8 m/s}
     """
@@ -159,3 +167,55 @@ class TestHcwPropagation:
 # TODO: verify that it works by propagating in ECI and then transforming too
 class TestHcwWithEci:
     pass
+
+
+class Test_rsw_pci:
+    R0 = R_EARTH + 500e3
+    RV_TARGET = np.concatenate(coes_to_rv(R0, 0.0, 0.9, 0.4, 0.0, 1.3, MU_EARTH))
+
+    def test_round_trips(self):
+        rv_rel = np.array([1200.0, -3400.0, 250.0, 0.8, -1.1, 0.3])
+        rv_chaser = hcw_rsw_to_pci(self.RV_TARGET, rv_rel)
+        assert hcw_pci_to_rsw(self.RV_TARGET, rv_chaser) == pytest.approx(
+            rv_rel, abs=1e-9
+        )
+
+        rv_chaser_pci = self.RV_TARGET + np.array(
+            [900.0, -400.0, 300.0, 0.5, 0.2, -0.4]
+        )
+        rv_back = hcw_rsw_to_pci(
+            self.RV_TARGET, hcw_pci_to_rsw(self.RV_TARGET, rv_chaser_pci)
+        )
+        assert rv_back == pytest.approx(rv_chaser_pci, abs=1e-9)
+
+    def test_co_rotating_point_has_no_relative_velocity(self):
+        """A point 1 km radially above the target, turning with it, sits still in RSW."""
+        r_t, v_t = self.RV_TARGET[:3], self.RV_TARGET[3:]
+        scale = (self.R0 + 1000.0) / self.R0
+        rv_rel = hcw_pci_to_rsw(
+            self.RV_TARGET, np.concatenate((r_t * scale, v_t * scale))
+        )
+        assert rv_rel == pytest.approx([1000.0, 0, 0, 0, 0, 0], abs=1e-9)
+
+    def test_matches_hcw_propagation_for_nearby_orbits(self):
+        """Two-body relative motion of a close chaser follows the HCW STM."""
+        rv_rel0 = np.array([200.0, -500.0, 100.0, 0.1, -0.05, 0.02])
+        rv_chaser0 = hcw_rsw_to_pci(self.RV_TARGET, rv_rel0)
+        t_s = 20 * MIN_TO_SEC
+        n = np.sqrt(MU_EARTH / self.R0**3)
+
+        rv_t = propagate_two_body(
+            self.RV_TARGET, [0.0, t_s], MU_EARTH, rtol=1e-12, atol=1e-9
+        )[-1]
+        rv_c = propagate_two_body(
+            rv_chaser0, [0.0, t_s], MU_EARTH, rtol=1e-12, atol=1e-9
+        )[-1]
+        rv_rel = hcw_pci_to_rsw(rv_t, rv_c)
+
+        Phi_rr, Phi_rv, Phi_vr, Phi_vv = calc_Phi(t_s, n)
+        r_hcw = Phi_rr @ rv_rel0[:3] + Phi_rv @ rv_rel0[3:]
+        v_hcw = Phi_vr @ rv_rel0[:3] + Phi_vv @ rv_rel0[3:]
+        assert rv_rel[:3] == pytest.approx(
+            r_hcw, abs=1.0
+        )  # linearization error ~m at km scale
+        assert rv_rel[3:] == pytest.approx(v_hcw, abs=1e-3)

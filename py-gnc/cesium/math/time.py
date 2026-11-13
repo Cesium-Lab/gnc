@@ -1,6 +1,15 @@
+from datetime import datetime, timedelta
+
 import numpy as np
 
-from ..constants import J2000_JD, JD_CENTURY_TO_DAY, SEC_TO_DAY
+from ..constants import (
+    DAY_TO_SEC,
+    J2000_JD,
+    JD_CENTURY_TO_DAY,
+    SEC_TO_DAY,
+    TAI_TO_TT,
+    UTC_TO_TAI,
+)
 
 LMonth = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 """List of month lengths as discussed in Vallado 3.6.4"""
@@ -330,3 +339,95 @@ def jd_tdb_to_tt(jd_tdb: float):
     Vallado 4e, Equation 3-53.
     """
     return jd_tdb - tdb_minus_tt_s(jd_tdb) * SEC_TO_DAY
+
+
+def jd_to_sec_j2000(jd: float):
+    """Convert a Julian date to seconds since the J2000 epoch.
+
+    The time standard is unchanged, so a TDB Julian date gives TDB seconds
+    past J2000 (the epoch convention used by `RpoTimeline`).
+
+    Parameters
+    ----------
+    jd : float
+        Julian date (any time standard).
+
+    Returns
+    -------
+    sec_j2000 : float
+        Seconds since J2000 (JD 2451545.0) in the same time standard [s].
+    """
+    return (jd - J2000_JD) * DAY_TO_SEC
+
+
+def sec_j2000_to_jd(sec_j2000: float):
+    """Convert seconds since the J2000 epoch to a Julian date.
+
+    Inverse of `jd_to_sec_j2000`; the time standard is unchanged.
+
+    Parameters
+    ----------
+    sec_j2000 : float
+        Seconds since J2000 (JD 2451545.0) [s].
+
+    Returns
+    -------
+    jd : float
+        Julian date in the same time standard.
+    """
+    return J2000_JD + sec_j2000 * SEC_TO_DAY
+
+
+def jd_tt_to_utc(jd_tt: float, tai_minus_utc_s: float = UTC_TO_TAI):
+    """Convert a TT Julian date to UTC.
+
+    UTC = TT - (TT - TAI) - (TAI - UTC). For a TDB epoch, pass `jd_tdb_to_tt(jd)`
+    first (the difference is under 2 ms).
+
+    Parameters
+    ----------
+    jd_tt : float
+        Julian date in TT.
+    tai_minus_utc_s : float, optional
+        Accumulated leap seconds, Delta AT [s]. Default `UTC_TO_TAI` (37 s).
+
+    Returns
+    -------
+    jd_utc : float
+        Julian date in UTC.
+    """
+    return jd_tt - (TAI_TO_TT + tai_minus_utc_s) * SEC_TO_DAY
+
+
+def jd_to_greg_str(jd: float, decimals: int = 0, suffix: str = "") -> str:
+    """Format a Julian date as 'YYYY-MM-DD HH:MM:SS[.fff]' in its own time standard.
+
+    Rounds to `decimals` places of seconds with carries into minutes, hours and the
+    date (59.9996 s never prints as 60). Proleptic Gregorian calendar; ignores
+    leap-second boundaries.
+
+    Parameters
+    ----------
+    jd : float
+        Julian date (any time standard).
+    decimals : int, optional
+        Digits after the seconds' decimal point, 0-6. Default 0.
+    suffix : str, optional
+        Appended after a space, e.g. "UTC" or "TDB".
+
+    Returns
+    -------
+    str
+        Formatted date, e.g. '2035-12-25 00:00:00 UTC'.
+    """
+    if not 0 <= decimals <= 6:
+        raise ValueError("decimals must be between 0 and 6")
+    # Integer count of rounded units since J2000 keeps the carry exact
+    units = round((jd - J2000_JD) * DAY_TO_SEC * 10**decimals)
+    stamp = datetime(2000, 1, 1, 12) + timedelta(
+        microseconds=units * 10 ** (6 - decimals)
+    )
+    text = stamp.strftime("%Y-%m-%d %H:%M:%S")
+    if decimals:
+        text += f".{stamp.microsecond // 10 ** (6 - decimals):0{decimals}d}"
+    return f"{text} {suffix}" if suffix else text

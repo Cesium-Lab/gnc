@@ -1,11 +1,15 @@
 """COES"""
 
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+
 import numpy as np
 from numpy.linalg import norm
 
+from ..constants import M_TO_KM, RAD_TO_DEG
 from ..math.quaternion import unit
-from ..math.rotations import dcm_x, dcm_z
-from ..world import J2_EARTH, R_EARTH
+from ..math.rotations import dcm_x, dcm_z, wrap_to_2pi, wrap_to_pi
 from ..world.constants import MU_EARTH
 
 ####################################################################################################
@@ -15,6 +19,63 @@ from ..world.constants import MU_EARTH
 """
 a = h*h/mu / (1 - e*e)
 """
+
+####################################################################################################
+#               Vis-viva
+####################################################################################################
+
+
+def vis_viva(r: float, a: float, mu=MU_EARTH) -> float:
+    """Orbital speed at radius `r` on a conic with semi-major axis `a`.
+
+    `v = sqrt(mu (2/r - 1/a))`. Works for ellipses (`a > 0`) and hyperbolas
+    (`a < 0`, i.e. `a = -mu / v_inf**2`, giving `v**2 = v_inf**2 + 2 mu / r`).
+
+    Parameters
+    ----------
+    r : float
+        Radius from the central body [m].
+    a : float
+        Semi-major axis [m]; negative for hyperbolic orbits.
+    mu : float, optional
+        Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    v : float
+        Speed [m/s].
+
+    References
+    ----------
+    Vallado 4e, Equation 1-31 (vis-viva), p. 28.
+    """
+    return np.sqrt(mu * (2 / r - 1 / a))
+
+
+def sma_from_rv(r: float, v: float, mu=MU_EARTH) -> float:
+    """Semi-major axis from radius and speed (inverse vis-viva).
+
+    Parameters
+    ----------
+    r : float
+        Radius from the central body [m].
+    v : float
+        Speed [m/s].
+    mu : float, optional
+        Gravitational parameter of central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    a : float
+        Semi-major axis [m]; negative for hyperbolic orbits, `inf` if parabolic.
+
+    References
+    ----------
+    Vallado 4e, Equation 1-31 (vis-viva), p. 28.
+    """
+    inv_a = 2 / r - v**2 / mu
+    return np.inf if inv_a == 0 else 1 / inv_a
+
 
 ####################################################################################################
 #               Kepler
@@ -115,6 +176,74 @@ def kepler_eq(M: float, e: float, tol=1e-9, max_iter=100):
     raise ValueError(f"Did not converge for {M=}, {e=}")
 
 
+def M_from_ta(ta: float, e: float):
+    """Convert true anomaly to mean anomaly for an elliptical orbit.
+
+    Parameters
+    ----------
+    ta : float
+        True anomaly [rad].
+    e : float
+        Eccentricity, `0 <= e < 1`.
+
+    Returns
+    -------
+    M : float
+        Mean anomaly [rad], in `[-e, 2*pi + e)` (not wrapped).
+
+    References
+    ----------
+    Vallado 4e, Equations 2-14 and 2-4, pp. 48 and 45.
+    """
+    E = E_from_ta(ta, e)
+    return E - e * np.sin(E)
+
+
+def ta_from_M(M: float, e: float):
+    """Convert mean anomaly to true anomaly for an elliptical orbit.
+
+    Solves Kepler's equation with `kepler_eq`.
+
+    Parameters
+    ----------
+    M : float
+        Mean anomaly [rad].
+    e : float
+        Eccentricity, `0 <= e < 1`.
+
+    Returns
+    -------
+    ta : float
+        True anomaly, wrapped to `[0, 2*pi)` [rad].
+    """
+    return ta_from_E(kepler_eq(M, e), e)
+
+
+def orbit_sweep(coes: COES, d_ta: float, mu: float = MU_EARTH) -> tuple[COES, float]:
+    """Coast along a two-body ellipse through a change in true anomaly.
+
+    Parameters
+    ----------
+    coes : COES
+        Starting orbit and true anomaly (elliptical).
+    d_ta : float
+        Change in true anomaly to sweep [rad]; wrapped so the coast is forward
+        and shorter than one period.
+    mu : float, optional
+        Gravitational parameter of the central body [m3/s2]. Default is `MU_EARTH`.
+
+    Returns
+    -------
+    coes_new : COES
+        Same orbit at true anomaly `coes.ta + d_ta`.
+    dt : float
+        Coast time, in `[0, period)` [s].
+    """
+    ta_new = coes.ta + d_ta
+    dM = wrap_to_2pi(M_from_ta(ta_new, coes.e) - M_from_ta(coes.ta, coes.e))
+    return coes.with_ta(ta_new), dM / coes.n(mu)
+
+
 # TODO: test
 def kepler_eq_p(dt: float, p: float, mu=MU_EARTH):
     """Vallado 4e, Algorithm 3 (KepEqtnP), p. 69"""
@@ -156,7 +285,7 @@ def kepler_eq_h(M: float, e: float, tol=1e-9, max_iter=100):
 
 # TODO: test
 def pkepler(
-    r0: np.ndarray, v0: np.ndarray, dt: float, r_cb=R_EARTH, mu=MU_EARTH, j2=J2_EARTH
+    r0: np.ndarray, v0: np.ndarray, dt: float, mu=MU_EARTH, r_cb=0.0, j2=0.0
 ) -> tuple[np.ndarray, np.ndarray]:
     """Propagate an elliptical orbit analytically with secular J2 effects.
 
@@ -171,12 +300,12 @@ def pkepler(
         Initial satellite velocity in the inertial frame (e.g. ECI) [m/s].
     dt : float
         Propagation time [s].
-    r_cb : float, optional
-        Equatorial radius of the central body [m]. Default is `R_EARTH`.
     mu : float, optional
-        Gravitational parameter of the central body [m3/s2]. Default is `MU_EARTH`.
+        Gravitational parameter of the central body [m3/s2]. Default is `None`.
+    r_cb : float, optional
+        Equatorial radius of the central body [m]. Default is `None`.
     j2 : float, optional
-        J2 zonal harmonic coefficient of the central body. Default is `J2_EARTH`.
+        J2 zonal harmonic coefficient of the central body. Default is `None`.
 
     Returns
     -------
@@ -406,3 +535,127 @@ def coes_to_rv(
 ################################################################################
 
 # TODO: TLEs
+
+
+####################################################################################################
+#               COES container
+####################################################################################################
+
+
+@dataclass(frozen=True)
+class COES:
+    """Classical orbital elements. Distances in [m], angles in [rad].
+
+    Unpacks in the standard order, so `a, e, i, raan, aop, ta = coes` and
+    `coes_to_rv(*coes, mu=mu)` both work.
+    """
+
+    a: float
+    """Semi-major axis [m]."""
+    e: float
+    """Eccentricity."""
+    i: float
+    """Inclination [rad]."""
+    raan: float
+    """Right ascension of the ascending node [rad]."""
+    aop: float
+    """Argument of periapsis [rad]."""
+    ta: float
+    """True anomaly [rad]."""
+
+    @classmethod
+    def from_array(cls, coes: np.ndarray) -> COES:
+        """Build from `[a, e, i, raan, aop, ta]`."""
+        a, e, i, raan, aop, ta = np.asarray(coes, dtype=float)
+        return cls(float(a), float(e), float(i), float(raan), float(aop), float(ta))
+
+    @classmethod
+    def from_r_and_v(cls, r_I: np.ndarray, v_I: np.ndarray, mu: float) -> COES:
+        """Build from an inertial state with `rv_to_coes`."""
+        return cls.from_array(rv_to_coes(r_I, v_I, mu))
+
+    @classmethod
+    def from_rv(cls, rv_I: np.ndarray, mu: float) -> COES:
+        """Build from an inertial state with `rv_to_coes`."""
+        return cls.from_array(rv_to_coes(rv_I[0:3], rv_I[3:6], mu))
+
+    def elements(self) -> np.ndarray:
+        """`[a, e, i, raan, aop, ta]` as a (6,) array."""
+        return np.array([self.a, self.e, self.i, self.raan, self.aop, self.ta])
+
+    def __iter__(self):
+        return iter(self.elements())
+
+    def to_rv(self, mu: float) -> tuple[np.ndarray, np.ndarray]:
+        """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
+        return np.concatenate(coes_to_rv(*self.elements(), mu=mu))
+
+    def to_r_and_v(self, mu: float) -> tuple[np.ndarray, np.ndarray]:
+        """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
+        return coes_to_rv(*self.elements(), mu=mu)
+
+    def n(self, mu: float) -> float:
+        """Mean motion [1/s]."""
+        return np.sqrt(mu / self.a**3)
+
+    def copy(self):
+        return replace(self)
+
+    @property
+    def r_p(self):
+        """Periapsis"""
+        return self.a * (1 - self.e)
+
+    @property
+    def aol(self):
+        """Argument of latitude"""
+        return self.aop + self.ta
+
+    def h(self, mu: float):
+        rv = self.to_rv(mu)
+        return np.cross(rv[0:3], rv[3:6])
+
+    def E_sp(self, mu: float):
+        return -mu / 2 / self.a
+
+    def period(self, mu: float):
+        return 2 * np.pi * np.sqrt(self.a**3 / mu)
+
+    @property
+    def r_a(self):
+        """Apoapsis"""
+        return self.a * (1 + self.e)
+
+    def with_ta(self, ta: float) -> COES:
+        """Same orbit at a different true anomaly [rad]."""
+        return replace(self, ta=float(ta))
+
+    def bias_raan(self, d_raan: float) -> COES:
+        """Same orbit with RAAN offset by `d_raan` [rad]."""
+        return replace(self, raan=float(self.raan + d_raan))
+
+    def with_dv(self, dv: np.ndarray, mu: float) -> COES:
+        """Orbit after an impulsive delta-v [m/s], in the same inertial frame as `to_rv`."""
+        rv = self.to_rv(mu)
+        rv[3:6] += dv
+        return COES.from_rv(rv, mu)
+
+    def delta(self, other: COES) -> COES:
+        """Element change `self - other`; angles wrapped to [-pi, pi)."""
+        d = self.elements() - other.elements()
+        d[2:] = wrap_to_pi(d[2:])
+        return COES.from_array(d)
+
+    def __str__(self) -> str:
+        return (
+            f"a = {self.a * M_TO_KM:.3f} km, e = {self.e:.5f}, "
+            f"i = {self.i * RAD_TO_DEG:.3f} deg, raan = {self.raan * RAD_TO_DEG:.3f} deg, "
+            f"aop = {self.aop * RAD_TO_DEG:.3f} deg, ta = {self.ta * RAD_TO_DEG:.3f} deg"
+        )
+
+    def print(self, name: str, mu: float = None) -> None:
+        """Print the elements in km and deg, optionally prefixed with `name`."""
+        ret = f"{name}: {self}"
+        if mu is not None and abs(self.a) > 1:  # m
+            ret += f" (E_sp = {self.E_sp(mu) * M_TO_KM**2:.3f} km2/s2)"
+        print(ret)

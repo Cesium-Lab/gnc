@@ -3,12 +3,18 @@ import pytest
 
 from cesium.constants import DEG_TO_RAD, KM_TO_M, MIN_TO_SEC, RAD_TO_DEG
 from cesium.orbital.coes import (
+    COES,
     E_from_ta,
+    M_from_ta,
     coes_to_rv,
     kepler_eq,
     kepler_eq_h,
     kepler_eq_p,
+    orbit_sweep,
     rv_to_coes,
+    sma_from_rv,
+    ta_from_M,
+    vis_viva,
 )
 from cesium.world import MU_EARTH, MU_EARTH_KM
 
@@ -241,3 +247,124 @@ class TestRoundTrip:
 
             assert np.allclose(r0, r1, rtol=1e-10, atol=1e-6)
             assert np.allclose(v0, v1, rtol=1e-10, atol=1e-9)
+
+
+class Test_vis_viva:
+    R = 7000 * KM_TO_M
+
+    def test_circular_speed(self):
+        assert vis_viva(self.R, self.R, MU_EARTH) == pytest.approx(
+            np.sqrt(MU_EARTH / self.R)
+        )
+
+    def test_hyperbolic_periapsis_speed(self):
+        """a = -mu / v_inf^2 gives v^2 = v_inf^2 + 2 mu / r."""
+        v_inf = 3.2 * KM_TO_M
+        v = vis_viva(self.R, -MU_EARTH / v_inf**2, MU_EARTH)
+        assert v == pytest.approx(np.sqrt(v_inf**2 + 2 * MU_EARTH / self.R))
+
+    def test_escape_speed_is_parabolic(self):
+        v_esc = np.sqrt(2 * MU_EARTH / self.R)
+        assert sma_from_rv(self.R, v_esc, MU_EARTH) == np.inf
+
+    @pytest.mark.parametrize("a", [9000e3, -25000e3])  # ellipse and hyperbola
+    def test_round_trip(self, a):
+        v = vis_viva(self.R, a, MU_EARTH)
+        assert sma_from_rv(self.R, v, MU_EARTH) == pytest.approx(a, rel=1e-12)
+
+    def test_matches_rv_to_coes(self):
+        """Same speed as long as the `r` and `a` are the same for an arbitrary orbit"""
+        r, v = coes_to_rv(9000e3, 0.2, 0.3, 0.4, 0.5, 1.1, MU_EARTH)
+        assert np.linalg.norm(v) == pytest.approx(
+            vis_viva(np.linalg.norm(r), 9000e3, MU_EARTH), rel=1e-12
+        )
+        r, v = coes_to_rv(9000e3, 0.4, 12.3, 4.4, 4.5, 4.1, MU_EARTH)
+        assert np.linalg.norm(v) == pytest.approx(
+            vis_viva(np.linalg.norm(r), 9000e3, MU_EARTH), rel=1e-12
+        )
+
+
+class Test_COES:
+    ELEMENTS = np.array([9000e3, 0.2, 0.3, 0.4, 0.5, 1.1])
+
+    def test_elements_and_unpack_round_trip(self):
+        coes = COES.from_array(self.ELEMENTS)
+        assert np.array_equal(coes.elements(), self.ELEMENTS)
+        a, e, i, raan, aop, ta = coes
+        assert (a, e, i, raan, aop, ta) == tuple(self.ELEMENTS)
+
+    def test_to_rv_matches_coes_to_rv(self):
+        coes = COES.from_array(self.ELEMENTS)
+        rv = coes.to_rv(MU_EARTH)
+        r_ref, v_ref = coes_to_rv(*self.ELEMENTS, mu=MU_EARTH)
+        assert rv.shape == (6,)
+        assert np.array_equal(rv, np.concatenate((r_ref, v_ref)))
+
+    def test_from_rv_round_trip(self):
+        r, v = coes_to_rv(*self.ELEMENTS, mu=MU_EARTH)
+        coes = COES.from_r_and_v(r, v, MU_EARTH)
+        assert coes.elements() == pytest.approx(self.ELEMENTS, rel=1e-9)
+        coes = COES.from_rv(np.concatenate((r, v)), MU_EARTH)
+        assert coes.elements() == pytest.approx(self.ELEMENTS, rel=1e-9)
+
+    def test_with_ta_changes_only_true_anomaly(self):
+        coes = COES.from_array(self.ELEMENTS)
+        moved = coes.with_ta(2.5)
+        assert moved.ta == 2.5
+        assert moved.elements()[:5] == pytest.approx(coes.elements()[:5])
+        assert coes.ta == 1.1  # original unchanged (frozen)
+        with pytest.raises(AttributeError):
+            coes.ta = 0.0
+
+    def test_delta_wraps_angles(self):
+        before = COES(7000e3, 0.01, 0.5, 6.2, 0.1, 6.25)
+        after = COES(7005e3, 0.02, 0.6, 0.1, 6.2, 0.05)
+        d = after.delta(before)
+        assert d.a == pytest.approx(5e3)
+        assert d.e == pytest.approx(0.01)
+        assert d.i == pytest.approx(0.1)
+        assert d.raan == pytest.approx(
+            0.1 - 6.2 + 2 * np.pi
+        )  # small positive, not ~-6.1
+        assert d.aop == pytest.approx(6.2 - 0.1 - 2 * np.pi)  # small negative
+        assert d.ta == pytest.approx(0.05 - 6.25 + 2 * np.pi)
+
+    def test_apsides_and_mean_motion(self):
+        coes = COES(8000e3, 0.1, 0.0, 0.0, 0.0, 0.0)
+        assert coes.r_p == pytest.approx(7200e3)
+        assert coes.r_a == pytest.approx(8800e3)
+        assert coes.n(MU_EARTH) == pytest.approx(np.sqrt(MU_EARTH / 8000e3**3))
+
+
+@pytest.mark.parametrize("e", [0.0, 0.1, 0.7])
+@pytest.mark.parametrize("ta", [0.0, 0.5, 2.0, 3.5, 6.0])
+def test_mean_anomaly_round_trip(ta, e):
+    assert ta_from_M(M_from_ta(ta, e), e) == pytest.approx(ta, abs=1e-9)
+
+
+class Test_orbit_sweep:
+    COES0 = COES(8000e3, 0.2, 0.3, 0.4, 0.5, 0.1)
+
+    def test_half_orbit_from_periapsis_is_half_period(self):
+        start = self.COES0.with_ta(0.0)
+        moved, dt = orbit_sweep(start, np.pi, MU_EARTH)
+        assert moved.ta == pytest.approx(np.pi)
+        assert dt == pytest.approx(start.period(MU_EARTH) / 2)
+
+    def test_matches_mean_motion_and_wraps_forward(self):
+        _, dt = orbit_sweep(self.COES0, 1.0, MU_EARTH)
+        dM = M_from_ta(self.COES0.ta + 1.0, 0.2) - M_from_ta(self.COES0.ta, 0.2)
+        assert dt == pytest.approx(dM / self.COES0.n(MU_EARTH))
+        _, dt_back = orbit_sweep(self.COES0, -1.0, MU_EARTH)
+        assert 0 < dt_back < self.COES0.period(MU_EARTH)
+
+
+def test_with_dv_prograde_raises_apoapsis_from_periapsis():
+    coes = COES(7000e3, 0.01, 0.2, 0.3, 0.4, 0.0)
+    v_hat = coes.to_rv(MU_EARTH)[3:6] / np.linalg.norm(coes.to_rv(MU_EARTH)[3:6])
+    after = coes.with_dv(10.0 * v_hat, MU_EARTH)
+    assert after.r_p == pytest.approx(coes.r_p, rel=1e-9)
+    assert after.r_a > coes.r_a
+    assert after.i == pytest.approx(coes.i) and after.raan == pytest.approx(coes.raan)
+    unchanged = coes.with_dv(np.zeros(3), MU_EARTH).delta(coes)  # wraps ta = 0 vs 2pi
+    assert unchanged.elements() == pytest.approx(np.zeros(6), abs=1e-6)

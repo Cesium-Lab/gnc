@@ -144,42 +144,68 @@ def hcw_dynamics(state: np.ndarray, a_rsw: np.ndarray, n: float):
     return np.concatenate((v, a))
 
 
-def hcw_RSW_to_PCI(rv_target_PCI: np.ndarray, rv_chaser_RSW: np.ndarray):
+def hcw_rsw_to_pci(rv_target_pci: np.ndarray, rv_chaser_rsw: np.ndarray) -> np.ndarray:
     """Convert a chaser's relative RSW state to its absolute PCI state.
+
+    Inverse of `hcw_pci_to_rsw`. The RSW frame rotates with the target at
+    `w = h / r^2`, so the relative velocity
+    picks up a `w x r_rel` term.
 
     Parameters
     ----------
-    rv_target_PCI : np.ndarray (6,)
-        Target position and velocity in PCI (e.g. ECI) [m, m/s].
-    rv_chaser_RSW : np.ndarray (6,)
+    rv_target_pci : np.ndarray (6,)
+        Target position and velocity in PCI (e.g. MCI) [m, m/s].
+    rv_chaser_rsw : np.ndarray (6,)
         Chaser position and velocity relative to the target, in the target's
-        RSW frame [m, m/s].
-    mu : float
-        Gravitational parameter of the central body [m3/s2]. Currently unused.
+        rotating RSW frame [m, m/s].
 
     Returns
     -------
-    rv_chaser_PCI : np.ndarray (6,)
+    rv_chaser_pci : np.ndarray (6,)
         Absolute chaser position and velocity in PCI [m, m/s].
 
     References
     ----------
     Simplified version of Vallado 4e, Algorithm 49 (HillEQCM to ECI), p. 414.
     """
-    r_t_PCI, v_t_PCI = rv_target_PCI[0:3], rv_target_PCI[3:6]
+    r_t, v_t = rv_target_pci[0:3], rv_target_pci[3:6]
+    dcm_rsw_wrt_pci = calc_dcm_rsw_wrt_pci(rv_target_pci)
+    w_rsw_pci = np.cross(r_t, v_t) / np.linalg.norm(r_t) ** 2  # RSW frame rate, in PCI
 
-    dcm_RSW_wrt_PCI = calc_dcm_rsw_wrt_pci(rv_target_PCI)
-    r_rel_RSW, v_rel_RSW = rv_chaser_RSW[:3], rv_chaser_RSW[3:]
+    r_rel_pci = dcm_rsw_wrt_pci.T @ rv_chaser_rsw[0:3]
+    v_rel_pci = dcm_rsw_wrt_pci.T @ rv_chaser_rsw[3:6] + np.cross(w_rsw_pci, r_rel_pci)
 
-    # Angular velocity of RSW frame, expressed in PCI
-    omega_RSW_PCI_PCI = np.cross(r_t_PCI, v_t_PCI) / np.linalg.norm(r_t_PCI) ** 2
+    return np.concatenate((r_t + r_rel_pci, v_t + v_rel_pci))
 
-    # Relative position and velocity in PCI
-    r_rel_PCI = dcm_RSW_wrt_PCI.T @ r_rel_RSW
-    v_rel_PCI = dcm_RSW_wrt_PCI.T @ v_rel_RSW + np.cross(omega_RSW_PCI_PCI, r_rel_PCI)
 
-    # Absolute chaser state
-    r_chaser_PCI = r_t_PCI + r_rel_PCI
-    v_chaser_PCI = v_t_PCI + v_rel_PCI
+def hcw_pci_to_rsw(rv_target_pci: np.ndarray, rv_chaser_pci: np.ndarray) -> np.ndarray:
+    """Chaser state relative to the target, in the target's rotating RSW frame.
 
-    return np.concatenate((r_chaser_PCI, v_chaser_PCI))
+    Inverse of `hcw_rsw_to_pci`; the result is the HCW initial state for
+    `plan_hcw_two_impulse`.
+
+    Parameters
+    ----------
+    rv_target_pci : np.ndarray (6,)
+        Target position and velocity in PCI (e.g. MCI) [m, m/s].
+    rv_chaser_pci : np.ndarray (6,)
+        Chaser position and velocity in the same PCI frame [m, m/s].
+
+    Returns
+    -------
+    rv_chaser_rsw : np.ndarray (6,)
+        Chaser position and velocity relative to the target, in the target's
+        rotating RSW frame [m, m/s].
+
+    References
+    ----------
+    Simplified version of Vallado 4e, Algorithm 50 (ECI to HillEQCM), p. 415.
+    """
+    r_t, v_t = rv_target_pci[0:3], rv_target_pci[3:6]
+    dcm_rsw_wrt_pci = calc_dcm_rsw_wrt_pci(rv_target_pci)
+    w_rsw_pci = np.cross(r_t, v_t) / np.linalg.norm(r_t) ** 2  # RSW frame rate, in PCI
+
+    r_rel_pci = rv_chaser_pci[0:3] - r_t
+    v_rel_pci = rv_chaser_pci[3:6] - v_t - np.cross(w_rsw_pci, r_rel_pci)
+
+    return np.concatenate((dcm_rsw_wrt_pci @ r_rel_pci, dcm_rsw_wrt_pci @ v_rel_pci))

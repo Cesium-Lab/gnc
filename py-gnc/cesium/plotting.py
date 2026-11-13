@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from plotly.colors import qualitative
 from scipy.interpolate import CubicSpline
 
-from .constants import AU_TO_KM
+from .constants import AU_TO_KM, M_TO_KM, SEC_TO_MIN
 from .orbital.interplanetary import OrbitalFlyby
 
 
@@ -125,6 +125,289 @@ def plot_sky(
     if show:
         plt.show()
     return fig, ax
+
+
+def plot_rsw(
+    ts,
+    rv_rel_rsw,
+    burns=None,
+    *,
+    title="Chaser relative to target, in-plane (Linearized RSW view)",
+    color="#2a78d6",
+    height=550,
+    show=True,
+    rho=None,
+    r_body=None,
+    body_color="#c1440e",
+    circles=None,
+) -> go.Figure:
+    """Plot relative motion in the target's RSW frame (HCW view).
+
+    Along-track S is horizontal with +S (V-bar, direction of motion) to the
+    left, radial R (R-bar, away from the planet) is up, and both axes share one
+    km scale. The target sits at the origin.
+
+    With `rho` and `r_body`, the central body is drawn as the circle
+    (R + rho)^2 + S^2 = r_body^2: its center sits at R = -rho below the target.
+    This treats the target's orbital radius as constant, so it is approximate
+    for eccentric or J2-perturbed targets.
+
+    Parameters
+    ----------
+    ts : array_like, shape (N,)
+        Sample times [s]; shown in hours on hover.
+    rv_rel_rsw : array_like, shape (N, 3) or (N, 6)
+        Chaser position (and velocity) relative to the target in RSW [m]
+        (e.g. from `hcw_pci_to_rsw`). Only the position columns are used.
+    burns : sequence of (t [s], name), optional
+        Burns to mark on the path at the nearest sample.
+    title, color, height : optional
+        Figure title, path color, and figure height [px].
+    show : bool, optional
+        Call `fig.show()` (default True).
+    rho : float, optional
+        Approximate target orbital radius (distance from the body center) [m].
+        Required with `r_body`.
+    r_body : float, optional
+        Central body radius [m]. Draws the body surface when given with `rho`.
+    body_color : str, optional
+        Fill color of the body.
+    circles : dict or sequence of dict, optional
+        Circles around the target, e.g. the HCW linearization region or a
+        keep-out zone. Keys: radius [m] (required), name, color, dash
+        (plotly dash style, default "dash").
+
+    Returns
+    -------
+    go.Figure
+    """
+    ts = np.asarray(ts, dtype=float)
+    rv_rel_rsw = np.asarray(rv_rel_rsw, dtype=float)
+    r_km = rv_rel_rsw[:, 0] / 1000.0
+    s_km = rv_rel_rsw[:, 1] / 1000.0
+
+    if (rho is None) != (r_body is None):
+        raise ValueError("rho and r_body must be given together")
+
+    fig = go.Figure()
+    if r_body is not None:
+        if not (np.isfinite(rho) and np.isfinite(r_body) and 0 < r_body < rho):
+            raise ValueError("need finite 0 < r_body < rho")
+        theta = np.linspace(0, 2 * np.pi, 721)
+        fig.add_trace(
+            go.Scatter(
+                x=r_body / 1000.0 * np.sin(theta),
+                y=-rho / 1000.0 + r_body / 1000.0 * np.cos(theta),
+                mode="lines",
+                fill="toself",
+                fillcolor=body_color,
+                opacity=0.35,
+                line={"color": body_color, "width": 1},
+                name="Surface",
+                hovertemplate="surface<extra></extra>",
+            )
+        )
+        # Frame the chaser path plus the surface directly below the target.
+        r_lo = min(r_km.min(), (r_body - rho) / 1000.0, 0.0)
+        r_hi = max(r_km.max(), 0.0)
+        s_lo, s_hi = min(s_km.min(), 0.0), max(s_km.max(), 0.0)
+        pad_r, pad_s = 0.05 * (r_hi - r_lo or 1.0), 0.05 * (s_hi - s_lo or 1.0)
+        y_range = [r_lo - pad_r, r_hi + pad_r]
+        x_range = [s_hi + pad_s, s_lo - pad_s]  # reversed: +S to the left
+    circles = [circles] if isinstance(circles, dict) else list(circles or [])
+    phi = np.linspace(0, 2 * np.pi, 361)
+    for idx, circle in enumerate(circles):
+        radius = float(circle["radius"])
+        if not (np.isfinite(radius) and radius > 0):
+            raise ValueError("circle radius must be positive and finite")
+        r_c = radius / 1000.0
+        name = circle.get("name", f"{r_c:g} km")
+        fig.add_trace(
+            go.Scatter(
+                x=r_c * np.sin(phi),
+                y=r_c * np.cos(phi),
+                mode="lines",
+                name=name,
+                line={
+                    "color": circle.get("color", qualitative.Plotly[idx % 10]),
+                    "width": 1.5,
+                    "dash": circle.get("dash", "dash"),
+                },
+                hovertemplate=f"{name}<extra></extra>",
+            )
+        )
+        if r_body is not None:
+            # Make sure the whole circle stays in frame.
+            y_range = [min(y_range[0], -1.05 * r_c), max(y_range[1], 1.05 * r_c)]
+            x_range = [max(x_range[0], 1.05 * r_c), min(x_range[1], -1.05 * r_c)]
+    fig.add_trace(
+        go.Scattergl(
+            x=s_km,
+            y=r_km,
+            mode="lines",
+            name="Chaser",
+            line={"color": color, "width": 2},
+            customdata=ts / 3600.0,
+            hovertemplate="S = %{x:.3f} km<br>R = %{y:.3f} km<br>t = %{customdata:.2f} hr<extra></extra>",
+        )
+    )
+    if burns:
+        idx = [int(min(np.searchsorted(ts, t_b), len(ts) - 1)) for t_b, _ in burns]
+        fig.add_trace(
+            go.Scatter(
+                x=s_km[idx],
+                y=r_km[idx],
+                mode="markers",
+                name="Burns",
+                text=[name for _, name in burns],
+                marker={
+                    "color": color,
+                    "size": 8,
+                    "line": {"color": "#fcfcfb", "width": 2},
+                },
+                hovertemplate="%{text}<br>S = %{x:.3f} km<br>R = %{y:.3f} km<extra></extra>",
+            )
+        )
+    fig.add_trace(
+        go.Scatter(
+            x=[0.0],
+            y=[0.0],
+            mode="markers+text",
+            name="Target",
+            text=["target"],
+            textposition="bottom center",
+            textfont={"color": "#52514e"},
+            marker={"color": "#0b0b0b", "size": 10, "symbol": "x"},
+            hovertemplate="target<extra></extra>",
+        )
+    )
+    fig.update_xaxes(
+        title="Along-track S [km]  (+V-bar)",
+        autorange="reversed",
+        zeroline=True,
+        zerolinecolor="#c3c2b7",
+    )
+    fig.update_yaxes(
+        title="Radial R [km]  (+R-bar)",
+        scaleanchor="x",
+        zeroline=True,
+        zerolinecolor="#c3c2b7",
+    )
+    if r_body is not None:
+        # Explicit ranges so the full body circle doesn't drive autorange.
+        fig.update_xaxes(range=x_range, autorange=False)
+        fig.update_yaxes(range=y_range, autorange=False)
+    fig.update_layout(
+        title=title, template="plotly_white", showlegend=False, height=height
+    )
+    if show:
+        fig.show()
+    return fig
+
+
+def _axis_range(lim):
+    """Plotly axis kwargs for (lo, hi); a None side autoranges only that side."""
+    lo, hi = lim if lim is not None else (None, None)
+    if lo is None and hi is None:
+        return {"autorange": True}
+    auto = {(True, False): "min", (False, True): "max", (False, False): False}[
+        (lo is None, hi is None)
+    ]
+    return {"range": [lo, hi], "autorange": auto}
+
+
+def _merge_lim(lim, lo, hi):
+    """Override the sides of `lim` with `lo`/`hi` where they are not None."""
+    lim_lo, lim_hi = lim if lim is not None else (None, None)
+    return (lo if lo is not None else lim_lo, hi if hi is not None else lim_hi)
+
+
+def plot_separation(
+    ts,
+    rv_chaser,
+    rv_target,
+    burns=None,
+    *,
+    units="km",
+    xlim=None,
+    ylim=None,
+    left=None,
+    right=None,
+    bottom=None,
+    top=None,
+    title="Chaser-to-target separation",
+    color="#2a78d6",
+    height=420,
+    show=True,
+) -> go.Figure:
+    """Plot chaser-to-target separation against time.
+
+    Parameters
+    ----------
+    ts : array_like, shape (N,)
+        Sample times [s]; plotted in minutes.
+    rv_chaser, rv_target : array_like, shape (N, 3) or (N, 6)
+        Chaser and target positions (and velocities) in one frame [m]. Only the
+        position columns are used. Pass relative positions with zeros for the
+        target to plot a relative range.
+    burns : sequence of (t [s], name), optional
+        Burns to mark with labeled vertical lines.
+    units : {"km", "m"}
+        Separation units for the y axis, hover, and `ylim`/`bottom`/`top`.
+    xlim, ylim : (lo, hi), optional
+        Axis limits; x in minutes, y in `units`. Either side may be None to
+        autorange only that side, e.g. ylim=(None, 50).
+    left, right, bottom, top : float, optional
+        Pyplot-style single-side limits; each overrides the matching side of
+        `xlim`/`ylim`. An autoranged bottom starts at zero.
+    title, color, height : optional
+        Figure title, line color, and figure height [px].
+    show : bool, optional
+        Call `fig.show()` (default True).
+
+    Returns
+    -------
+    go.Figure
+    """
+    to_units = {"km": M_TO_KM, "m": 1.0}
+    if units not in to_units:
+        raise ValueError(f"units must be one of {list(to_units)}")
+    ts = np.asarray(ts, dtype=float)
+    r_c = np.asarray(rv_chaser, dtype=float)[:, 0:3]
+    r_t = np.asarray(rv_target, dtype=float)[:, 0:3]
+    separation = np.linalg.norm(r_c - r_t, axis=1) * to_units[units]
+
+    fig = go.Figure(
+        go.Scatter(
+            x=ts * SEC_TO_MIN,
+            y=separation,
+            mode="lines",
+            line={"color": color, "width": 2},
+            hovertemplate=f"t = %{{x:.1f}} min<br>separation = %{{y:.1f}} {units}<extra></extra>",
+        )
+    )
+    for t_burn, name in burns or []:
+        fig.add_vline(
+            x=t_burn * SEC_TO_MIN,
+            line={"color": "#898781", "width": 1, "dash": "dot"},
+            annotation_text=name,
+            annotation_position="top",
+            annotation_font={"color": "#52514e", "size": 11},
+        )
+    fig.update_layout(
+        title=title,
+        xaxis_title="Time [min]",
+        yaxis_title=f"Separation [{units}]",
+        template="plotly_white",
+        showlegend=False,
+        height=height,
+        margin={"t": 70},
+    )
+    fig.update_xaxes(**_axis_range(_merge_lim(xlim, left, right)))
+    fig.update_yaxes(rangemode="tozero", **_axis_range(_merge_lim(ylim, bottom, top)))
+    if show:
+        fig.show()
+    return fig
 
 
 def plot_3d(

@@ -29,19 +29,58 @@
    2. Project from Lunar Lander
 
 ### Order of Implementation
+Each stage writes `trajectories/<stage>-<mission>.mission` (NumPy NPZ), where `<mission>`
+uses underscores, e.g. `departure-birthday_christmas_earlier.mission`. Naming and I/O live
+in `mission_io.py` (`mission_path`, `save_mission`, `load_mission`).
+
+To regenerate every archive and figure headless (about 1 min), run `python mission_io.py`
+from this folder, or set `RERUN_STAGES = True` in `summary.ipynb`. Add `--interplanetary`
+(or `RERUN_INTERPLANETARY = True`) to redo the slow porkchop stage too.
+
 1. `interplanetary.ipynb`
-   1. Creates `trajectories/<mission>.mission` file
-   2. TODO: modularize it
+   1. Saves `interplanetary-<mission>`: Lambert epochs and HCI Earth/Mars/spacecraft states [km, km/s]
 2. `departure.ipynb`
-   1. Loads the HCI `.mission` reference and models the Earth escape trajectory
-   2. Saves `trajectories/<mission>-departure.mission`: burn-reference epoch [JD], elapsed time [s], and ECI states [m, m/s]
+   1. Loads `interplanetary-<mission>` and models the Earth escape trajectory
+   2. Saves `departure-<mission>`: burn-reference epoch [JD], ECI states [m, m/s], escape and midcourse Δv
 3. `ground_segment.ipynb`
-   1. Loads the ECI departure
+   1. Loads `departure-<mission>`
    2. Computes ECEF states, ground tracks, sky plots, and per-station/network visibility
 4. `arrival.ipynb`
-   1. Uses `.mission` file to B-target and rendezvous in-orbit
-5. `descent.ipynb`
+   1. Loads `interplanetary-<mission>`, B-plane targets the direct-injection capture
+   2. Saves `arrival-<mission>`: capture epoch, approach hyperbola, post-capture MCI state, target orbit, capture Δv
+5. `rpo.ipynb`
+   1. Loads `arrival-<mission>`: starts at the capture epoch from the post-capture state
+   2. Runs nominal and dispersed cases; saves `rpo-<mission>`: timelines, burns, Δv by phase
+6. `summary.ipynb`
+   1. Loads all four stages: mission timeline and full Δv budget
+7. `descent.ipynb`
    1. Descending to landing site
+
+## TODO
+- [ ] All
+  - [ ] Dispersions
+  - [ ] - [ ] FULL controls (probably MPC)
+  - [ ] FULL navigation
+- [ ] Interplanetary
+  - [ ] Mid-trajectory correction burns for the interplanetary segment
+- [ ] Departure
+  - [ ] Stitch launch site dates
+  - [ ] Descent with atmospheric approximation based on density and velocity
+- [ ] Arrival
+  - [ ] high-ellipse capture with the plane change near apoapsis
+  - [ ] Ascent with atmospheric approximation based on density and velocity
+- [ ] Ground Segment
+  - [ ] Link budget
+
+
+### Open issues from review
+- [ ] Departure
+  - [ ] Range safety for Cape Canaveral (131.8° launch azimuth)
+- [ ] Arrival
+  - [ ] high-ellipse capture with the plane change near apoapsis
+- [ ] RPO
+  - [ ] Hand off happens outside the 15 km linear region (`TARGET_TA_DEG` chosen a little better? but can't really be picky and `k_phase` could be adapted for max d_ta per period)
+  - [ ] 200 m keep-out (target a hold point, then a final approach)
 
 ## Approximations
 - TDB ≈ TT
