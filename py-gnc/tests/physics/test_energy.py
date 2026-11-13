@@ -50,11 +50,11 @@ def test_KE_values_of_0():
     I = np.array([[1, 2, 0], [0, 2, 0], [0, 0.9, 1]])
     mass = 100.0
 
-    assert calc_kinetic_energy(np.array([0, 0, 0]), np.array([0, 0, 0]), mass, I) == 0
-    assert calc_kinetic_energy(v, np.array([0, 0, 0]), mass, I) == 2500.0
-    assert calc_kinetic_energy(np.array([0, 0, 0]), w, mass, I) == 3.45e-2
-    assert calc_kinetic_energy(v, w, 0, I) == 3.45e-2
-    assert calc_kinetic_energy(v, w, mass, np.zeros((3, 3))) == 2500.0
+    assert calc_kinetic_energy(np.array([0, 0, 0]), mass, np.array([0, 0, 0]), I) == 0
+    assert calc_kinetic_energy(v, mass, np.array([0, 0, 0]), I) == 2500.0
+    assert calc_kinetic_energy(np.array([0, 0, 0]), mass, w, I) == 3.45e-2
+    assert calc_kinetic_energy(v, 0, w, I) == 3.45e-2
+    assert calc_kinetic_energy(v, mass, w, np.zeros((3, 3))) == 2500.0
 
 
 def test_KE_reasomable_values():
@@ -63,12 +63,22 @@ def test_KE_reasomable_values():
     I = np.array([[1, 2, 0], [0, 2, 0], [0, 0.9, 1]])
     mass = 100.0
 
-    assert calc_kinetic_energy(v, w, mass, I) == 2500.0 + 3.45
+    assert calc_kinetic_energy(v, mass, w, I) == 2500.0 + 3.45
 
     v = np.array([8e5, 4e6, 3e5])
     w = np.array([1e5, 1e5, 1e5])
 
-    assert calc_kinetic_energy(v, w, mass, I) == 8.365e14 + 3.45e10
+    assert calc_kinetic_energy(v, mass, w, I) == 8.365e14 + 3.45e10
+
+
+def test_KE_without_inertia_is_translational_only():
+    """Point mass unless both w and I are given. 0.5 * 2 kg * |[3, 4, 0]|^2 = 25 J."""
+    v = np.array([3.0, 4.0, 0.0])
+    w = np.array([5.0, -2.0, 1.0])
+    assert calc_kinetic_energy(v, 2.0) == 25.0  # 3DOF: no w or I
+    assert calc_kinetic_energy(v, 2.0, w=w) == 25.0  # spin, but no inertia
+    assert calc_kinetic_energy(v, 2.0, I=np.eye(3)) == 25.0  # inertia, but no spin
+    assert calc_kinetic_energy(v, 2.0, w, np.eye(3)) == 25.0 + 15.0  # 0.5 * |w|^2 = 15
 
 
 def test_total_energy():

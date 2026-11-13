@@ -31,18 +31,23 @@ def calc_potential_energy(r: np.ndarray, mass: float, mu: float):
     return -mu * mass / r_norm
 
 
-def calc_kinetic_energy(v: np.ndarray, w: np.ndarray, mass: np.ndarray, I: np.ndarray):
+def calc_kinetic_energy(
+    v: np.ndarray, mass: float, w: np.ndarray = None, I: np.ndarray = None
+) -> float:
     """Compute translational plus rotational kinetic energy of a rigid body.
+
+    Translational only (point mass, 3DOF) unless both `w` and `I` are given.
 
     Parameters
     ----------
     v : np.ndarray (3,)
         Inertial velocity of the body's center of mass [m/s].
-    w : np.ndarray (3,)
-        Angular velocity of the body, in the same frame as `I` (typically body) [rad/s].
     mass : float
         Mass of the body [kg].
-    I : np.ndarray (3, 3) or None
+    w : np.ndarray (3,), optional
+        Angular velocity of the body, in the same frame as `I` (typically body)
+        [rad/s]. If None, rotational energy is ignored.
+    I : np.ndarray (3, 3), optional
         Moment of inertia tensor about the center of mass, in the same frame as
         `w` [kg*m2]. If None, rotational energy is ignored.
 
@@ -58,7 +63,7 @@ def calc_kinetic_energy(v: np.ndarray, w: np.ndarray, mass: np.ndarray, I: np.nd
 
     KE_translational = 0.5 * mass * np.dot(v, v)
 
-    if I is not None:
+    if I is not None and w is not None:
         KE_rotational = 0.5 * (w.T @ I @ w)
     else:
         KE_rotational = 0
@@ -98,7 +103,7 @@ def calc_total_energy(
         Total energy [J].
     """
     PE = calc_potential_energy(r, mass_kg, mu)
-    KE = calc_kinetic_energy(v, w, mass_kg, I)
+    KE = calc_kinetic_energy(v, mass_kg, w, I)
     return PE + KE
 
 
