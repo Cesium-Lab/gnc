@@ -81,21 +81,35 @@ def propagate_two_body(
         If the integrator fails, does not reach every requested time, or
         returns non-finite states.
     """
+    return _propagate(
+        lambda _, s: two_body(s, mu, j2, r_cb),
+        rv0_I,
+        t_eval_s,
+        rtol=rtol,
+        atol=atol,
+        method="RK45",
+        label="Two-body",
+    )
+
+
+def _propagate(f, rv0, t_eval_s, *, rtol, atol, method, label) -> np.ndarray:
+    """`solve_ivp` over `t_eval_s` from `rv0`; raises if it fails or goes non-finite."""
     t_eval_s = np.asarray(t_eval_s, dtype=float)
     sol = solve_ivp(
-        lambda _, s: two_body(s, mu, j2, r_cb),
+        f,
         (t_eval_s[0], t_eval_s[-1]),
-        np.asarray(rv0_I, dtype=float),
+        np.asarray(rv0, dtype=float),
         t_eval=t_eval_s,
         rtol=rtol,
         atol=atol,
+        method=method,
     )
     if (
         not sol.success
         or sol.y.shape[1] != t_eval_s.size
         or not np.all(np.isfinite(sol.y))
     ):
-        raise RuntimeError(f"Two-body propagation failed: {sol.message}")
+        raise RuntimeError(f"{label} propagation failed: {sol.message}")
 
     return sol.y.T
 
@@ -135,8 +149,9 @@ def synodic_dynamics(
     assert mu1 > mu2
     assert r1_bc < r2_bc
 
-    assert np.isclose(mu1 * r1_bc, mu2 * r2_bc)
-    assert np.isclose(w_s**2, (mu1 + mu2) / (r1_bc + r2_bc) ** 3)
+    # atol=0: w_s**2 ~ 1e-12, far below np.isclose's default atol of 1e-8
+    assert np.isclose(mu1 * r1_bc, mu2 * r2_bc, rtol=1e-9, atol=0)
+    assert np.isclose(w_s**2, (mu1 + mu2) / (r1_bc + r2_bc) ** 3, rtol=1e-9, atol=0)
 
     x, y, z, x_dot, y_dot, z_dot = rv_S
 
@@ -159,3 +174,53 @@ def synodic_dynamics(
     rv_dot_S = np.array([x_dot, y_dot, z_dot, x_ddot, y_ddot, z_ddot])
 
     return rv_dot_S
+
+
+def propagate_synodic(
+    rv0_S: np.ndarray,
+    t_eval_s: np.ndarray,
+    mu1: float,
+    mu2: float,
+    r1_bc: float,
+    r2_bc: float,
+    w_s: float,
+    rtol=1e-12,
+    atol=1e-6,
+) -> np.ndarray:
+    """Integrate `synodic_dynamics` (CR3BP) from an initial state over a time grid.
+
+    `rv0_S` is the state at `t_eval_s[0]`; a decreasing grid propagates backwards.
+    Uses DOP853 with tight defaults, since three-body trajectories are sensitive to
+    integration error (especially on close approaches to either primary).
+
+    Parameters
+    ----------
+    rv0_S : np.ndarray (6,)
+        Initial position and velocity in the synodic frame [m, m/s].
+    t_eval_s : np.ndarray (N,)
+        Monotonic output times [s]; the first entry is the epoch of `rv0_S`.
+    mu1, mu2, r1_bc, r2_bc, w_s : float
+        System parameters, as in `synodic_dynamics`.
+    rtol, atol : float, optional
+        `solve_ivp` tolerances. Defaults are 1e-12 and 1e-6.
+
+    Returns
+    -------
+    rv_S : np.ndarray (N, 6)
+        States at `t_eval_s` [m, m/s].
+
+    Raises
+    ------
+    RuntimeError
+        If the integrator fails, does not reach every requested time, or
+        returns non-finite states.
+    """
+    return _propagate(
+        lambda _, s: synodic_dynamics(s, mu1, mu2, r1_bc, r2_bc, w_s),
+        rv0_S,
+        t_eval_s,
+        rtol=rtol,
+        atol=atol,
+        method="DOP853",
+        label="Synodic",
+    )

@@ -12,7 +12,6 @@ from cesium.guidance.coplanar import (
     guid_phasing_same_orbit,
 )
 from cesium.math.base import unit
-from cesium.math.rotations import wrap_to_2pi
 from cesium.orbital.coes import sma_from_rv
 from cesium.physics.dynamics import propagate_two_body
 from cesium.world import MU_EARTH
@@ -69,7 +68,7 @@ class Test_guid_coaxial_hohmann:
 
     def test_same_orbit_needs_no_burns(self):
         r_p, r_a = 7000 * KM_TO_M, 9000 * KM_TO_M
-        a_trans, t_trans, dv_a, dv_b = guid_coaxial_hohmann(
+        _, t_trans, dv_a, dv_b = guid_coaxial_hohmann(
             r_p,
             r_a,
             r_p,
@@ -79,7 +78,9 @@ class Test_guid_coaxial_hohmann:
             mu=MU_EARTH,
         )
         assert (dv_a, dv_b) == pytest.approx((0.0, 0.0), abs=1e-9)
-        assert t_trans == pytest.approx(np.pi * np.sqrt(a_trans**3 / MU_EARTH))
+        # Hand calc: a = (r_p + r_a) / 2 = 8000 km
+        #   t = pi * sqrt(a^3 / mu) = pi * sqrt(5.12e20 / 3.986004418e14) = pi * 1133.36 s
+        assert t_trans == pytest.approx(3560.541, abs=1e-3)
 
     @pytest.mark.parametrize("depart_at_periapsis", [True, False])
     @pytest.mark.parametrize("arrive_at_periapsis", [True, False])
@@ -236,11 +237,31 @@ class Test_guid_phasing:
         # assert t_wait * SEC_TO_MIN == pytest.approx(377.9537, abs=1.0)  # book value is wrong
         assert a_trans == pytest.approx(27457877, abs=1)
 
-        # physical check
-        w_c, w_t = np.sqrt(MU_EARTH / a_chaser**3), np.sqrt(MU_EARTH / a_target**3)
-        chaser_angle = w_c * t_wait + np.pi
-
-        target_angle = -d_ta * DEG_TO_RAD + w_t * (t_wait + t_trans)
-        miss = wrap_to_2pi(target_angle - chaser_angle)
-        assert miss == pytest.approx(0.0, abs=1e-12)
+        # Regression pin (book's t_wait is wrong); fly_vallado_6_9 checks it physically
         assert t_wait * SEC_TO_MIN == pytest.approx(234.6110, abs=1e-4)
+
+    def test_vallado_example_6_9_plan_meets_target(self):
+        """Test that Vallado is actaually correct.
+
+        Circular coplanar orbits; the target starts 20 deg ahead of the chaser.
+        """
+        a_c, a_t, d_ta = 12756.274 * KM_TO_M, 42159.48 * KM_TO_M, -20.0
+        _, t_trans, t_wait, _ = guid_phasing_different_orbits(
+            a_c, a_t, d_ta, mu=MU_EARTH, k=1, deg=True
+        )
+
+        def circular(a, angle):
+            v = np.sqrt(MU_EARTH / a)
+            c, s = np.cos(angle), np.sin(angle)
+            return np.array([a * c, a * s, 0.0, -v * s, v * c, 0.0])
+
+        chaser = propagate_two_body(circular(a_c, 0.0), [0.0, t_wait], MU_EARTH)[-1]
+        a_trans = (a_c + a_t) / 2
+        v_peri = np.sqrt(MU_EARTH * (2 / a_c - 1 / a_trans))  # vis-viva at departure
+        chaser[3:6] = v_peri * unit(chaser[3:6])
+        chaser = propagate_two_body(chaser, [0.0, t_trans], MU_EARTH)[-1]
+
+        target0 = circular(a_t, -d_ta * DEG_TO_RAD)
+        target = propagate_two_body(target0, [0.0, t_wait + t_trans], MU_EARTH)[-1]
+
+        assert norm(chaser[0:3] - target[0:3]) < 1 * KM_TO_M  # vs 42,000 km orbit

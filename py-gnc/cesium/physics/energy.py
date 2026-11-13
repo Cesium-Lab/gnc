@@ -100,3 +100,35 @@ def calc_total_energy(
     PE = calc_potential_energy(r, mass_kg, mu)
     KE = calc_kinetic_energy(v, w, mass_kg, I)
     return PE + KE
+
+
+def calc_jacobi_constant(
+    rv_S: np.ndarray, mu1: float, mu2: float, r1_bc: float, r2_bc: float, w_s: float
+) -> float:
+    """Jacobi constant of the circular restricted three-body problem.
+
+    `C = w_s^2 (x^2 + y^2) + 2 (mu1 / r1 + mu2 / r2) - v^2`, conserved along any
+    trajectory of `synodic_dynamics`; equal to minus twice the energy per unit mass
+    in the rotating frame. Frame and parameters as in `synodic_dynamics`.
+
+    Parameters
+    ----------
+    rv_S : np.ndarray (6,)
+        Position and velocity in the synodic frame [m, m/s].
+    mu1, mu2, r1_bc, r2_bc, w_s : float
+        System parameters, as in `synodic_dynamics`.
+
+    Returns
+    -------
+    float
+        Jacobi constant [m2/s2].
+
+    References
+    ----------
+    Curtis, Section 2.12.
+    """
+    x, y, z = rv_S[0:3]
+    r1 = np.sqrt((x + r1_bc) ** 2 + y**2 + z**2)
+    r2 = np.sqrt((x - r2_bc) ** 2 + y**2 + z**2)
+    v = rv_S[3:6]
+    return w_s**2 * (x**2 + y**2) + 2 * (mu1 / r1 + mu2 / r2) - np.dot(v, v)

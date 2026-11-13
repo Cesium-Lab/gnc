@@ -1,7 +1,9 @@
 import numpy as np
+from numpy.linalg import norm
 import pytest
 
 from cesium.constants import DEG_TO_RAD, KM_TO_M, MIN_TO_SEC, RAD_TO_DEG
+from cesium.math.rotations import wrap_to_pi
 from cesium.orbital.coes import (
     COES,
     E_from_ta,
@@ -16,7 +18,8 @@ from cesium.orbital.coes import (
     ta_from_M,
     vis_viva,
 )
-from cesium.world import MU_EARTH, MU_EARTH_KM
+from cesium.physics.dynamics import propagate_two_body
+from cesium.world import MU_EARTH, MU_EARTH_KM, W_EARTH
 
 
 def test_kepler():
@@ -333,7 +336,11 @@ class Test_COES:
         coes = COES(8000e3, 0.1, 0.0, 0.0, 0.0, 0.0)
         assert coes.r_p == pytest.approx(7200e3)
         assert coes.r_a == pytest.approx(8800e3)
-        assert coes.n(MU_EARTH) == pytest.approx(np.sqrt(MU_EARTH / 8000e3**3))
+
+    def test_geo_mean_motion_is_earth_rotation_rate(self):
+        """Geostationary radius 42,164.17 km orbits once per sidereal day."""
+        geo = COES(42164.17e3, 0.0, 0.0, 0.0, 0.0, 0.0)
+        assert geo.n(MU_EARTH) == pytest.approx(W_EARTH, rel=1e-7)
 
 
 @pytest.mark.parametrize("e", [0.0, 0.1, 0.7])
@@ -349,12 +356,29 @@ class Test_orbit_sweep:
         start = self.COES0.with_ta(0.0)
         moved, dt = orbit_sweep(start, np.pi, MU_EARTH)
         assert moved.ta == pytest.approx(np.pi)
+        assert moved.r_a == norm(moved.to_r_and_v(MU_EARTH)[0])  # sanity idk
         assert dt == pytest.approx(start.period(MU_EARTH) / 2)
 
-    def test_matches_mean_motion_and_wraps_forward(self):
-        _, dt = orbit_sweep(self.COES0, 1.0, MU_EARTH)
-        dM = M_from_ta(self.COES0.ta + 1.0, 0.2) - M_from_ta(self.COES0.ta, 0.2)
-        assert dt == pytest.approx(dM / self.COES0.n(MU_EARTH))
+    def test_periapsis_to_90_deg_hand_calc(self):
+        """a = 8000 km, e = 0.2, ta 0 -> 90 deg, by hand:
+
+        tan(E/2) = sqrt((1-e)/(1+e)) tan(ta/2) = sqrt(0.8/1.2) * 1  ->  E = 1.369438 rad
+        sin(E) = sqrt(1-e^2) sin(ta) / (1 + e cos(ta)) = sqrt(0.96)  = 0.979796
+        M = E - e sin(E) = 1.369438 - 0.195959                       = 1.173479 rad
+        n = sqrt(mu / a^3) = sqrt(3.986004418e14 / 5.12e20)           = 8.823358e-4 rad/s
+        dt = M / n                                                     = 1329.969 s
+        """
+        _, dt = orbit_sweep(self.COES0.with_ta(0.0), np.pi / 2, MU_EARTH)
+        assert dt == pytest.approx(1329.969, abs=1e-3)
+
+    def test_propagating_dt_reaches_swept_anomaly(self):
+        """Independent method: numerically coast for dt and read the true anomaly back."""
+        moved, dt = orbit_sweep(self.COES0, 1.0, MU_EARTH)
+        rv = propagate_two_body(self.COES0.to_rv(MU_EARTH), [0.0, dt], MU_EARTH)[-1]
+        ta_reached = COES.from_rv(rv, MU_EARTH).ta
+        assert wrap_to_pi(ta_reached - moved.ta) == pytest.approx(0.0, abs=1e-8)
+
+    def test_negative_sweep_wraps_forward(self):
         _, dt_back = orbit_sweep(self.COES0, -1.0, MU_EARTH)
         assert 0 < dt_back < self.COES0.period(MU_EARTH)
 

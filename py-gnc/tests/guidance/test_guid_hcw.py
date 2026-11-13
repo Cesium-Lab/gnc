@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
 from numpy.linalg import norm
+from scipy.integrate import solve_ivp
 
 import cesium.guidance as guid
 from cesium.constants import HOUR_TO_SEC, KM_TO_M
-from cesium.orbital.hcw import calc_Phi
+from cesium.orbital.hcw import hcw_dynamics
 from cesium.world import MU_EARTH, R_EARTH
 
 
@@ -62,11 +63,16 @@ class Test_plan_hcw_two_impulse:
     def test_burns_rendezvous_at_target(self):
         """After burn 1 the chaser reaches the origin at t_trans; burn 2 zeroes its velocity."""
         burn1, burn2 = guid.plan_hcw_two_impulse(self.R0, self.V0, self.T_TRANS, self.N)
-        Phi_rr, Phi_rv, Phi_vr, Phi_vv = calc_Phi(self.T_TRANS, self.N)
-        v_after_1 = self.V0 + burn1.dv
-
-        r_f = Phi_rr @ self.R0 + Phi_rv @ v_after_1
-        v_f = Phi_vr @ self.R0 + Phi_vv @ v_after_1
+        # Independent of the STM the planner used: integrate the HCW ODE numerically
+        sol = solve_ivp(
+            lambda _, x: hcw_dynamics(x, np.zeros(3), self.N),
+            (0.0, self.T_TRANS),
+            np.concatenate((self.R0, self.V0 + burn1.dv)),
+            method="DOP853",
+            rtol=1e-12,
+            atol=1e-9,
+        )
+        r_f, v_f = sol.y[0:3, -1], sol.y[3:6, -1]
 
         assert np.allclose(r_f, burn2.r, atol=1e-6)
         assert np.allclose(burn2.r, 0.0, atol=1e-6)

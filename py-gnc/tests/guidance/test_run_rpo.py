@@ -102,6 +102,7 @@ def case(request):
 
 class Test_run_rpo:
     """Regression for refactoring right now"""
+
     def test_docks_within_threshold(self, case):
         dock_rsw = case["info"]["docking_rsw"]
         assert norm(dock_rsw[0:3]) < CFG.dock_thresh

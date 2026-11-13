@@ -463,13 +463,13 @@ class TestRigidBodyEnergy:
         assert calc_total_energy(mass, I, r, v, w0, MU_EARTH) == 0
         next_step = propagate(dt, dt, state, params)
 
-        w_dot = np.linalg.inv(I) @ (torque - np.cross(w0, I @ w0))
-        w = w0 + dt * w_dot
-        KE = 0.5 * w.T @ I @ w
-
+        # Hand calc: from rest, w = dt * tau / I_diag (gyroscopic term ~ w^2 is negligible)
+        #   w  = 0.001 * [12/200, 15/100, 16/400]          = [6.0e-5, 1.5e-4, 4.0e-5] rad/s
+        #   KE = 0.5 * (200*6e-5^2 + 100*1.5e-4^2 + 400*4e-5^2) = 1.805e-6 J
+        assert next_step[10:13] == pytest.approx([6.0e-5, 1.5e-4, 4.0e-5], rel=1e-4)
         assert calc_total_energy(
             mass, I, next_step[0:3], next_step[3:6], next_step[10:13], MU_EARTH
-        ) == pytest.approx(KE, rel=0.0001)
+        ) == pytest.approx(1.805e-6, rel=1e-4)
 
 
 def test_no_I_returns_3DOF():
