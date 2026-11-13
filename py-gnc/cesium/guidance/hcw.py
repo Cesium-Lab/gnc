@@ -7,7 +7,7 @@ from ..constants import DAY_TO_SEC, M_TO_KM, RAD_TO_DEG, SEC_TO_HOUR
 from ..math.base import unit
 from ..math.rotations import wrap_to_2pi, wrap_to_pi
 from ..orbital.coes import COES, orbit_sweep, vis_viva
-from ..orbital.hcw import calc_Phi
+from ..orbital.hcw import calc_Phi, hcw_pci_to_rsw
 from .coplanar import guid_coaxial_hohmann, guid_phasing_same_orbit
 from .maneuvers import Burn
 from .noncoplanar import guid_plane_change_3d, node_line_finder
@@ -191,36 +191,6 @@ def enter_phasing(
     dv_enter = (dv_circ + dv_ph / 2) * v_hat
     return dv_enter, a_ph, dt_ph
 
-# # TODO: test
-# def enter_phasing(tl: RpoTimeline, k_phase: int, dv_circ: float = 0.0) -> dict:
-#     """Burn 3: circularize (`dv_circ` [m/s], along-track) and enter a `k_phase`-rev phasing orbit in one burn.
-
-#     Returns the plan: phasing semi-major axis and duration, target a and i.
-#     """
-#     # Anomaly of chaser WITH the burn-to-go applied
-#     v_hat = unit(tl.chaser[3:6])
-#     rv_circ = tl.chaser.copy()
-#     rv_circ[3:6] += dv_circ * v_hat
-#     c_circ = COES.from_rv(rv_circ, tl.mu)
-
-#     # Phase velocity
-#     _, t = tl.coes()
-#     dv_ph, dt_ph, a_ph = guid_phasing_same_orbit(
-#         t.a,
-#         wrap_to_pi(c_circ.aol - t.aol),
-#         tl.mu,
-#         k_phase,
-#         k_phase,
-#         deg=False,
-#         r_cb=tl.r_cb,
-#     )
-
-#     # Apply, considering burn-to-go from before
-#     tl.burn((dv_circ + dv_ph / 2) * v_hat, "Burn 3 (circularize + phase entry)")
-#     tl.coast(dt_ph / k_phase)
-#     return {"a_phase": a_ph, "t_phase": dt_ph, "a_target": t.a, "i_target": t.i}
-
-
 # TODO: test
 def closed_loop_phasing(tl: RpoTimeline, k_phase: int, stop_sep: float) -> int:
     """Burns 4.x: same-orbit phasing, re-planned every rev from the chaser's actual state.
@@ -256,6 +226,7 @@ def closed_loop_phasing(tl: RpoTimeline, k_phase: int, stop_sep: float) -> int:
         # Coast and break condition
         c, _ = tl.coes()
         tl.coast(c.period(tl.mu))
+        # sep = c.to_r_and_v[0] - t.to_r_and_v[0]
         if norm(tl.to_rsw()[0:3]) < stop_sep:
             break
 
@@ -263,15 +234,23 @@ def closed_loop_phasing(tl: RpoTimeline, k_phase: int, stop_sep: float) -> int:
 
 
 # TODO: test
-def phase_exit(tl: RpoTimeline) -> None:
+# def phase_exit(tl: RpoTimeline) -> None:
+#     """Burn 5: along-track burn to the target's semi-major axis."""
+#     # Duplicate of last part of closed-loop-phasing
+#     _, t = tl.coes()
+#     r_now = norm(tl.chaser[0:3])
+#     v_req = vis_viva(r_now, t.a, tl.mu)
+#     tl.burn(
+#         (v_req - norm(tl.chaser[3:6])) * unit(tl.chaser[3:6]), "Burn 5 (phase exit)"
+#     )
+
+def phase_exit(chaser_rv: np.ndarray, a_target: float, mu: float) -> np.ndarray:
     """Burn 5: along-track burn to the target's semi-major axis."""
     # Duplicate of last part of closed-loop-phasing
-    _, t = tl.coes()
-    r_now = norm(tl.chaser[0:3])
-    v_req = vis_viva(r_now, t.a, tl.mu)
-    tl.burn(
-        (v_req - norm(tl.chaser[3:6])) * unit(tl.chaser[3:6]), "Burn 5 (phase exit)"
-    )
+    r_now = norm(chaser_rv[0:3])
+    v_req = vis_viva(r_now, a_target, mu)
+    v_burn = (v_req - norm(chaser_rv[3:6])) * unit(chaser_rv[3:6])
+    return v_burn
 
 
 # TODO: test
@@ -369,7 +348,8 @@ def run_rpo(
         frame=cfg.frame,
     )
     # Burn 1
-    info = {"n_hat": plane_change_at_node(tl, raan_bias)}
+    n_hat = plane_change_at_node(tl, raan_bias)
+    info = {"n_hat": n_hat}
 
     # Burn 2
     dv_circ = hohmann_to_target_radius(tl)
@@ -391,7 +371,11 @@ def run_rpo(
     handoff = relative_summary(tl)
 
     # Burn 5
-    phase_exit(tl)
+    _, t = tl.coes()
+    v_burn = phase_exit(tl.chaser, t.a, tl.mu)
+    tl.burn(v_burn, "Burn 5 (phase exit)")
+    
+    # phase_exit(tl)
 
     # Burn 6+
     info["hcw_passes"] = hcw_rendezvous(
