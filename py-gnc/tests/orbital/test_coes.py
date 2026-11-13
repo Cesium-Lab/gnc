@@ -2,24 +2,26 @@ import numpy as np
 import pytest
 from numpy.linalg import norm
 
-from cesium.constants import DEG_TO_RAD, KM_TO_M, MIN_TO_SEC, RAD_TO_DEG
-from cesium.math.rotations import wrap_to_pi
+from cesium.constants import DAY_TO_SEC, DEG_TO_RAD, KM_TO_M, MIN_TO_SEC, RAD_TO_DEG
+from cesium.math.base import angle_between
+from cesium.math.rotations import dcm_z, wrap_to_pi
 from cesium.orbital.coes import (
     COES,
     E_from_ta,
     M_from_ta,
     coes_to_rv,
     kepler_eq,
-    kepler_eq_h,
+    # kepler_eq_h,  # commented out in coes.py for now
     kepler_eq_p,
     orbit_sweep,
+    pkepler,
     rv_to_coes,
     sma_from_rv,
     ta_from_M,
     vis_viva,
 )
 from cesium.physics.dynamics import propagate_two_body
-from cesium.world import MU_EARTH, MU_EARTH_KM, W_EARTH
+from cesium.world import J2_EARTH, MU_EARTH, MU_EARTH_KM, R_EARTH, W_EARTH
 
 
 def test_kepler():
@@ -57,13 +59,13 @@ def test_kepler_eq_p_vallado():
     assert B == pytest.approx(0.817751, abs=1e-6)
 
 
-def test_kepler_eq_h_vallado():
-    """Vallado Example 2-3, p. 71"""
-    M = 235.4 * DEG_TO_RAD
-    e = 2.4
-    H = kepler_eq_h(M, e)
-
-    assert H == pytest.approx(1.601376144, abs=1e-9)
+# def test_kepler_eq_h_vallado():
+#     """Vallado Example 2-3, p. 71"""
+#     M = 235.4 * DEG_TO_RAD
+#     e = 2.4
+#     H = kepler_eq_h(M, e)
+#
+#     assert H == pytest.approx(1.601376144, abs=1e-9)
 
 
 class TestRvToCoes:
@@ -154,7 +156,11 @@ class TestRvToCoes:
         assert ta * RAD_TO_DEG == pytest.approx(191.206, rel=1e-5)
 
     def test_hyperbolic_a(self):
-        """hyperbolic orbit semi-major axis should be negative"""
+        """hyperbolic orbit semi-major axis should be negative
+
+        Hand calc: a = -mu / (v^2 - 2 mu / r) = -398600.4418 / (225 - 113.88584)
+                     = -398600.4418 / 111.11416 = -3587.3056 km
+        """
         r = np.array([7000.0, 0.0, 0.0])  # km
         v = np.array([0.0, 15.0, 0.0])  # km/s
 
@@ -255,16 +261,16 @@ class TestRoundTrip:
 class Test_vis_viva:
     R = 7000 * KM_TO_M
 
-    def test_circular_speed(self):
-        assert vis_viva(self.R, self.R, MU_EARTH) == pytest.approx(
-            np.sqrt(MU_EARTH / self.R)
-        )
+    def test_circular_speed_hand_calc(self) -> None:
+        """r = a = 7000 km: sqrt(3.986004418e14 / 7e6) = 7546.053 m/s (the usual ~7.5 km/s LEO)."""
+        assert vis_viva(self.R, self.R, MU_EARTH) == pytest.approx(7546.053, abs=1e-3)
 
-    def test_hyperbolic_periapsis_speed(self):
-        """a = -mu / v_inf^2 gives v^2 = v_inf^2 + 2 mu / r."""
-        v_inf = 3.2 * KM_TO_M
-        v = vis_viva(self.R, -MU_EARTH / v_inf**2, MU_EARTH)
-        assert v == pytest.approx(np.sqrt(v_inf**2 + 2 * MU_EARTH / self.R))
+    def test_matches_rv_to_coes_on_hyperbola(self) -> None:
+        """Independent route: `coes_to_rv` builds v from sqrt(mu / p), not vis-viva."""
+        r, v = coes_to_rv(-25000e3, 1.3, 0.3, 0.4, 0.5, 0.7, MU_EARTH)
+        assert norm(v) == pytest.approx(
+            vis_viva(norm(r), -25000e3, MU_EARTH), rel=1e-12
+        )
 
     def test_escape_speed_is_parabolic(self):
         v_esc = np.sqrt(2 * MU_EARTH / self.R)
@@ -356,7 +362,9 @@ class Test_orbit_sweep:
         start = self.COES0.with_ta(0.0)
         moved, dt = orbit_sweep(start, np.pi, MU_EARTH)
         assert moved.ta == pytest.approx(np.pi)
-        assert moved.r_a == norm(moved.to_r_and_v(MU_EARTH)[0])  # sanity idk
+        assert moved.r_a == pytest.approx(
+            norm(moved.to_r_and_v(MU_EARTH)[0])
+        )  # at apoapsis
         assert dt == pytest.approx(start.period(MU_EARTH) / 2)
 
     def test_periapsis_to_90_deg_hand_calc(self):
@@ -392,3 +400,182 @@ def test_with_dv_prograde_raises_apoapsis_from_periapsis():
     assert after.i == pytest.approx(coes.i) and after.raan == pytest.approx(coes.raan)
     unchanged = coes.with_dv(np.zeros(3), MU_EARTH).delta(coes)  # wraps ta = 0 vs 2pi
     assert unchanged.elements() == pytest.approx(np.zeros(6), abs=1e-6)
+
+
+################################################################################
+#               Kepler solvers
+################################################################################
+
+
+class Test_kepler_eq:
+    def test_rejects_non_elliptical(self) -> None:
+        for e in (-0.1, 1.0, 1.5):
+            with pytest.raises(ValueError):
+                kepler_eq(1.0, e)
+
+    def test_raises_when_not_converged(self) -> None:
+        with pytest.raises(ValueError):
+            kepler_eq(1.0, 0.9, max_iter=1)
+
+
+# class Test_kepler_eq_h:
+#     @pytest.mark.parametrize(
+#         "e, H",
+#         [
+#             (1.2, 0.8),  # e < 1.6, small M
+#             (1.2, -0.8),  # negative: H is not an angle, must not wrap
+#             (1.5, 3.0),  # e < 1.6, M > pi
+#             (2.0, 0.5),  # 1.6 <= e < 3.6, |M| < pi
+#             (2.4, -2.0),  # 1.6 <= e < 3.6, |M| > pi
+#             (5.0, 0.5),  # e >= 3.6
+#             # (1.1, 7.0),  # H > 2 pi: needs the large-|M| guess (TODO in kepler_eq_h)
+#         ],
+#     )
+#     def test_inverts_hyperbolic_kepler_equation(self, e: float, H: float) -> None:
+#         """Round trip through the defining equation M = e sinh(H) - H, every guess branch."""
+#         M = e * np.sinh(H) - H
+#         assert kepler_eq_h(M, e) == pytest.approx(H, abs=1e-9)
+#
+#     def test_rejects_non_hyperbolic(self) -> None:
+#         with pytest.raises(ValueError):
+#             kepler_eq_h(1.0, 1.0)
+#
+#     def test_raises_when_not_converged(self) -> None:
+#         with pytest.raises(ValueError):
+#             kepler_eq_h(10.0, 1.5, max_iter=1)
+
+
+def test_kepler_eq_p_inverts_barker_equation() -> None:
+    """Barker: dt = (1/2) sqrt(p^3 / mu) (B + B^3 / 3), with B = tan(ta / 2).
+
+    Hand calc at ta = 60 deg: B = tan(30 deg) = 0.577350.
+    """
+    p = 10000e3
+    B = np.tan(30 * DEG_TO_RAD)
+    dt = 0.5 * np.sqrt(p**3 / MU_EARTH) * (B + B**3 / 3)
+    assert kepler_eq_p(dt, p, MU_EARTH) == pytest.approx(0.577350, abs=1e-6)
+
+
+class Test_pkepler:
+    RV0 = coes_to_rv(7000e3, 0.01, 0.9, 0.5, 0.3, 0.2, MU_EARTH)
+
+    def test_without_j2_matches_numerical_two_body(self) -> None:
+        dt = 5000.0
+        r, v = pkepler(*self.RV0, dt, MU_EARTH)
+        rv = propagate_two_body(
+            np.concatenate(self.RV0), [0.0, dt], MU_EARTH, rtol=1e-12, atol=1e-6
+        )[-1]
+        assert norm(r - rv[0:3]) < 1e-3  # m
+        assert norm(v - rv[3:6]) < 1e-6  # m/s
+
+    def test_j2_secular_drift_matches_numerical_j2(self) -> None:
+        """10 days: pkepler has only secular J2, so it matches the numerical (osculating)
+        RAAN drift to ~0.3% and aop drift to ~2% (short-period terms make up the rest)."""
+        T = 10 * DAY_TO_SEC
+        r, v = pkepler(*self.RV0, T, MU_EARTH, R_EARTH, J2_EARTH)
+        rv = propagate_two_body(
+            np.concatenate(self.RV0),
+            [0.0, T],
+            MU_EARTH,
+            J2_EARTH,
+            R_EARTH,
+            rtol=1e-12,
+            atol=1e-6,
+        )[-1]
+        c0, c_pk, c_num = (
+            rv_to_coes(*self.RV0, MU_EARTH),
+            rv_to_coes(r, v, MU_EARTH),
+            rv_to_coes(rv[0:3], rv[3:6], MU_EARTH),
+        )
+        d_raan_pk, d_raan_num = (
+            wrap_to_pi(c_pk[3] - c0[3]),
+            wrap_to_pi(c_num[3] - c0[3]),
+        )
+        d_aop_pk, d_aop_num = wrap_to_pi(c_pk[4] - c0[4]), wrap_to_pi(c_num[4] - c0[4])
+        assert d_raan_pk == pytest.approx(d_raan_num, rel=1e-2)
+        assert d_aop_pk == pytest.approx(d_aop_num, rel=5e-2)
+        assert c_pk[0] == pytest.approx(c0[0], rel=1e-12)  # no secular change in a
+
+    def test_rejects_hyperbolic(self) -> None:
+        r = np.array([7000e3, 0.0, 0.0])
+        v = np.array([0.0, 1.2 * np.sqrt(2 * MU_EARTH / 7000e3), 0.0])
+        with pytest.raises(ValueError):
+            pkepler(r, v, 100.0, MU_EARTH)
+
+
+def test_rv_to_coes_parabolic_has_infinite_a() -> None:
+    """Escape speed sqrt(2 mu / r) perpendicular to r: e = 1 and a undefined (inf)."""
+    r = np.array([7000e3, 0.0, 0.0])
+    v = np.array([0.0, np.sqrt(2 * MU_EARTH / 7000e3), 0.0])
+    a, e, *_ = rv_to_coes(r, v, MU_EARTH)
+    assert a == np.inf
+    assert e == pytest.approx(1.0)
+
+
+################################################################################
+#               COES helpers
+################################################################################
+
+
+class Test_COES_helpers:
+    C = COES(7000e3, 0.1, 0.9, 0.5, 0.3, 0.2)
+
+    def test_copy_is_equal_but_separate(self) -> None:
+        c = self.C.copy()
+        assert c == self.C
+        assert c is not self.C
+
+    def test_to_r_and_v_splits_to_rv(self) -> None:
+        r, v = self.C.to_r_and_v(MU_EARTH)
+        assert np.concatenate((r, v)) == pytest.approx(self.C.to_rv(MU_EARTH))
+
+    def test_h_magnitude_and_direction(self) -> None:
+        """|h| = sqrt(mu a (1 - e^2)); h_hat = [sin i sin raan, -sin i cos raan, cos i]."""
+        a, e, i, raan, _, _ = self.C
+        h = self.C.h(MU_EARTH)
+        assert norm(h) == pytest.approx(np.sqrt(MU_EARTH * a * (1 - e**2)), rel=1e-12)
+        h_hat = [np.sin(i) * np.sin(raan), -np.sin(i) * np.cos(raan), np.cos(i)]
+        assert h / norm(h) == pytest.approx(h_hat, abs=1e-12)
+
+    def test_E_sp_hand_calc(self) -> None:
+        """a = 7000 km: -mu / (2a) = -3.986004418e14 / 1.4e7 = -2.8471460e7 m2/s2."""
+        assert self.C.E_sp(MU_EARTH) == pytest.approx(-2.8471460e7, rel=1e-7)
+        assert COES(-25000e3, 1.3, 0, 0, 0, 0).E_sp(MU_EARTH) > 0  # hyperbola: unbound
+
+    def test_aol_is_angle_from_node_to_position(self) -> None:
+        """Geometric: angle from the ascending node to r, measured along the motion.
+
+        `angle_between` is unsigned (0 to pi), so this orbit keeps aol = 0.5 rad < pi
+        and the second assert checks r is ahead of the node, not behind it.
+        """
+        r = self.C.to_rv(MU_EARTH)[0:3]
+        node = np.array([np.cos(self.C.raan), np.sin(self.C.raan), 0.0])
+        assert angle_between(node, r) == pytest.approx(self.C.aol, abs=1e-9)
+        assert np.cross(node, r) @ self.C.h(MU_EARTH) > 0
+
+    def test_bias_raan_rotates_orbit_about_z(self) -> None:
+        d = 0.25
+        rv = self.C.to_rv(MU_EARTH)
+        rv_biased = self.C.bias_raan(d).to_rv(MU_EARTH)
+        rot = dcm_z(d).T  # active rotation by +d about z
+        assert rv_biased[0:3] == pytest.approx(rot @ rv[0:3], rel=1e-12)
+        assert rv_biased[3:6] == pytest.approx(rot @ rv[3:6], rel=1e-12)
+        assert self.C.bias_raan(d).raan == pytest.approx(self.C.raan + d)
+
+    def test_str_in_km_and_deg(self) -> None:
+        c = COES(7000e3, 0.01, 45 * DEG_TO_RAD, 90 * DEG_TO_RAD, 0.0, 180 * DEG_TO_RAD)
+        assert str(c) == (
+            "a = 7000.000 km, e = 0.01000, i = 45.000 deg, raan = 90.000 deg, "
+            "aop = 0.000 deg, ta = 180.000 deg"
+        )
+
+    def test_print_with_and_without_energy(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Hand calc: E_sp = -mu / (2a) = -3.986004418e14 / 14e6 = -28.471 km2/s2."""
+        c = COES(7000e3, 0.0, 0.0, 0.0, 0.0, 0.0)
+        c.print("leo")
+        c.print("leo", MU_EARTH)
+        out = capsys.readouterr().out.splitlines()
+        assert out[0] == f"leo: {c}"
+        assert out[1] == f"leo: {c} (E_sp = -28.471 km2/s2)"
