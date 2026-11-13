@@ -49,28 +49,31 @@ def test_KE_values_of_0():
 
     v = np.array([7, 1, 0])
     w = np.array([0.1, 0.1, 0.1])
-    I = np.array([[1, 2, 0], [0, 2, 0], [0, 0.9, 1]])
+    I = np.array([[1, 2, 0], [2, 2, 0.9], [0, 0.9, 1]])
     mass = 100.0
 
     assert calc_kinetic_energy(np.array([0, 0, 0]), mass, np.array([0, 0, 0]), I) == 0
     assert calc_kinetic_energy(v, mass, np.array([0, 0, 0]), I) == 2500.0
-    assert calc_kinetic_energy(np.array([0, 0, 0]), mass, w, I) == 3.45e-2
-    assert calc_kinetic_energy(v, 0, w, I) == 3.45e-2
+    # w = 0.1 [1, 1, 1]: w^T I w = 0.01 * (sum of all entries of I) = 0.01 * 9.8
+    assert calc_kinetic_energy(np.array([0, 0, 0]), mass, w, I) == pytest.approx(0.049)
+    assert calc_kinetic_energy(v, 0, w, I) == pytest.approx(0.049)
     assert calc_kinetic_energy(v, mass, w, np.zeros((3, 3))) == 2500.0
 
 
 def test_KE_reasomable_values():
     v = np.array([7, 1, 0])
     w = np.array([1, 1, 1])
-    I = np.array([[1, 2, 0], [0, 2, 0], [0, 0.9, 1]])
+    I = np.array([[1, 2, 0], [2, 2, 0.9], [0, 0.9, 1]])  # symmetric, entries sum to 9.8
     mass = 100.0
 
-    assert calc_kinetic_energy(v, mass, w, I) == 2500.0 + 3.45
+    # 0.5 * 100 * |[7, 1, 0]|^2 = 2500;  0.5 * 1^2 * 9.8 = 4.9
+    assert calc_kinetic_energy(v, mass, w, I) == pytest.approx(2500.0 + 4.9)
 
     v = np.array([8e5, 4e6, 3e5])
     w = np.array([1e5, 1e5, 1e5])
 
-    assert calc_kinetic_energy(v, mass, w, I) == 8.365e14 + 3.45e10
+    # 0.5 * 100 * 1.673e13 = 8.365e14;  0.5 * 1e10 * 9.8 = 4.9e10
+    assert calc_kinetic_energy(v, mass, w, I) == pytest.approx(8.365e14 + 4.9e10)
 
 
 def test_KE_without_inertia_is_translational_only():

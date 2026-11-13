@@ -23,12 +23,6 @@ def hcw_two_impulse(r0: np.ndarray, v0: np.ndarray, t_trans: float, n: float):
     v_f = Phi_vr @ r0 + Phi_vv @ v_i
     dv2_RSW = -v_f
 
-    # Troubleshooting
-    # dr = Phi_rr @ r0 + Phi_rv @ v_i
-    # dv = Phi_vr @ r0 + Phi_vv @ v_i
-    # print(dr)
-    # print(dv)
-
     return dv1_RSW, dv2_RSW
 
 

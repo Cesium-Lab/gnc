@@ -120,7 +120,7 @@ class TestRigidBodyDeriv:
     def test_random_nonsense(self):
         params = {
             "mass": 17,
-            "I": np.array([[15, 0.5, 0.5], [0.1, 15, 0], [0, 3, 4]]),
+            "I": np.array([[15, 0.1, 0.5], [0.1, 15, 3], [0.5, 3, 4]]),
             "force_I": [12.0, 200.0, 14.0],
             "torque_B": [0.4, 0.2, 0.7],
         }
@@ -162,12 +162,14 @@ class TestRigidBodyDeriv:
             dot[6:10], [-2.165, 0.595, 0.40500000000000014, 1.165], atol=1e-12
         )
 
-        # wack one
-        assert np.allclose(
-            dot[10:14],
-            [6.1567301516750925, -4.715818201011166, 6.225913650758373],
-            atol=1e-12,
-        )
+        # Euler: w_dot = I^-1 (tau - w x I w), by hand with the adjugate (no numpy):
+        #   I w           = [32.074, 57.86, 24.5]
+        #   w x I w       = [-126.7372, 63.90048, 15.00764]
+        #   tau - w x I w = [127.1372, -63.70048, -14.30764]
+        #   det(I) = 761.51,  adj(I) = [[51, 1.1, -7.2], [1.1, 59.75, -44.95],
+        #                               [-7.2, -44.95, 224.99]]
+        #   w_dot = adj @ rhs / det = [8.557920, -3.969908, -1.669219]
+        assert dot[10:13] == pytest.approx([8.557920, -3.969908, -1.669219], abs=1e-6)
 
 
 class TestRigidBodyRk4Integration:
