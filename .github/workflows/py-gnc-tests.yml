@@ -29,6 +29,43 @@ jobs:
         run: |
           python -m pytest py-gnc -v -o addopts= -m ""
 
+  coverage:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: py-gnc
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: py-gnc/pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        run: |
+          python -m pytest -q -o addopts= -m "" --cov --cov-report=term --cov-report=html
+
+      - name: Coverage summary
+        if: always()
+        run: python -m coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: py-gnc/htmlcov
+
   lint-everything:
     runs-on: ubuntu-latest
 
