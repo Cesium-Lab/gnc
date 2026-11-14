@@ -5,6 +5,7 @@ two-body propagation and check the resulting geometry (on the plane, at the apsi
 on the radius, at the target) rather than re-deriving the planner's formula.
 """
 
+from collections.abc import Callable
 from dataclasses import replace
 
 import numpy as np
@@ -25,7 +26,7 @@ from cesium.guidance.timeline import RpoTimeline
 from cesium.math.base import unit
 from cesium.orbital.coes import COES, orbit_sweep
 from cesium.physics.dynamics import propagate_two_body
-from cesium.world.constants import MU_MARS, R_MARS
+from cesium.world.constants import J2_MARS, MU_MARS, R_MARS
 
 MU = MU_MARS
 A_TARGET = 3696 * KM_TO_M  # 300 km altitude
@@ -214,3 +215,101 @@ class Test_hcw_rendezvous:
         assert tl.burns == []
         assert tl.dv_total == 0.0
         assert tl.chaser == pytest.approx(chaser_before, abs=0)
+
+    def test_does_not_dock(self) -> None:
+        rv_c = TARGET.with_ta(TARGET.ta - 1e-3).to_rv(MU)  # ~3.7 km behind
+        tl = RpoTimeline(rv_c, TARGET.to_rv(MU), MU, frame="MCI")
+
+        passes = hcw_rendezvous(tl, 40 * MIN_TO_SEC, dock_thresh=1e-9, max_iter=2)
+
+        assert passes == 2  # uses up every pass
+        assert len(tl.burns) == 3
+        assert tl.chaser == pytest.approx(tl.target)  # Very close though
+        assert norm(tl.to_rsw()) > 1e-9
+
+    def test_rejects_singular_transfer_time(self) -> None:
+        """A transfer of exactly one target period can't be targeted: hcw_rendezvous
+        raises before burning, leaving the timeline untouched."""
+        tl = RpoTimeline(chaser_behind(3e3), TARGET.to_rv(MU), MU, frame="MCI")
+        with pytest.raises(ValueError, match="singular"):
+            hcw_rendezvous(tl, TARGET.period(MU), dock_thresh=50.0, max_iter=3)
+        assert tl.burns == []
+
+
+################################################################################
+#               HCW validity range (linearization error)
+################################################################################
+
+T_HCW = 40 * MIN_TO_SEC
+
+
+def chaser_behind(sep_m: float) -> np.ndarray:
+    """Chaser on the target's circular orbit, `sep_m` of arc behind (along-track)."""
+    return TARGET.with_ta(TARGET.ta - sep_m / A_TARGET).to_rv(MU)
+
+
+def chaser_above(sep_m: float) -> np.ndarray:
+    """Chaser displaced `sep_m` radially outward from the target, same velocity."""
+    rv = TARGET.to_rv(MU)
+    rv[0:3] += sep_m * unit(rv[0:3])
+    return rv
+
+
+def single_pass_miss(rv_chaser: np.ndarray) -> tuple[float, float]:
+    """(initial separation, miss after one HCW transfer) [m], two-body truth.
+
+    Two-body (no J2) so the only error left is HCW's linearization.
+    """
+    tl = RpoTimeline(rv_chaser, TARGET.to_rv(MU), MU, frame="MCI")
+    sep0 = norm(tl.to_rsw()[0:3])
+    hcw_rendezvous(tl, T_HCW, dock_thresh=0.0, max_iter=1)
+    return sep0, norm(tl.to_rsw()[0:3])
+
+
+class Test_hcw_rendezvous_nonlinearity:
+
+    def test_accurate_close_in(self) -> None:
+        """Within ~1 km, one transfer lands within 0.1% of the starting separation."""
+        sep0, miss = single_pass_miss(chaser_behind(1e3))
+        assert miss / sep0 < 1e-3
+
+    def test_degrades_far_out(self) -> None:
+        """At ~300 km (~5 deg of arc) a single transfer misses by over 20% of the
+        separation: HCW alone is no longer a usable model."""
+        sep0, miss = single_pass_miss(chaser_behind(300e3))
+        assert miss / sep0 > 0.2
+
+    @pytest.mark.parametrize("sep_km", [10.0, 100.0, 300.0])
+    def test_retargeting_recovers_moderate_separations(self, sep_km: float) -> None:
+        """Re-planning from the new relative state each pass shrinks the the miss each time, so 3 passes dock from up to ~300 km."""
+        tl = RpoTimeline(
+            chaser_behind(sep_km * KM_TO_M), TARGET.to_rv(MU), MU, frame="MCI"
+        )
+        hcw_rendezvous(tl, T_HCW, dock_thresh=50.0, max_iter=3)
+        assert norm(tl.to_rsw()[0:3]) < 50.0
+
+    def test_retargeting_cannot_recover_far_out(self) -> None:
+        """From ~1000 km (~15 deg of arc) the first miss is about the size of the
+        separation, so re-targeting doesn't converge in multiple passes."""
+        tl = RpoTimeline(chaser_behind(1000e3), TARGET.to_rv(MU), MU, frame="MCI")
+        passes = hcw_rendezvous(tl, T_HCW, dock_thresh=50.0, max_iter=3)
+        assert passes == 3
+        assert norm(tl.to_rsw()[0:3]) > 10e3
+
+    ############################################################################
+    #               With J2 truth
+    ############################################################################
+
+    def test_j2_retargeting_still_docks_from_handoff(self) -> None:
+        """From the mars-courier HCW handoff distance (20 km), re-targeting absorbs
+        the J2 miss and docks within 50 m in 3 passes."""
+        tl = RpoTimeline(
+            chaser_behind(20e3),
+            TARGET.to_rv(MU),
+            MU,
+            frame="MCI",
+            j2=J2_MARS,
+            r_cb=R_MARS,
+        )
+        hcw_rendezvous(tl, T_HCW, dock_thresh=50.0, max_iter=3)
+        assert norm(tl.to_rsw()[0:3]) < 50.0

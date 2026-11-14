@@ -13,9 +13,57 @@ from .maneuvers import Burn
 from .noncoplanar import guid_plane_change_3d, node_line_finder
 from .timeline import RpoTimeline
 
+MAX_COND_PHI_RV = 1e8
+"""`Phi_rv` condition number above which an HCW transfer time is treated as singular."""
 
-def hcw_two_impulse(r0: np.ndarray, v0: np.ndarray, t_trans: float, n: float):
+
+def hcw_two_impulse(
+    r0: np.ndarray, v0: np.ndarray, t_trans: float, n: float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Two-impulse HCW rendezvous to the target (RSW origin) in `t_trans`.
+
+    Solves `Phi_rr r0 + Phi_rv v_i = 0` for the transfer velocity, then cancels the
+    arrival velocity.
+
+    `Phi_rv` is singular at some transfer times, where no velocity can steer the
+    chaser to the target: cross-track at every half period (`n t = k pi`, where
+    `sin(n t) = 0`) and in-plane at every full period (`n t = 2 k pi`). Near those
+    times the required dv blows up, so they are rejected.
+
+    Parameters
+    ----------
+    r0, v0 : np.ndarray (3,)
+        Chaser position and velocity relative to the target in RSW [m, m/s].
+    t_trans : float
+        Transfer time [s]; positive and away from multiples of half a target period.
+    n : float
+        Target mean motion [rad/s].
+
+    Returns
+    -------
+    dv1_RSW, dv2_RSW : np.ndarray (3,)
+        Departure and arrival impulses in RSW [m/s].
+
+    Raises
+    ------
+    ValueError
+        If `t_trans <= 0` or `Phi_rv` is (near) singular at `t_trans`.
+
+    References
+    ----------
+    Curtis, Orbital Mechanics for Engineering Students, Ch. 7 (two-impulse
+    rendezvous, Examples 7.2-7.3).
+    Vallado 4e, Algorithm 48 (Hill's Equations), p. 396-397.
+    """
+    if not t_trans > 0:
+        raise ValueError(f"t_trans must be positive, got {t_trans}")
     Phi_rr, Phi_rv, Phi_vr, Phi_vv = calc_Phi(t_trans, n)
+    cond = np.linalg.cond(Phi_rv)
+    if cond > MAX_COND_PHI_RV:
+        raise ValueError(
+            f"t_trans = {t_trans:.1f} s is (near) a multiple of half the target period "
+            f"({np.pi / n:.1f} s): HCW targeting is singular (cond(Phi_rv) = {cond:.1e})"
+        )
 
     v_i = np.linalg.solve(Phi_rv, -Phi_rr @ r0)
     dv1_RSW = v_i - v0

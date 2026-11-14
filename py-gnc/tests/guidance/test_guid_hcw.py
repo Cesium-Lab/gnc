@@ -44,6 +44,33 @@ class Test_hcw_two_impulse:
         assert dv == pytest.approx(0.2452, abs=1e-4)
 
 
+class Test_hcw_two_impulse_bad_times:
+    """Transfer times where HCW targeting has no feasible solution."""
+
+    N = 1.1e-3  # rad/s, roughly low Mars orbit
+    R0 = np.array([200.0, -3000.0, 50.0])  # m
+    V0 = np.array([0.1, 0.3, -0.02])  # m/s
+
+    @pytest.mark.parametrize("t", [0.0, -60.0])
+    def test_rejects_nonpositive_time(self, t: float) -> None:
+        with pytest.raises(ValueError, match="positive"):
+            guid.hcw_two_impulse(self.R0, self.V0, t, self.N)
+
+    @pytest.mark.parametrize("k", [1, 2, 3, 4], ids=["half", "full", "1.5", "2"])
+    def test_rejects_multiples_of_half_period(self, k: int) -> None:
+        """n t = k pi: cross-track uncontrollable (sin(n t) = 0) for every k, and
+        in-plane too for even k."""
+        with pytest.raises(ValueError, match="singular"):
+            guid.hcw_two_impulse(self.R0, self.V0, k * np.pi / self.N, self.N)
+
+    def test_tiny_time_is_straight_line_limit(self) -> None:
+        t = 1e-6  # s, so n t ~ 1e-9
+        dv1, _ = guid.hcw_two_impulse(self.R0, self.V0, t, self.N)
+        # direct velocity there
+        v_direct = -self.R0 / t
+        assert dv1 == pytest.approx(v_direct - self.V0, rel=1e-5)
+
+
 class Test_plan_hcw_two_impulse:
     # From Curtis example 7.2 above
     R0 = np.array([20, 20, 20]) * KM_TO_M
