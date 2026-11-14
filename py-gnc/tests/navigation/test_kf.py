@@ -135,3 +135,15 @@ class Test_kf_update:
         assert np.array_equal(P, P.T)
         assert np.linalg.eigvalsh(P).min() >= 0
         assert np.linalg.eigvalsh(est.P - P).min() >= -1e-12  # Should get better
+
+    def test_custom_residual_replaces_subtraction(self) -> None:
+        """Angle wrapping: z = 179 deg, z_hat = -179 deg is a -2 deg innovation, not 358."""
+        h, H = linear_h(np.eye(1))
+
+        def wrap_resid_fn(z: np.ndarray, z_hat: np.ndarray) -> np.ndarray:
+            return (z - z_hat + 180.0) % 360.0 - 180.0
+
+        est = Estimate(np.array([-179.0]), np.array([[1.0]]))
+        up = kf_update(est, np.array([179.0]), h, H, np.eye(1), wrap_resid_fn)
+        assert up.innovation == pytest.approx([-2.0])
+        assert up.est.x == pytest.approx([-180.0])  # K = 0.5, moves -1 deg

@@ -1,16 +1,13 @@
-"""Flight computer interface to everything else
-
-Everything it knows arrives through its constructor (configuration and initial
-estimate, loaded "before launch") or through `step(t, z)` (measurements)
-"""
+"""Flight computer interface to everything else"""
 
 from dataclasses import dataclass, field
 
 import numpy as np
 
 from cesium.navigation.kf import Estimate, KfUpdate, kf_propagate_cov, kf_update
-from cesium.navigation.measurements import meas_rel_pos, meas_rel_pos_jac
 from cesium.orbital import hcw
+
+from .measurements import MeasModel, Measurement
 
 
 @dataclass(frozen=True)
@@ -31,36 +28,47 @@ class PositionFcConfig:
 
     n: float
     """Target mean motion [rad/s]"""
-    R: np.ndarray
-    """M noise covariance (3, 3) [m^2]"""
     Q_rate: np.ndarray = field(default_factory=lambda: np.zeros((6, 6)))
     """Process noise added per second of propagation (6, 6); `Q = Q_rate * dt`.
     Zero by default since the truth is exactly HCW for now."""
 
 
 class FlightComputer:
-    """Relative navigation: HCW propagation plus Kalman updates from relative position."""
+    """Relative navigation: HCW propagation plus Kalman updates from tagged measurements."""
 
-    def __init__(self, t0: float, est0: Estimate, config: PositionFcConfig) -> None:
+    def __init__(
+        self,
+        t0: float,
+        est0: Estimate,
+        config: PositionFcConfig,
+        meas_models: dict[str, MeasModel] | None = None,
+    ) -> None:
         self.config = config
         self._t = t0
+
+        self._n = est0.x.shape[0]
+        assert est0.x.shape == (self._n,)
+        assert est0.P.shape == (self._n, self._n)
+
         self._est = Estimate(est0.x.astype(float).copy(), est0.P.astype(float).copy())
+
         self.last_update: KfUpdate | None = None
+        self.meas_models = {} if meas_models is None else dict(meas_models)
 
     ############################################################################
     #               Interface
     ############################################################################
 
-    def step(self, t: float, z: np.ndarray | None) -> Estimate:
-        """Propagate the estimate to `t`, then update with `z` if there is one.
+    def step(self, t: float, meas: list[Measurement] | None) -> Estimate:
+        """Propagate the estimate to `t`, then update once per measurement.
 
         Parameters
         ----------
         t : float
-            Time tag of the measurement [s]
-        z : np.ndarray (3,) or None
-            Relative position measurement [m], or None if no measurement
-            this step (predict only).
+            Time tag of the measurements [s]
+        meas : list[Measurement] or None
+            Measurements taken at `t`, each tagged with a sensor id in `meas_models`.
+            None (or empty) if no sensor fired this step (predict only).
 
         Returns
         -------
@@ -69,11 +77,13 @@ class FlightComputer:
 
         Notes
         -----
-        Measurements are assumed processed in time order with no latency;
+        Measurements are assumed processed in time order with no latency. Several
+        measurements at the same `t` are applied one after another, which equals a
+        single stacked update when their noises are uncorrelated (block-diagonal R).
 
         References
         ----------
-        NASA Navigation Filter Best Practices
+        NASA Navigation Filter Best Practices, Ch. 4 (measurement processing order).
         """
         dt = t - self._t
         if dt < 0:
@@ -85,9 +95,10 @@ class FlightComputer:
             self._est = Estimate(x_next, P_next)
             self._t = t
 
-        if z is not None:
+        for m in meas or []:
+            model = self.meas_models[m.sensor_id]  # KeyError: unknown sensor
             self.last_update = kf_update(
-                self._est, z, meas_rel_pos, meas_rel_pos_jac, self.config.R
+                self._est, m.z, model.h, model.H, model.R, model.residual
             )
             self._est = self.last_update.est
 

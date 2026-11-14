@@ -59,12 +59,18 @@ def kf_propagate_cov(P: np.ndarray, Phi: np.ndarray, Q: np.ndarray) -> np.ndarra
     return 0.5 * (P_next + P_next.T)  # Positve definite
 
 
+def plain_residual(z: np.ndarray, z_hat: np.ndarray) -> np.ndarray:
+    """Default measurement residual `z - z_hat`. Angles need wrapping instead."""
+    return z - z_hat
+
+
 def kf_update(
     est: Estimate,
     z: np.ndarray,
     h: Callable[[np.ndarray], np.ndarray],
     H: Callable[[np.ndarray], np.ndarray],
     R: np.ndarray,
+    residual: Callable[[np.ndarray, np.ndarray], np.ndarray] = plain_residual,
 ) -> KfUpdate:
     """Measurement update (linear, or extended when `h` is nonlinear).
 
@@ -80,6 +86,10 @@ def kf_update(
         Jacobian of `h`, `H(x) -> (M, N)`, evaluated at the prior mean.
     R : np.ndarray (M, M)
         Measurement noise covariance assumed by the filter.
+    residual : Callable
+        `residual(z, z_hat) -> (M,)`, the innovation. Plain subtraction by default;
+        pass an angle-wrapping version for angle measurements (e.g. azimuth) so a
+        179 deg vs -179 deg pair gives -2 deg, not 358 deg.
 
     Returns
     -------
@@ -93,7 +103,7 @@ def kf_update(
     x, P = est.x, est.P
     H_k = H(x)
 
-    innovation = z - h(x)
+    innovation = residual(z, h(x))
     S = H_k @ P @ H_k.T + R
     K = np.linalg.solve(S, H_k @ P).T  # P H^T S^-1, using S and P symmetric
 

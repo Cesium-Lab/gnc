@@ -15,7 +15,7 @@ from numpy.linalg import norm
 
 def meas_rel_pos(x_rsw: np.ndarray) -> np.ndarray:
     """Relative position measurement `z = r_rsw` (3,) [m]."""
-    return x_rsw[0:3]
+    return x_rsw[0:3].copy()
 
 
 def meas_rel_pos_jac(x_rsw: np.ndarray) -> np.ndarray:

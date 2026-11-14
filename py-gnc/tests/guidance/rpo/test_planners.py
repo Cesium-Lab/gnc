@@ -5,7 +5,6 @@ two-body propagation and check the resulting geometry (on the plane, at the apsi
 on the radius, at the target) rather than re-deriving the planner's formula.
 """
 
-from collections.abc import Callable
 from dataclasses import replace
 
 import numpy as np
@@ -267,7 +266,6 @@ def single_pass_miss(rv_chaser: np.ndarray) -> tuple[float, float]:
 
 
 class Test_hcw_rendezvous_nonlinearity:
-
     def test_accurate_close_in(self) -> None:
         """Within ~1 km, one transfer lands within 0.1% of the starting separation."""
         sep0, miss = single_pass_miss(chaser_behind(1e3))
