@@ -24,7 +24,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["cesium", "cesium.*", "csim", "csim.*"]
+include = ["cesium", "cesium.*", "cfsw", "cfsw.*", "csim", "csim.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -34,7 +34,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source_pkgs = ["cesium", "csim"]
+source_pkgs = ["cesium", "cfsw", "csim"]
 branch = true
 
 [tool.coverage.report]
@@ -46,5 +46,13 @@ skip_empty = true
 output = "lcov.info"
 
 [tool.ruff.lint]
-extend-select = ["I", "F403", "RUF022"]
+extend-select = ["I", "F403", "RUF022", "TID251"]
 ignore = ["E741", "RUF013", "B008"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"csim".msg = "cfsw must not see truth and should only get data only through step()"
+
+[tool.ruff.lint.per-file-ignores]
+# The csim ban applies to flight software only
+"!cfsw/**" = ["TID251"]
+

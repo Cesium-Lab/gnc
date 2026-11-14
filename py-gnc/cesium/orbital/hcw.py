@@ -44,6 +44,25 @@ def calc_Phi(t: float, n: float):
     return Phi_rr, Phi_rv, Phi_vr, Phi_vv
 
 
+def calc_stm(t: float, n: float) -> np.ndarray:
+    """Full HCW STM `Phi(t)` (6, 6), so `x(t) = Phi(t) @ x(0)`.
+
+    Parameters
+    ----------
+    t : float
+        Time since the initial relative state [s].
+    n : float
+        Mean motion of the target's circular orbit [rad/s].
+
+    Returns
+    -------
+    Phi : np.ndarray (6, 6)
+        State transtion matrix
+    """
+    Phi_rr, Phi_rv, Phi_vr, Phi_vv = calc_Phi(t, n)
+    return np.block([[Phi_rr, Phi_rv], [Phi_vr, Phi_vv]])
+
+
 def rv_hcw_3d(
     t: float, n: float, r0: np.ndarray, v0: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:

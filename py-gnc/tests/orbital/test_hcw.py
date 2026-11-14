@@ -7,6 +7,7 @@ from cesium.math.integrators import rk4_func
 from cesium.orbital.coes import coes_to_rv
 from cesium.orbital.hcw import (
     calc_Phi,
+    calc_stm,
     hcw_dynamics,
     hcw_pci_to_rsw,
     hcw_rsw_to_pci,
@@ -211,3 +212,33 @@ class Test_rsw_pci:
             r_hcw, abs=1.0
         )  # linearization error ~m at km scale
         assert rv_rel[3:] == pytest.approx(v_hcw, abs=1e-3)
+
+
+################################################################################
+#               Full 6x6 STM
+################################################################################
+
+
+class Test_calc_stm:
+    N = 1.1e-3  # rad/s, roughly low Mars orbit
+
+    def test_identity_at_zero(self) -> None:
+        assert calc_stm(0.0, self.N) == pytest.approx(np.eye(6))
+
+    def test_semigroup(self) -> None:
+        """Phi(t1 + t2) = Phi(t2) Phi(t1): propagating in two legs equals one leg."""
+        assert calc_stm(700.0, self.N) == pytest.approx(
+            calc_stm(100.0, self.N)
+            @ calc_stm(200.0, self.N)
+            @ calc_stm(300.0, self.N)
+            @ calc_stm(100.0, self.N),
+            rel=1e-10,
+            abs=1e-12,
+        )
+
+    def test_is_jacobian_fr(self) -> None:
+        # A is a transformed version
+        A = np.column_stack([hcw_dynamics(e, np.zeros(3), self.N) for e in np.eye(6)])
+        t, eps = 1234.0, 1e-3
+        dPhi = (calc_stm(t + eps, self.N) - calc_stm(t - eps, self.N)) / (2 * eps)
+        assert dPhi == pytest.approx(A @ calc_stm(t, self.N), rel=1e-6, abs=1e-12)
