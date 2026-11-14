@@ -110,9 +110,13 @@ class Test_plan_plane_change:
         r_node = coast(self.CHASER.to_rv(MU), dt)[0:3]
 
         # At the node the chaser lies in both planes, along n_hat
-        assert unit(r_node) @ unit(TARGET.h(MU)) == pytest.approx(0.0, abs=1e-9)  # on target plane
-        assert unit(r_node) @ unit(self.CHASER.h(MU)) == pytest.approx(0.0, abs=1e-9)  # on chaser plane
-        
+        assert unit(r_node) @ unit(TARGET.h(MU)) == pytest.approx(
+            0.0, abs=1e-9
+        )  # on target plane
+        assert unit(r_node) @ unit(self.CHASER.h(MU)) == pytest.approx(
+            0.0, abs=1e-9
+        )  # on chaser plane
+
         assert unit(r_node) == pytest.approx(n_hat, abs=1e-9)
 
 
@@ -137,7 +141,7 @@ class Test_plan_hohmann_from_apsis:
     @pytest.mark.parametrize("ta", [0.0, np.pi], ids=["periapsis", "apoapsis"])
     def test_burns_circularize_on_target_radius(self, ta: float) -> None:
         chaser = COES(a=3780e3, e=0.01, i=0.6, raan=0.1, aop=0.4, ta=ta)
-        at_periapsis = (ta == 0.0)
+        at_periapsis = ta == 0.0
         dv_a, dt_trans, dv_b = plan_hohmann_from_apsis(
             chaser, A_TARGET, at_periapsis, MU
         )
@@ -156,12 +160,11 @@ class Test_plan_hohmann_from_apsis:
 
 
 class Test_plan_enter_phasing:
-
     @pytest.mark.parametrize("lead_deg", [-20.0, 15.0], ids=["behind", "ahead"])
     @pytest.mark.parametrize("k_phase", [1, 3])
     def test_meets_target_after_phasing(self, lead_deg: float, k_phase: int) -> None:
         """Scenario
-        
+
         Same circular orbit, chaser offset in anomaly: after the entry burn and
         `dt_ph` of coasting, the chaser is at the target's (independently propagated)
         position."""

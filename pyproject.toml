@@ -2,7 +2,7 @@
 exclude = [
 #     "extras",
 #     "estimation",
-    # "projects/mars-courier/presentation/**/*.py"
+    "projects/mars-courier/presentation/**/*.py"
 ]
 include = [
     "py-gnc/**/*.py",
