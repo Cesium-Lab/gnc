@@ -11,6 +11,7 @@ dependencies = ["numpy", "scipy", "pandas"]
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-cov",
     "ruff==0.17.3",
     "tqdm",
     "ipykernel",
@@ -31,6 +32,18 @@ addopts = "-ra -m 'not slow'"
 markers = [
     "slow: long-running fixed-step integration tests",
 ]
+
+[tool.coverage.run]
+source_pkgs = ["cesium", "csim"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+skip_empty = true
+
+[tool.coverage.lcov]
+output = "lcov.info"
 
 [tool.ruff.lint]
 extend-select = ["I", "F403", "RUF022"]

@@ -33,7 +33,7 @@ from ..world.constants import (
     W_EARTH,
     W_MARS,
 )
-from .CIP.parse import get_summation, import_table
+from .CIP.parse import approx_5th_deg_spline, get_summation, import_table
 
 ################################################################################
 #               Intermediate
@@ -834,31 +834,6 @@ The crux of it is that `r_gcrs = [P(t)][N(t)][R(t)][W(t)] @ r_itrf` where:
 
 Might be faster to do IAU-76/FK5 Reduction though
 """
-
-
-def approx_5th_deg_spline(t_tt, coeffs):
-    """Evaluate the 5th-degree polynomial part of the IAU 2006 CIP series.
-
-    Parameters
-    ----------
-    t_tt : float
-        Julian centuries since J2000 in Terrestrial Time (TT).
-    coeffs : array_like (6,)
-        Polynomial coefficients, constant term first [microarcsec].
-
-    Returns
-    -------
-    float
-        Polynomial value [microarcsec].
-    """
-    return (
-        coeffs[0]
-        + coeffs[1] * t_tt
-        + coeffs[2] * t_tt**2
-        + coeffs[3] * t_tt**3
-        + coeffs[4] * t_tt**4
-        + coeffs[5] * t_tt**5
-    )
 
 
 """

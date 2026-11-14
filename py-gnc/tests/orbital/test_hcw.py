@@ -32,14 +32,6 @@ def test_vallado_hubble():
     assert np.allclose(v_m, [-0.10, 0.27, -0.01], atol=0.01)
 
 
-def test_curtis_example_7_2():
-    """Targeting"""
-
-
-def test_curtis_example_7_3():
-    """Targeting"""
-
-
 # problems 1,2,5
 def test_curtis_problem_7_7():
     r0 = np.array([1, 0, 0]) * KM_TO_M
