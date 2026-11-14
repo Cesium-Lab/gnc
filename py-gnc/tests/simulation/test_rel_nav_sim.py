@@ -129,10 +129,20 @@ class Test_noisy_sensor:
 
     def test_estimate_beats_raw_measurement(self) -> None:
         """Filtering many measurements should be far better than any single one."""
+        sensor = RelPosSensor(self.R, np.random.default_rng(3))
         res = run_sim_and_fc(
-            RelPosSensor(self.R, np.random.default_rng(3)), self.R, 300
+            sensor, self.R, 500
         )
-        assert np.linalg.norm(res.err[-1, 0:3]) < 0.5 * np.sqrt(np.trace(self.R))
+
+        # Over 500 measurements
+        end = slice(100, None)  # skip convergence from P0
+        meas_err = res.z[end] - res.x_true[end, 0:3]
+        est_err = res.err[end, 0:3]
+
+        rms_meas = np.sqrt(np.nanmean(np.sum(meas_err**2, axis=1)))  # ~ sqrt(trace R) = 3.46 m
+        rms_est = np.sqrt(np.mean(np.sum(est_err**2, axis=1)))
+        assert rms_est < 0.2 * rms_meas  # 5x better
+
 
 
 ################################################################################
