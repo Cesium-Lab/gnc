@@ -3,7 +3,7 @@ import pytest
 
 from cesium.constants import ARCSEC_TO_DEG, KM_TO_M, RAD_TO_DEG
 from cesium.math.time import greg_to_jd
-from cesium.orbital.ephemeris import planet_elements_and_rv
+from cesium.orbital.ephemeris import j2000_planetary_elements, planet_elements_and_rv
 
 
 def test_curtis_example_8_7():
@@ -108,3 +108,38 @@ def test_vallado_example_12_8():
     assert saturn_v_HCI / KM_TO_M == pytest.approx(
         [-0.148850, -9.684595, 0.175045], rel=1e-1
     )  # Uh.
+
+
+class Test_j2000_planetary_elements:
+    @pytest.mark.parametrize("planet_id", range(1, 9))
+    def test_mean_motion_follows_keplers_third_law(self, planet_id: int) -> None:
+        """Rates vs elements: P [yr] = a [AU]^1.5, so L_dot ~ 360 * 100 / a^1.5 deg/cty.
+
+        Independent of how either table was typed in. Holds to <1e-3 (planet masses
+        and the sidereal-vs-Julian year make up the rest; largest for the giants).
+        """
+        elements, rates = j2000_planetary_elements(planet_id)
+        assert rates[5] == pytest.approx(36000 / elements[0] ** 1.5, rel=1e-3)
+
+    @pytest.mark.parametrize("planet_id", range(1, 9))
+    def test_elements_are_bound_ellipses(self, planet_id: int) -> None:
+        a, e, i, *_ = j2000_planetary_elements(planet_id)[0]
+        assert 0 <= e < 0.25  # Mercury is the most eccentric, 0.2056
+        assert abs(i) < 8  # deg; Mercury is the most inclined, 7.005
+        assert a > 0
+
+    def test_semi_major_axes_increase_outward(self) -> None:
+        a = [j2000_planetary_elements(p)[0][0] for p in range(1, 9)]
+        assert a == sorted(a)
+        assert a[2] == pytest.approx(1.0, abs=1e-5)  # Earth-Moon barycenter: 1 AU
+
+    def test_returns_copies(self) -> None:
+        elements, rates = j2000_planetary_elements(3)
+        elements[0], rates[0] = -1.0, -1.0
+        assert j2000_planetary_elements(3)[0][0] > 0
+        assert j2000_planetary_elements(3)[1][0] > 0
+
+    @pytest.mark.parametrize("planet_id", [0, 9, -1])
+    def test_rejects_unknown_planet(self, planet_id: int) -> None:
+        with pytest.raises(ValueError):
+            j2000_planetary_elements(planet_id)

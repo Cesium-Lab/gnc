@@ -29,6 +29,43 @@ jobs:
         run: |
           python -m pytest py-gnc -v -o addopts= -m ""
 
+  coverage:
+    runs-on: ubuntu-24.04  # lcov 2.x: run_coverage.sh uses its --ignore-errors categories
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: py-gnc/pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y lcov
+          python -m pip install --upgrade pip
+          python -m pip install -e "./py-gnc[dev]"
+
+      - name: Run tests with coverage
+        run: ./run_coverage.sh
+
+      - name: Coverage summary
+        if: always()
+        working-directory: py-gnc
+        run: python -m coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload LCOV report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: |
+            py-gnc/lcov-html
+            py-gnc/lcov.info
+
   lint-everything:
     runs-on: ubuntu-latest
 

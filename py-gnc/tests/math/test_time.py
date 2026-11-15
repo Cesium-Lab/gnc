@@ -129,3 +129,30 @@ def test_jd_tt_to_utc_offset():
     assert (
         jd_tt - T.jd_tt_to_utc(jd_tt, tai_minus_utc_s=36.0)
     ) * 86400 == pytest.approx(68.184, abs=1e-4)
+
+
+class Test_mjd:
+    def test_mjd_epoch_is_1858_nov_17(self) -> None:
+        """MJD 0 is 1858-11-17 00:00 by definition (MJD = JD - 2400000.5)."""
+        assert T.jd_to_mjd(T.greg_to_jd(1858, 11, 17, 0, 0, 0)) == pytest.approx(0.0)
+
+    def test_j2000(self) -> None:
+        """J2000 = JD 2451545.0 = 2000-01-01 12:00, so MJD 51544.5."""
+        assert T.jd_to_mjd(2451545.0) == 51544.5
+        assert T.mjd_to_jd(51544.5) == 2451545.0
+
+    def test_round_trip(self) -> None:
+        jd = 2463000.123
+        assert T.mjd_to_jd(T.jd_to_mjd(jd)) == pytest.approx(jd, abs=1e-9)
+
+
+def test_julian_centuries_to_jd() -> None:
+    """One Julian century is 36525 days after J2000; inverse of jd_to_julian_centuries."""
+    assert T.julian_centuries_to_jd(0.0) == 2451545.0
+    assert T.julian_centuries_to_jd(1.0) == 2451545.0 + 36525.0
+
+    # roundtrip
+    jd = 2463000.123
+    assert T.julian_centuries_to_jd(T.jd_to_julian_centuries(jd)) == pytest.approx(
+        jd, abs=1e-6
+    )

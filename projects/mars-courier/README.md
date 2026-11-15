@@ -69,6 +69,10 @@ from this folder, or set `RERUN_STAGES = True` in `summary.ipynb`. Add `--interp
 - [ ] Arrival
   - [ ] high-ellipse capture with the plane change near apoapsis
   - [ ] Ascent with atmospheric approximation based on density and velocity
+- [ ] Energy consistency checks across stages (tests)
+  - [ ] Departure: C3 = 2E = v_inf^2 at the escape burn matches `interplanetary-<mission>`
+  - [ ] Arrival: E = v_inf^2 / 2 before capture matches the Lambert arrival v_inf; E = -mu / (2 a_target) after
+  - Checks that the stages agree with each other, not just each with itself
 - [ ] Ground Segment
   - [ ] Link budget
 

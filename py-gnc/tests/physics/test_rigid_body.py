@@ -120,7 +120,7 @@ class TestRigidBodyDeriv:
     def test_random_nonsense(self):
         params = {
             "mass": 17,
-            "I": np.array([[15, 0.5, 0.5], [0.1, 15, 0], [0, 3, 4]]),
+            "I": np.array([[15, 0.1, 0.5], [0.1, 15, 3], [0.5, 3, 4]]),
             "force_I": [12.0, 200.0, 14.0],
             "torque_B": [0.4, 0.2, 0.7],
         }
@@ -162,12 +162,14 @@ class TestRigidBodyDeriv:
             dot[6:10], [-2.165, 0.595, 0.40500000000000014, 1.165], atol=1e-12
         )
 
-        # wack one
-        assert np.allclose(
-            dot[10:14],
-            [6.1567301516750925, -4.715818201011166, 6.225913650758373],
-            atol=1e-12,
-        )
+        # Euler: w_dot = I^-1 (tau - w x I w), by hand with the adjugate (no numpy):
+        #   I w           = [32.074, 57.86, 24.5]
+        #   w x I w       = [-126.7372, 63.90048, 15.00764]
+        #   tau - w x I w = [127.1372, -63.70048, -14.30764]
+        #   det(I) = 761.51,  adj(I) = [[51, 1.1, -7.2], [1.1, 59.75, -44.95],
+        #                               [-7.2, -44.95, 224.99]]
+        #   w_dot = adj @ rhs / det = [8.557920, -3.969908, -1.669219]
+        assert dot[10:13] == pytest.approx([8.557920, -3.969908, -1.669219], abs=1e-6)
 
 
 class TestRigidBodyRk4Integration:
@@ -463,13 +465,13 @@ class TestRigidBodyEnergy:
         assert calc_total_energy(mass, I, r, v, w0, MU_EARTH) == 0
         next_step = propagate(dt, dt, state, params)
 
-        w_dot = np.linalg.inv(I) @ (torque - np.cross(w0, I @ w0))
-        w = w0 + dt * w_dot
-        KE = 0.5 * w.T @ I @ w
-
+        # Hand calc: from rest, w = dt * tau / I_diag (gyroscopic term ~ w^2 is negligible)
+        #   w  = 0.001 * [12/200, 15/100, 16/400]          = [6.0e-5, 1.5e-4, 4.0e-5] rad/s
+        #   KE = 0.5 * (200*6e-5^2 + 100*1.5e-4^2 + 400*4e-5^2) = 1.805e-6 J
+        assert next_step[10:13] == pytest.approx([6.0e-5, 1.5e-4, 4.0e-5], rel=1e-4)
         assert calc_total_energy(
             mass, I, next_step[0:3], next_step[3:6], next_step[10:13], MU_EARTH
-        ) == pytest.approx(KE, rel=0.0001)
+        ) == pytest.approx(1.805e-6, rel=1e-4)
 
 
 def test_no_I_returns_3DOF():

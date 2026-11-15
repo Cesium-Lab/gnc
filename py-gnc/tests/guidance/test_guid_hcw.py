@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
 from numpy.linalg import norm
+from scipy.integrate import solve_ivp
 
 import cesium.guidance as guid
 from cesium.constants import HOUR_TO_SEC, KM_TO_M
-from cesium.orbital.hcw import calc_Phi
+from cesium.orbital.hcw import hcw_dynamics
 from cesium.world import MU_EARTH, R_EARTH
 
 
@@ -43,6 +44,33 @@ class Test_hcw_two_impulse:
         assert dv == pytest.approx(0.2452, abs=1e-4)
 
 
+class Test_hcw_two_impulse_bad_times:
+    """Transfer times where HCW targeting has no feasible solution."""
+
+    N = 1.1e-3  # rad/s, roughly low Mars orbit
+    R0 = np.array([200.0, -3000.0, 50.0])  # m
+    V0 = np.array([0.1, 0.3, -0.02])  # m/s
+
+    @pytest.mark.parametrize("t", [0.0, -60.0])
+    def test_rejects_nonpositive_time(self, t: float) -> None:
+        with pytest.raises(ValueError, match="positive"):
+            guid.hcw_two_impulse(self.R0, self.V0, t, self.N)
+
+    @pytest.mark.parametrize("k", [1, 2, 3, 4], ids=["half", "full", "1.5", "2"])
+    def test_rejects_multiples_of_half_period(self, k: int) -> None:
+        """n t = k pi: cross-track uncontrollable (sin(n t) = 0) for every k, and
+        in-plane too for even k."""
+        with pytest.raises(ValueError, match="singular"):
+            guid.hcw_two_impulse(self.R0, self.V0, k * np.pi / self.N, self.N)
+
+    def test_tiny_time_is_straight_line_limit(self) -> None:
+        t = 1e-6  # s, so n t ~ 1e-9
+        dv1, _ = guid.hcw_two_impulse(self.R0, self.V0, t, self.N)
+        # direct velocity there
+        v_direct = -self.R0 / t
+        assert dv1 == pytest.approx(v_direct - self.V0, rel=1e-5)
+
+
 class Test_plan_hcw_two_impulse:
     # From Curtis example 7.2 above
     R0 = np.array([20, 20, 20]) * KM_TO_M
@@ -62,11 +90,16 @@ class Test_plan_hcw_two_impulse:
     def test_burns_rendezvous_at_target(self):
         """After burn 1 the chaser reaches the origin at t_trans; burn 2 zeroes its velocity."""
         burn1, burn2 = guid.plan_hcw_two_impulse(self.R0, self.V0, self.T_TRANS, self.N)
-        Phi_rr, Phi_rv, Phi_vr, Phi_vv = calc_Phi(self.T_TRANS, self.N)
-        v_after_1 = self.V0 + burn1.dv
-
-        r_f = Phi_rr @ self.R0 + Phi_rv @ v_after_1
-        v_f = Phi_vr @ self.R0 + Phi_vv @ v_after_1
+        # Independent of the STM the planner used: integrate the HCW ODE numerically
+        sol = solve_ivp(
+            lambda _, x: hcw_dynamics(x, np.zeros(3), self.N),
+            (0.0, self.T_TRANS),
+            np.concatenate((self.R0, self.V0 + burn1.dv)),
+            method="DOP853",
+            rtol=1e-12,
+            atol=1e-9,
+        )
+        r_f, v_f = sol.y[0:3, -1], sol.y[3:6, -1]
 
         assert np.allclose(r_f, burn2.r, atol=1e-6)
         assert np.allclose(burn2.r, 0.0, atol=1e-6)

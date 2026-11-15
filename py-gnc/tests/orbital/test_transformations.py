@@ -6,11 +6,13 @@ import cesium.orbital.transformations as Trans
 from cesium.constants import (
     ARCSEC_TO_RAD,
     DEG_TO_RAD,
+    J2000_JD,
     KM_TO_M,
     M_TO_KM,
     RAD_TO_ARCSEC,
     RAD_TO_DEG,
 )
+from cesium.math.base import unit
 from cesium.math.time import greg_to_jd
 from cesium.world.constants import R_MARS, W_MARS
 
@@ -563,10 +565,29 @@ def test_MCMF_from_MCI_sidereal_day():
         Trans.calc_dcm_mcmf_wrt_mci(jd + sidereal_day_days),
         atol=1e-9,
     )
-    assert np.allclose(
-        Trans.calc_dcm_mcmf_wrt_eci(jd),
-        Trans.calc_dcm_mcmf_wrt_mci(jd) @ Trans.calc_dcm_mci_wrt_eci(jd),
-    )
+
+
+def test_MCMF_axes_from_iau_definitions():
+    """Build Mars-fixed axes in ECI from the IAU geometry, with no DCM sequence.
+
+    z = pole at (RA, Dec); the node N = z_ECI x pole is where W is measured from;
+    the prime meridian x is N rotated by W east about the pole; y = z x x.
+    """
+    jd = J2000_JD + 1.0
+    ra, dec = (
+        317.68143 * DEG_TO_RAD,
+        52.88650 * DEG_TO_RAD,
+    )  # rates over 1 day negligible
+    w = 167.52198226 * DEG_TO_RAD  # 176.630 + 350.89198226 * 1 day, mod 360
+
+    pole = np.array([np.cos(dec) * np.cos(ra), np.cos(dec) * np.sin(ra), np.sin(dec)])
+    node = unit(np.cross([0.0, 0.0, 1.0], pole))
+    x_vec = np.cos(w) * node + np.sin(w) * np.cross(pole, node)
+    axes_expected = np.vstack(
+        (x_vec, np.cross(pole, x_vec), pole)
+    )  # rows = MCMF axes in ECI
+
+    assert Trans.calc_dcm_mcmf_wrt_eci(jd) == pytest.approx(axes_expected, abs=1e-6)
 
 
 class Test_mci_mcmf_states:
@@ -608,7 +629,21 @@ class Test_mci_mcmf_states:
         # JD float resolution (~40 us) limits the finite difference to ~mm/s here
         assert np.allclose(v_mcmf, v_fd, rtol=0, atol=5e-2)
 
-    def test_position_part_matches_dcm(self):
-        r_mci = np.array([3.1e6, -2.4e6, 1.7e6])
-        r_mcmf, _ = Trans.mci_to_mcmf(r_mci, np.zeros(3), self.JD)
-        assert np.allclose(r_mcmf, Trans.calc_dcm_mcmf_wrt_mci(self.JD) @ r_mci)
+    def test_position_on_prime_meridian_and_pole(self):
+        """Hand calc at J2000 + 1 day: W = 176.630 + 350.89198226 = 167.52198226 deg.
+
+        The prime meridian on the equator sits at angle W from the MCI x-axis, so it
+        maps to MCMF +x; the pole (MCI z) is the rotation axis, so it is unchanged.
+        """
+        jd = J2000_JD + 1.0
+        w = 167.52198226 * DEG_TO_RAD
+        r_eq = 3.3962e6  # m, Mars equatorial radius
+        r_meridian_mci = r_eq * np.array([np.cos(w), np.sin(w), 0.0])
+
+        # Equator
+        r_mcmf, _ = Trans.mci_to_mcmf(r_meridian_mci, np.zeros(3), jd)
+        assert r_mcmf == pytest.approx([r_eq, 0.0, 0.0], abs=1e-3)
+
+        # Pole should be unchanged
+        r_pole_mcmf, _ = Trans.mci_to_mcmf(np.array([0.0, 0.0, r_eq]), np.zeros(3), jd)
+        assert r_pole_mcmf == pytest.approx([0.0, 0.0, r_eq], abs=1e-6)

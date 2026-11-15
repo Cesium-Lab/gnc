@@ -145,7 +145,7 @@ def j2000_planetary_elements(planet_id: int) -> tuple[np.ndarray, np.ndarray]:
     Raises
     ------
     ValueError
-        If `planet_id` is not in 1 through 9.
+        If `planet_id` is not in 1 through 8.
 
     References
     ----------

@@ -27,7 +27,7 @@ planetary_effect_cols = [
 
 
 @cache
-def import_table(filename: str):
+def import_table(filename: str) -> tuple[np.ndarray, list[np.ndarray]]:
     """Parse an IERS Conventions Table 5.2 file (CIP X, Y, or s series).
 
     Parameters

@@ -244,7 +244,6 @@ def orbit_sweep(coes: COES, d_ta: float, mu: float = MU_EARTH) -> tuple[COES, fl
     return coes.with_ta(ta_new), dM / coes.n(mu)
 
 
-# TODO: test
 def kepler_eq_p(dt: float, p: float, mu=MU_EARTH):
     """Vallado 4e, Algorithm 3 (KepEqtnP), p. 69"""
     n_p = 2 * np.sqrt(mu / (p**3))
@@ -254,36 +253,61 @@ def kepler_eq_p(dt: float, p: float, mu=MU_EARTH):
     return B
 
 
-# TODO: test
-def kepler_eq_h(M: float, e: float, tol=1e-9, max_iter=100):
-    """Vallado 4e, Algorithm 4 (KepEqtnH), p. 71"""
+# def kepler_eq_h(M: float, e: float, tol: float = 1e-9, max_iter: int = 100) -> float:
+#     """Solve the hyperbolic Kepler equation `M = e*sinh(H) - H` with Newton-Raphson.
 
-    if not (e > 1):
-        raise ValueError("Kepler solver requires e > 1")
+#     Parameters
+#     ----------
+#     M : float
+#         Hyperbolic mean anomaly [rad]; any real value (not periodic).
+#     e : float
+#         Eccentricity, `e > 1`.
+#     tol : float, optional
+#         Convergence tolerance on successive `H` iterates. Default is 1e-9.
+#     max_iter : int, optional
+#         Maximum number of iterations. Default is 100.
 
-    # Initial guesses
-    if e < 1.6:
-        if (M > -np.pi and M < 0) or (M > np.pi):
-            H_n = M - e
-        else:
-            H_n = M + e
-    elif e < 3.6 and abs(M) > np.pi:
-        if (M > -np.pi and M < 0) or (M > np.pi):
-            H_n = M - np.sign(M) * e
-        else:
-            H_n = M / (e + 1)
+#     Returns
+#     -------
+#     H : float
+#         Hyperbolic anomaly, same sign as `M` (not wrapped: H is not an angle).
 
-    for _ in range(max_iter):
-        H_guess = H_n + (M + H_n - e * np.sinh(H_n)) / (e * np.cosh(H_n) - 1)
+#     Raises
+#     ------
+#     ValueError
+#         If `e <= 1` or the iteration does not converge.
 
-        if np.abs(H_guess - H_n) < tol:
-            return H_guess % (2 * np.pi)
-        H_n = H_guess
+#     References
+#     ----------
+#     Vallado 4e, Algorithm 4 (KepEqtnH), p. 71.
+#     """
 
-    raise ValueError(f"Did not converge for {M=}, {e=}")
+#     if not (e > 1):
+#         raise ValueError("Kepler solver requires e > 1")
+
+#     # Initial guesses
+#     if e < 1.6:
+#         H_n = M - e if (-np.pi < M < 0) or M > np.pi else M + e
+#     elif e < 3.6 and abs(M) > np.pi:
+#         H_n = M - np.sign(M) * e
+#     else:
+#         H_n = M / (e - 1)
+
+#     # Far out on the hyperbola e*sinh(H) dominates, so H ~ asinh(M / e). Vallado's
+#     # guesses above overshoot there and Newton only gains ~1 per iteration.
+#     if abs(M) > 2 * np.pi:
+#         H_n = np.arcsinh(M / e)
+
+#     for _ in range(max_iter):
+#         H_guess = H_n + (M + H_n - e * np.sinh(H_n)) / (e * np.cosh(H_n) - 1)
+
+#         if np.abs(H_guess - H_n) < tol:
+#             return float(H_guess)
+#         H_n = H_guess
+
+#     raise ValueError(f"Did not converge for {M=}, {e=}")
 
 
-# TODO: test
 def pkepler(
     r0: np.ndarray, v0: np.ndarray, dt: float, mu=MU_EARTH, r_cb=0.0, j2=0.0
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -586,8 +610,8 @@ class COES:
     def __iter__(self):
         return iter(self.elements())
 
-    def to_rv(self, mu: float) -> tuple[np.ndarray, np.ndarray]:
-        """Inertial position and velocity with `coes_to_rv` [m, m/s]."""
+    def to_rv(self, mu: float) -> np.ndarray:
+        """(6,) inertial state `[r, v]` with `coes_to_rv` [m, m/s]."""
         return np.concatenate(coes_to_rv(*self.elements(), mu=mu))
 
     def to_r_and_v(self, mu: float) -> tuple[np.ndarray, np.ndarray]:

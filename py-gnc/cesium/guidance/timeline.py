@@ -11,7 +11,7 @@ from .maneuvers import Burn
 
 
 class RpoTimeline:
-    """Chaser and target propagated together; every coast continues from the last state.
+    """Chaser and target that can be propagated
 
     `coast` propagates both spacecraft from the latest state and `burn` applies an
     impulsive delta-v to the chaser's latest state, so each burn can be planned
