@@ -28,7 +28,7 @@ include = ["cesium", "cesium.*", "cfsw", "cfsw.*", "csim", "csim.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -m 'not slow'"
+addopts = "-ra -m 'not slow' --import-mode=importlib"
 markers = [
     "slow: long-running fixed-step integration tests",
 ]

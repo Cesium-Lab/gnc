@@ -1,4 +1,8 @@
-"""Closed navigation loop: csim truth + sensor driving the cfsw flight computer."""
+"""Closed navigation loop: csim truth + sensors driving the cfsw flight computer.
+
+Does the filter actually work in the loop? Convergence, consistency (NEES) and
+measurement-rate behavior. Loop bookkeeping is tested in `tests/csim`.
+"""
 
 import numpy as np
 import pytest
@@ -9,7 +13,7 @@ from cesium.navigation.measurements import meas_rel_pos, meas_rel_pos_jac
 from cesium.world.constants import MU_MARS, R_MARS
 from cfsw.flight_computer import FlightComputer, PositionFcConfig
 from cfsw.measurements import MeasModel
-from csim.rel_nav_sim import RelNavSim, propagate_truth
+from csim.rel_nav_sim import RelNavSim
 from csim.types import SimResult, SimSensor, TruthPropType
 
 N = np.sqrt(MU_MARS / (R_MARS + 300e3) ** 3)  # 300 km circular Mars orbit [rad/s]
@@ -51,19 +55,6 @@ def nees(res: SimResult, k: int) -> float:
 
 
 ################################################################################
-#               Truth propagation
-################################################################################
-
-
-class Test_truth_propagation:
-    def test_rk4_agrees_with_stm(self) -> None:
-        """Two independent propagators of the same dynamics agree over one step."""
-        x_stm = propagate_truth(X0_TRUE, DT, N, TruthPropType.STM)
-        x_rk4 = propagate_truth(X0_TRUE, DT, N, TruthPropType.RK4)
-        assert x_rk4 == pytest.approx(x_stm, rel=1e-10, abs=1e-10)
-
-
-################################################################################
 #               Perfect sensor (sanity check)
 ################################################################################
 
@@ -78,7 +69,8 @@ class Test_perfect_sensor:
         assert res.err[-1, 3:6] == pytest.approx(np.zeros(3), abs=1e-9)  # m/s
 
     def test_rk4_truth_estimate_converges_within_integration_error(self) -> None:
-        """RK4 truth vs STM filter: a tiny modeling/propagation mismatch, so a looser but still tight lock."""
+        """RK4 truth vs STM filter: a tiny modeling/propagation mismatch, so a looser
+        but still tight lock."""
         res = run_test_sim_and_fc(
             rel_pos_sensor(), self.R_FILTER, 2000, truth_prop=TruthPropType.RK4
         )
@@ -163,35 +155,6 @@ class Test_measurement_rate:
             else:
                 assert var_s[k] > var_s[k - 1]  # predict only
 
-    def test_missing_measurements_logged_as_nan(self) -> None:
-        res = run_test_sim_and_fc(rel_pos_sensor(every=5), 1e-6 * np.eye(3), 10)
-        has_z = ~np.isnan(res.z[ID]).any(axis=1)
-        assert has_z.tolist() == [k % 5 == 0 for k in range(11)]
-
-
-################################################################################
-#               Result format
-################################################################################
-
-
-class Test_result:
-    def test_shapes_and_times(self) -> None:
-        res = run_test_sim_and_fc(rel_pos_sensor(), 1e-6 * np.eye(3), 20)
-        assert res.t == pytest.approx(DT * np.arange(21))
-        assert res.x_true.shape == (21, 6)
-        assert res.z[ID].shape == (21, 3)
-        assert res.x_est.shape == (21, 6)
-        assert res.P.shape == (21, 6, 6)
-
-    def test_noisy_sensor_requires_rng(self) -> None:
-        with pytest.raises(ValueError, match="rng"):
-            SimSensor(ID, meas_rel_pos, R_true=np.eye(3))
-
-    def test_sensor_ids_must_be_unique(self) -> None:
-        fc = FlightComputer(0.0, Estimate(X0_TRUE, P0), PositionFcConfig(N))
-        with pytest.raises(ValueError, match="unique"):
-            RelNavSim(X0_TRUE, N, DT, fc, [rel_pos_sensor(), rel_pos_sensor()])
-
 
 ################################################################################
 #               Multiple sensors
@@ -199,29 +162,16 @@ class Test_result:
 
 
 class Test_multiple_sensors:
-    R = 1e-6 * np.eye(3)
-
-    def run_two(self, n_steps: int) -> SimResult:
-        """'fast' fires every step, 'slow' every 3rd; both measure relative position."""
+    def test_two_perfect_sensors_at_different_rates_converge(self) -> None:
+        R = 1e-6 * np.eye(3)
         fast = SimSensor("fast", meas_rel_pos)
         slow = SimSensor("slow", meas_rel_pos, every=3)
         models = {
-            "fast": MeasModel(meas_rel_pos, meas_rel_pos_jac, self.R),
-            "slow": MeasModel(meas_rel_pos, meas_rel_pos_jac, self.R),
+            "fast": MeasModel(meas_rel_pos, meas_rel_pos_jac, R),
+            "slow": MeasModel(meas_rel_pos, meas_rel_pos_jac, R),
         }
         fc = FlightComputer(
             0.0, Estimate(X0_TRUE + X0_ERR, P0), PositionFcConfig(N), models
         )
-        return RelNavSim(X0_TRUE, N, DT, fc, [fast, slow]).run(n_steps)
-
-    def test_each_sensor_logged_at_its_own_rate(self) -> None:
-        res = self.run_two(9)
-        assert set(res.z) == {"fast", "slow"}
-        assert (~np.isnan(res.z["fast"]).any(axis=1)).all()
-        assert (~np.isnan(res.z["slow"]).any(axis=1)).tolist() == [
-            k % 3 == 0 for k in range(10)
-        ]
-
-    def test_two_perfect_sensors_converge(self) -> None:
-        res = self.run_two(200)
+        res = RelNavSim(X0_TRUE, N, DT, fc, [fast, slow]).run(200)
         assert res.err[-1, 0:3] == pytest.approx(np.zeros(3), abs=1e-6)
